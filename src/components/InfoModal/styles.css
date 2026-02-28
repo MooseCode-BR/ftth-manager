@@ -1,0 +1,41 @@
+/* Overlay e Card */
+.info-log-overlay {
+    @apply fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-[70] p-4;
+}
+
+.info-log-card {
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-xs p-5 animate-in zoom-in-95 border dark:border-gray-700;
+}
+
+/* Cabeçalho */
+.log-header {
+    @apply font-bold text-gray-800 dark:text-white mb-3 flex items-center gap-2;
+}
+
+.header-icon {
+    @apply text-blue-500;
+}
+
+/* Área de Conteúdo (Scroll) */
+.log-content-area {
+    @apply text-sm text-gray-600 dark:text-gray-300 space-y-2 mb-4 max-h-60 overflow-y-auto border-l-2 border-slate-200 dark:border-gray-600 pl-2 ml-1;
+}
+
+/* Estados do Texto */
+.empty-message {
+    @apply text-gray-400 italic;
+}
+
+.log-line-normal {
+    /* Estilo base herdado do pai, mas pode ser explícito se quiser */
+    @apply text-gray-600 dark:text-gray-300;
+}
+
+.log-line-latest {
+    @apply font-bold text-slate-800 dark:text-white;
+}
+
+/* Botão Fechar */
+.btn-close-log {
+    @apply w-full py-2 bg-slate-100 dark:bg-gray-700 text-slate-700 dark:text-gray-200 hover:bg-slate-200 dark:hover:bg-gray-600 rounded font-medium text-sm transition-colors;
+}

@@ -1,0 +1,26 @@
+/* style.css */
+
+.alert-overlay {
+    /* Note o z-[100] e o blur específico deste componente */
+    @apply fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-[100] p-4;
+}
+
+.alert-card {
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-xs p-5 animate-in zoom-in-95 border dark:border-gray-700;
+}
+
+.alert-title {
+    @apply text-lg font-bold text-gray-800 dark:text-white mb-2;
+}
+
+.alert-message {
+    @apply text-sm text-gray-600 dark:text-gray-300 mb-6;
+}
+
+.alert-footer {
+    @apply flex justify-end;
+}
+
+.btn-primary {
+    @apply px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 font-medium;
+}

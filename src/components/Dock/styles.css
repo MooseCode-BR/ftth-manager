@@ -1,0 +1,81 @@
+/* Layout Principal */
+.dock-wrapper {
+    @apply fixed bottom-6 left-1/2 -translate-x-1/2 z-[50] flex flex-col items-center gap-3 w-fit max-w-[95%] md:max-w-none;
+}
+
+/* --- Submenu (Barra superior) --- */
+.dock-submenu-container {
+    /* Mudanças principais:
+       1. 'flex-wrap': permite quebrar linha.
+       2. 'justify-center': centraliza os botões.
+       3. 'rounded-2xl': fica melhor visualmente para 2 linhas do que rounded-full.
+       4. Removido overflow-x-auto e scrollbar-width.
+    */
+    @apply bg-white/90 dark:bg-gray-800/90 backdrop-blur-md p-2 rounded-full shadow-xl border border-gray-200 dark:border-gray-700 flex flex-wrap justify-center gap-2 animate-in slide-in-from-bottom-2 mb-1 max-w-full;
+}
+
+/* O restante das classes abaixo permanece igual, mas coloquei aqui para garantir o contexto */
+.dock-submenu-item {
+    /* flex-grow faz com que os botões preencham espaços vazios para ficar alinhado, se desejar. Caso contrário, mantenha como está. */
+    @apply flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-colors whitespace-nowrap;
+}
+
+.dock-submenu-item {
+    @apply flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold transition-colors whitespace-nowrap;
+}
+
+.submenu-item-active {
+    @apply bg-blue-600 text-white shadow-sm;
+}
+
+.submenu-item-idle {
+    @apply hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300;
+}
+
+/* --- Barra Principal --- */
+.dock-main-bar {
+    @apply w-full flex items-center justify-between gap-3 px-4 py-2 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl rounded-full shadow-2xl border border-white/20 dark:border-gray-700 ring-1 ring-black/5;
+}
+
+.dock-divider {
+    @apply w-px h-5 bg-gray-300 dark:bg-gray-700 mx-0.5;
+}
+
+/* --- Botões do Dock (DockBtn) --- */
+.dock-btn {
+    /* REMOVIDO: 'group' - não pode usar no apply */
+    @apply relative flex flex-col items-center justify-center w-9 h-9 rounded-full transition-all duration-300;
+}
+
+/* Estados do Botão */
+.dock-btn-idle {
+    @apply hover:bg-gray-100 dark:hover:bg-gray-700 hover:-translate-y-0.5;
+}
+
+.dock-btn-active {
+    @apply bg-blue-100 dark:bg-blue-900/50 -translate-y-1 shadow-md scale-110;
+}
+
+/* Ícones e Cores */
+.dock-icon-default {
+    @apply text-gray-600 dark:text-gray-300;
+}
+
+.dock-icon-active {
+    @apply text-blue-600 dark:text-blue-400;
+}
+
+/* Elementos Internos do Botão */
+.dock-active-dot {
+    @apply absolute -bottom-1 w-0.5 h-0.5 bg-blue-500 rounded-full;
+}
+
+.dock-tooltip {
+    /* REMOVIDO: 'group-hover:scale-100' - faremos isso no CSS abaixo */
+    @apply absolute -top-8 scale-0 transition-transform bg-gray-800 text-white text-[9px] px-2 py-0.5 rounded shadow-md whitespace-nowrap pointer-events-none;
+}
+
+/* Esta regra substitui o group-hover */
+.dock-btn:hover .dock-tooltip {
+    @apply scale-100;
+}

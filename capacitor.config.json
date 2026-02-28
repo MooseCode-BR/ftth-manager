@@ -1,0 +1,15 @@
+{
+  "appId": "com.ftthmanager.app",
+  "appName": "FTTH Manager",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
+    }
+  }
+}

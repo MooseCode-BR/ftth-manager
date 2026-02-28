@@ -1,0 +1,111 @@
+/* Overlay e Card */
+.tag-manager-overlay {
+    @apply fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4;
+}
+
+.tag-manager-card {
+    @apply bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 border dark:border-gray-700 flex flex-col max-h-[80vh];
+}
+
+/* Header */
+.card-header {
+    @apply bg-gray-50 dark:bg-gray-900/50 p-4 border-b dark:border-gray-700 flex justify-between items-center;
+}
+
+.header-title {
+    @apply text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2;
+}
+
+.header-icon {
+    @apply text-blue-600;
+}
+
+.btn-close {
+    @apply text-gray-400 hover:text-gray-600 transition-colors;
+}
+
+/* Lista de Tags */
+.tag-list-container {
+    @apply p-4 overflow-y-auto flex-1 space-y-2;
+    /* Adicione custom-scrollbar se tiver global */
+}
+
+.empty-msg {
+    @apply text-center text-sm text-gray-400 py-4;
+}
+
+.tag-row {
+    @apply flex items-center gap-2 p-2 border dark:border-gray-700 rounded bg-gray-50 dark:bg-gray-700/30;
+}
+
+/* Modo Edição (Inputs na linha) */
+.color-input-edit {
+    @apply w-8 h-8 rounded cursor-pointer border-0 p-0;
+}
+
+.name-input-edit {
+    @apply flex-1 border dark:border-gray-600 rounded px-2 py-1 text-sm dark:bg-gray-800 dark:text-white outline-none focus:ring-1 focus:ring-blue-500;
+}
+
+.btn-save-edit {
+    @apply p-1.5 bg-green-100 text-green-600 rounded hover:bg-green-200 transition-colors;
+}
+
+.btn-cancel-edit {
+    @apply p-1.5 text-gray-400 hover:bg-gray-200 rounded transition-colors;
+}
+
+/* Modo Visualização */
+.tag-color-dot {
+    @apply w-4 h-4 rounded-full shrink-0;
+}
+
+.tag-name-text {
+    @apply flex-1 text-sm font-medium dark:text-gray-200;
+}
+
+.btn-edit-action {
+    @apply p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded transition-colors;
+}
+
+.btn-delete-action {
+    @apply p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors;
+}
+
+/* Área de Criação */
+.create-section {
+    @apply p-4 bg-gray-100 dark:bg-gray-900 border-t dark:border-gray-700;
+}
+
+.section-label {
+    @apply text-xs font-bold text-gray-500 uppercase mb-2 block;
+}
+
+.create-form-row {
+    @apply flex gap-2;
+}
+
+/* Custom Color Picker */
+.color-picker-wrapper {
+    @apply relative;
+}
+
+.color-input-hidden {
+    @apply w-10 h-10 p-0 border rounded cursor-pointer opacity-0 absolute top-0 left-0 z-10;
+}
+
+.color-preview-box {
+    @apply w-10 h-10 rounded border border-gray-300 dark:border-gray-600 flex items-center justify-center bg-white dark:bg-gray-800 pointer-events-none;
+}
+
+.color-preview-dot {
+    @apply w-6 h-6 rounded-full border border-gray-200 shadow-sm;
+}
+
+.new-tag-input {
+    @apply flex-1 border dark:border-gray-600 rounded px-3 text-sm dark:bg-gray-800 dark:text-white outline-none focus:ring-1 focus:ring-blue-500;
+}
+
+.btn-create {
+    @apply px-4 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 flex items-center gap-1 text-sm transition-colors;
+}

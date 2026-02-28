@@ -1,0 +1,381 @@
+/* --- Overlay e Card Principal --- */
+.projects-overlay {
+    @apply fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4;
+}
+
+.projects-card {
+    @apply bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 border dark:border-gray-700 flex flex-col max-h-[85vh] relative;
+}
+
+/* --- Header --- */
+.card-header {
+    @apply bg-blue-600 p-4 flex justify-between items-center shrink-0;
+}
+
+.header-title-group {
+    @apply flex items-center gap-2 text-white;
+}
+
+.header-title {
+    @apply font-bold text-lg;
+}
+
+.btn-close-header {
+    @apply text-blue-100 hover:text-white bg-white/10 hover:bg-white/20 p-1 rounded transition-colors;
+}
+
+/* --- Abas --- */
+.tabs-bar {
+    @apply flex border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-900 shrink-0;
+}
+
+.tab-item {
+    @apply flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors relative;
+}
+
+.tab-my-projects {
+    @apply border-blue-500 text-blue-600 dark:text-blue-400;
+}
+
+.tab-shared {
+    @apply border-purple-500 text-purple-600 dark:text-purple-400;
+}
+
+.tab-inbox {
+    @apply border-orange-500 text-orange-600 dark:text-orange-400;
+}
+
+.tab-inactive {
+    @apply border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400;
+}
+
+.badge-notification {
+    @apply absolute top-2 right-4 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center;
+}
+
+/* --- Barra de Seleção em Massa --- */
+.bulk-selection-bar {
+    @apply bg-gray-100 dark:bg-gray-900 px-4 py-2 flex items-center justify-between border-b dark:border-gray-700 text-sm;
+}
+
+.btn-select-all {
+    @apply flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-blue-600;
+}
+
+.bulk-actions-group {
+    @apply flex gap-2 animate-in slide-in-from-right-5 fade-in;
+}
+
+.btn-bulk-share {
+    @apply flex items-center gap-1 bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold hover:bg-indigo-200 transition-colors;
+}
+
+.btn-bulk-transfer {
+    @apply flex items-center gap-1 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold hover:bg-orange-200 transition-colors;
+}
+
+/* --- Área de Conteúdo (Scroll) --- */
+.content-area {
+    @apply p-4 overflow-y-auto flex-1 bg-gray-100 dark:bg-gray-900/50 pb-20;
+    /* Adicione custom-scrollbar se necessário */
+}
+
+.empty-state-msg {
+    @apply text-center text-gray-400 py-8;
+}
+
+/* --- INBOX (Transferências e Convites) --- */
+.inbox-list {
+    @apply space-y-4;
+}
+
+.transfer-card {
+    @apply bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-700/50 flex flex-col gap-3 relative overflow-hidden;
+}
+
+.transfer-indicator {
+    @apply absolute top-0 left-0 w-1 h-full bg-yellow-400;
+}
+
+.transfer-title {
+    @apply text-sm font-bold text-gray-800 dark:text-gray-100;
+}
+
+.transfer-desc {
+    @apply text-xs text-gray-600 dark:text-gray-400 mt-1;
+}
+
+.btn-accept-transfer {
+    @apply w-full bg-yellow-600 hover:bg-yellow-700 text-white py-2 rounded text-xs font-bold mt-1 transition-colors;
+}
+
+.invite-card {
+    @apply bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-orange-200 dark:border-gray-700 flex flex-col gap-3;
+}
+
+.invite-title {
+    @apply text-sm font-bold text-gray-800 dark:text-gray-200;
+}
+
+.invite-desc {
+    @apply text-xs text-gray-500 mt-1;
+}
+
+.btn-accept-invite {
+    @apply flex-1 bg-green-600 text-white py-1.5 rounded text-xs font-bold transition-colors;
+}
+
+.btn-reject-invite {
+    @apply flex-1 bg-gray-200 text-gray-700 py-1.5 rounded text-xs font-bold transition-colors;
+}
+
+/* --- MEUS PROJETOS --- */
+.projects-list {
+    @apply space-y-3;
+}
+
+.project-card {
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow-sm border transition-all;
+}
+
+.card-selected {
+    @apply border-blue-500 ring-1 ring-blue-500 bg-blue-50 dark:bg-blue-900/10;
+}
+
+.card-active {
+    @apply border-blue-400;
+}
+
+.card-idle {
+    @apply border-gray-200 dark:border-gray-700;
+}
+
+.project-card-header {
+    @apply p-3 flex items-center justify-between;
+}
+
+.btn-checkbox {
+    @apply text-gray-400 hover:text-blue-500 shrink-0;
+}
+
+.btn-edit-mode {
+    @apply p-2 rounded-full transition-colors shrink-0;
+}
+
+.mode-active {
+    @apply bg-blue-600 text-white;
+}
+
+.mode-idle {
+    @apply bg-gray-100 text-gray-400 dark:bg-gray-700;
+}
+
+.input-edit-name {
+    @apply w-full px-1 py-0.5 text-sm border rounded dark:bg-gray-900 dark:text-white outline-none;
+}
+
+.title-row-group {
+    /* REMOVIDO: 'group' */
+    @apply flex items-center gap-2;
+}
+
+/* Substituindo group-hover */
+.title-row-group:hover .btn-rename {
+    @apply opacity-100;
+}
+
+.project-name {
+    @apply font-bold text-sm truncate cursor-pointer;
+}
+
+.name-active {
+    @apply text-blue-700 dark:text-blue-300;
+}
+
+.name-idle {
+    @apply text-gray-700 dark:text-gray-200;
+}
+
+.btn-rename {
+    @apply opacity-0 text-gray-400 hover:text-blue-500 transition-opacity;
+}
+
+.status-row {
+    @apply flex items-center justify-start gap-2 mt-0.5 text-[10px];
+}
+
+.status-badge-blue {
+    @apply text-blue-500 font-bold;
+}
+
+.status-badge-green {
+    @apply text-green-500 font-bold;
+}
+
+.status-badge-purple {
+    @apply text-purple-500 font-bold animate-pulse ml-1;
+}
+
+.btn-toggle-accordion {
+    @apply flex items-center gap-1 px-1.5 py-0.5 rounded font-semibold transition-colors;
+}
+
+.accordion-open {
+    @apply bg-indigo-100 text-indigo-700;
+}
+
+.accordion-closed {
+    @apply bg-gray-100 text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 dark:bg-gray-700 dark:text-gray-300;
+}
+
+.actions-group {
+    @apply flex items-center gap-1 shrink-0;
+}
+
+.btn-visibility {
+    @apply p-2 rounded transition-colors;
+}
+
+.vis-active {
+    @apply text-blue-600;
+}
+
+.vis-active-shared {
+    @apply text-blue-600 bg-blue-50 dark:bg-blue-900/20;
+}
+
+.vis-idle {
+    @apply text-gray-300 hover:text-gray-500 dark:hover:bg-gray-700;
+}
+
+.btn-delete-project {
+    @apply p-2 text-gray-300 hover:text-red-600 transition-colors;
+}
+
+/* Accordion de Acessos */
+.accordion-content {
+    @apply bg-gray-50 dark:bg-gray-900/30 px-3 py-2 border-t dark:border-gray-700 text-xs animate-in slide-in-from-top-1;
+}
+
+.accordion-title {
+    @apply font-bold text-gray-500 mb-2 flex items-center gap-1 uppercase tracking-wider text-[10px];
+}
+
+.share-row {
+    @apply flex items-center justify-between bg-white dark:bg-gray-800 px-2 py-1.5 rounded border border-gray-100 dark:border-gray-700;
+}
+
+.status-dot {
+    @apply w-2 h-2 rounded-full shrink-0;
+}
+
+.share-email {
+    @apply truncate;
+}
+
+.btn-revoke {
+    @apply text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 p-1 rounded transition-colors shrink-0;
+}
+
+/* --- ABA COMPARTILHADOS --- */
+.shared-list {
+    @apply space-y-2;
+}
+
+.shared-card {
+    @apply flex flex-col p-3 rounded-lg border bg-white dark:bg-gray-800 dark:border-gray-700;
+}
+
+.btn-edit-shared {
+    @apply p-2 rounded-full transition-colors;
+}
+
+.shared-active {
+    @apply bg-purple-600 text-white shadow-lg scale-105;
+}
+
+.shared-idle {
+    @apply bg-purple-100 text-purple-600 hover:bg-purple-200;
+}
+
+.shared-name {
+    @apply font-bold text-sm;
+}
+
+.owner-badge {
+    @apply text-[10px] font-bold tracking-wider text-purple-700 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-300 px-1.5 py-0.5 rounded truncate max-w-[180px];
+}
+
+/* --- FOOTER CRIAÇÃO --- */
+.footer-create {
+    @apply p-4 border-t dark:border-gray-700 bg-white dark:bg-gray-800 absolute bottom-0 left-0 right-0;
+}
+
+.input-new-project {
+    @apply flex-1 px-3 py-2 rounded border text-sm outline-none dark:bg-gray-900 dark:text-white;
+}
+
+.btn-confirm-create {
+    @apply bg-green-600 text-white p-2 rounded transition-colors;
+}
+
+.btn-cancel-create {
+    @apply bg-gray-200 text-gray-600 p-2 rounded transition-colors;
+}
+
+.btn-start-create {
+    @apply w-full py-2 bg-gray-50 border border-dashed border-gray-300 text-gray-600 rounded hover:bg-blue-50 hover:text-blue-600 flex items-center justify-center gap-2 text-sm font-bold transition-colors;
+}
+
+/* --- OVERLAY DE AÇÃO EM MASSA --- */
+.bulk-action-overlay {
+    @apply absolute inset-0 z-10 bg-white/95 dark:bg-gray-900/95 flex flex-col p-6 animate-in slide-in-from-bottom-10;
+}
+
+.bulk-title {
+    @apply text-xl font-bold flex items-center gap-2 text-gray-800 dark:text-white;
+}
+
+.bulk-info-box {
+    @apply bg-blue-50 dark:bg-blue-900/20 p-3 rounded text-sm text-blue-800 dark:text-blue-200;
+}
+
+.bulk-input-label {
+    @apply block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2;
+}
+
+.email-chips-container {
+    @apply border rounded-lg p-2 focus-within:ring-2 ring-blue-500 bg-white dark:bg-gray-800 dark:border-gray-600 min-h-[100px] flex flex-wrap content-start gap-2;
+}
+
+.email-chip {
+    @apply bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1;
+}
+
+.input-email-add {
+    @apply flex-1 min-w-[150px] outline-none text-sm bg-transparent dark:text-white;
+}
+
+.recent-contacts-label {
+    @apply text-xs font-bold text-gray-500 uppercase mb-2;
+}
+
+.btn-recent-contact {
+    @apply px-3 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-full text-xs text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors;
+}
+
+.btn-execute-bulk {
+    @apply w-full py-4 rounded-lg text-white font-bold text-lg shadow-lg transition-all;
+}
+
+.btn-disabled {
+    @apply bg-gray-300 cursor-not-allowed;
+}
+
+.btn-execute-share {
+    @apply bg-indigo-600 hover:bg-indigo-700;
+}
+
+.btn-execute-transfer {
+    @apply bg-orange-600 hover:bg-orange-700;
+}

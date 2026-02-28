@@ -1,0 +1,35 @@
+/* Overlay e Container */
+.confirm-overlay {
+    /* z-[100] garante que este alerta fique acima de qualquer outro modal */
+    @apply fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-[100] p-4;
+}
+
+.confirm-card {
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-xs p-5 animate-in zoom-in-95 border dark:border-gray-700;
+}
+
+/* Título e Texto */
+.confirm-title {
+    @apply text-lg font-bold text-gray-800 dark:text-white mb-2 flex items-center gap-2;
+}
+
+.icon-warning {
+    @apply text-red-500;
+}
+
+.confirm-message {
+    @apply text-sm text-gray-600 dark:text-gray-300 mb-6;
+}
+
+/* Área de Botões */
+.confirm-actions {
+    @apply flex justify-end gap-2;
+}
+
+.btn-cancel {
+    @apply px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors;
+}
+
+.btn-confirm-danger {
+    @apply px-3 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 font-medium transition-colors;
+}

@@ -1,0 +1,139 @@
+/* Overlay e Card Principal */
+.report-overlay {
+    @apply fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4;
+}
+
+.report-card {
+    @apply bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col border dark:border-gray-700 animate-in zoom-in-95;
+}
+
+/* Header */
+.report-header {
+    @apply p-5 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800 rounded-t-xl;
+}
+
+.header-content {
+    @apply flex items-center gap-3;
+}
+
+.header-icon-box {
+    @apply p-2 bg-blue-100 dark:bg-blue-900 rounded-lg text-blue-600 dark:text-blue-300;
+}
+
+.header-title {
+    @apply text-xl font-bold text-gray-800 dark:text-white;
+}
+
+.header-subtitle {
+    @apply text-xs text-gray-500 dark:text-gray-400;
+}
+
+.btn-close {
+    @apply p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-500 dark:text-gray-400 transition-colors;
+}
+
+/* Corpo e Scroll */
+.report-body {
+    @apply flex-1 overflow-y-auto p-6 space-y-6;
+}
+
+/* Card de Resumo (Régua) */
+.summary-card {
+    @apply bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800 flex justify-between items-center shadow-sm;
+}
+
+.summary-icon-circle {
+    @apply p-2 bg-blue-100 dark:bg-blue-800 rounded-full text-blue-600 dark:text-blue-300;
+}
+
+.summary-label {
+    @apply text-xs text-blue-600 dark:text-blue-300 font-bold uppercase;
+}
+
+.summary-value {
+    @apply text-2xl font-bold text-gray-800 dark:text-white mt-1;
+}
+
+.summary-help-text {
+    @apply text-right text-xs text-gray-500 dark:text-gray-400 max-w-[150px];
+}
+
+/* Grid de Tabelas */
+.report-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 gap-6;
+}
+
+/* Estilos Genéricos das Tabelas */
+.table-card {
+    @apply bg-slate-50 dark:bg-gray-900 rounded-lg border dark:border-gray-700 overflow-hidden;
+}
+
+.table-span-full {
+    @apply md:col-span-2;
+}
+
+.table-header {
+    @apply bg-slate-200 dark:bg-gray-700 px-4 py-2 font-bold text-sm text-slate-700 dark:text-slate-200 flex justify-between;
+}
+
+.table-header-sub {
+    @apply text-xs font-normal opacity-70;
+}
+
+.table-list {
+    @apply divide-y dark:divide-gray-700;
+}
+
+/* .table-row {
+    @apply flex justify-between px-4 py-2 text-sm dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors;
+} */
+
+/* .row-right-content {
+    @apply text-right;
+} */
+
+.badge-length {
+    @apply font-mono text-xs bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded;
+}
+
+/* Resumo de Conexões */
+.connections-summary {
+    @apply bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800 flex justify-around;
+}
+
+.connection-stat {
+    @apply text-center;
+}
+
+.connection-divider {
+    @apply w-px bg-blue-200 dark:bg-blue-800;
+}
+
+.stat-value-fusion {
+    @apply text-2xl font-bold text-blue-700 dark:text-blue-300;
+}
+
+.stat-label-fusion {
+    @apply text-xs uppercase font-bold text-blue-500 dark:text-blue-400;
+}
+
+.stat-value-connector {
+    @apply text-2xl font-bold text-purple-700 dark:text-purple-300;
+}
+
+.stat-label-connector {
+    @apply text-xs uppercase font-bold text-purple-500 dark:text-purple-400;
+}
+
+/* Rodapé */
+.report-footer {
+    @apply p-4 border-t dark:border-gray-700 flex justify-end gap-3 bg-gray-50 dark:bg-gray-800 rounded-b-xl;
+}
+
+.btn-copy {
+    @apply flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm font-medium text-gray-700 dark:text-gray-200 transition-colors;
+}
+
+.btn-close-modal {
+    @apply px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm shadow-md transition-colors;
+}

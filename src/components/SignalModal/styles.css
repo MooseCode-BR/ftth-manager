@@ -1,0 +1,88 @@
+/* Overlay e Card */
+.signal-overlay {
+    @apply fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-[80] p-4;
+}
+
+.signal-card {
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm p-5 animate-in zoom-in-95 border dark:border-gray-700 flex flex-col max-h-[80vh];
+}
+
+/* Cabeçalho */
+.signal-header {
+    @apply text-lg font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2;
+}
+
+.header-icon {
+    @apply text-green-600;
+}
+
+/* Corpo do Modal */
+.signal-body {
+    @apply flex-1 overflow-y-auto space-y-4 pr-1;
+    /* Adicione custom-scrollbar se tiver global */
+}
+
+/* Grupos de Seção */
+.section-group {
+    @apply space-y-2;
+}
+
+.section-title {
+    @apply text-xs font-bold text-gray-500 dark:text-gray-400 uppercase;
+}
+
+/* Lista Upstream */
+.upstream-list {
+    @apply bg-gray-50 dark:bg-gray-700 rounded p-2 space-y-1;
+}
+
+.upstream-item {
+    @apply flex items-center gap-2 p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded cursor-pointer transition-colors;
+}
+
+.upstream-label {
+    @apply text-sm text-gray-700 dark:text-gray-200 truncate;
+}
+
+.help-text {
+    @apply text-[10px] text-gray-400 italic;
+}
+
+/* Lista Local */
+.local-list {
+    @apply space-y-2;
+}
+
+.local-item-row {
+    @apply flex items-center gap-2;
+}
+
+.input-signal-name {
+    @apply flex-1 border dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded p-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500;
+}
+
+.btn-remove-signal {
+    @apply text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-1 rounded transition-colors;
+}
+
+/* Linha de Novo Sinal */
+.new-signal-row {
+    @apply flex gap-2;
+}
+
+.btn-add-signal {
+    @apply bg-blue-600 text-white p-1.5 rounded hover:bg-blue-700 transition-colors;
+}
+
+/* Rodapé */
+.modal-footer {
+    @apply flex justify-end gap-2 mt-6 pt-4 border-t dark:border-gray-700;
+}
+
+.btn-cancel {
+    @apply px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors;
+}
+
+.btn-save {
+    @apply px-3 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 font-medium transition-colors;
+}

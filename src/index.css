@@ -1,0 +1,254 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  /* Garante que não há espaçamento interno */
+  min-width: 320px;
+
+  /* MUDANÇA 1: Usamos 'height' fixo em vez de 'min-height' */
+  /* Fallback para navegadores antigos */
+  height: 100vh;
+  /* A solução mágica: adapta-se à barra do navegador mobile */
+  height: 100dvh;
+
+  /* MUDANÇA 2: Impede o scroll na página inteira (fundamental para Mapas/Apps) */
+  overflow: hidden;
+
+  /* Cores (Mantive as tuas) */
+  background-color: #e2e8f0;
+  color: #0f172a;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Modo Escuro */
+.dark body {
+  background-color: #0f172a;
+  /* Slate-900 (Fundo bem escuro) */
+  color: #f1f5f9;
+}
+
+/* Animações */
+@keyframes zoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-in.zoom-in-95 {
+  animation: zoomIn 0.2s ease-out forwards;
+}
+
+.animate-in.slide-in-from-top-2 {
+  animation: slideIn 0.2s ease-out forwards;
+}
+
+/* Empurra o seletor de camadas para cima quando está no canto inferior direito */
+.leaflet-bottom.leaflet-right .leaflet-control-layers {
+  margin-bottom: 34px !important;
+  /* Ajusta este valor a teu gosto (ex: 10px, 20px) */
+}
+
+
+
+/* FIBERMAP CSS */
+
+/* Régua -------------------------------------- */
+
+/* Mira Central Fixa */
+.map-regua {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  transform: translate(-50%, -50%);
+  /* Garante o centro exato */
+  pointer-events: none;
+  /* O clique DEVE atravessar a mira e chegar ao mapa */
+  z-index: 1000;
+  /* Acima do mapa */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: yellow;
+}
+
+/* Régua -------------------------------------- */
+
+/* BOTÕES DE CONTROLE DO MAPA NO CANTO INFERIOR DIREITO */
+/* Configura o container do canto inferior direito */
+.leaflet-bottom.leaflet-right {
+  /* Ajuste este valor (80px) conforme a altura do seu Dock */
+  margin-bottom: 200px !important;
+  margin-right: 10px !important;
+
+  /* Força os ícones a ficarem em coluna e organizados */
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  /* Espaço entre os botões */
+  align-items: flex-end !important;
+}
+
+/* Remove margens extras dos controles individuais para o gap funcionar */
+.leaflet-bottom.leaflet-right .leaflet-control {
+  margin: 0 !important;
+  float: none !important;
+  /* Desliga o float padrão do Leaflet */
+  clear: none !important;
+}
+
+/* ANIMAÇÃO LOCATION CONTROL */
+/* Animação de Radar / Piscar Azul */
+@keyframes pulse-blue {
+  0% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7);
+  }
+
+  70% {
+    box-shadow: 0 0 0 10px rgba(37, 99, 235, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+  }
+}
+
+/* Classe que será injetada no botão via Javascript */
+button.leaflet-control-custom.locating-active {
+  animation: pulse-blue 1.5s infinite;
+  border-color: #0000ff !important;
+  /* Borda Azul */
+  color: #0000ff !important;
+  /* Ícone Azul */
+  background-color: #eff6ff !important;
+  /* Fundo levemente azul */
+}
+
+.dark .leaflet-control-custom {
+  color: #000000 !important;
+  /* Força ícone PRETO */
+  background-color: #ffffff !important;
+  /* Garante fundo BRANCO para contraste */
+}
+
+
+/* Customização do Popup do Cabo (Toolbar) */
+.custom-cable-popup .leaflet-popup-content-wrapper {
+  background: transparent;
+  /* Fundo transparente pois os botões já têm fundo */
+  box-shadow: none;
+  /* Remove sombra do wrapper padrão */
+  padding: 0;
+}
+
+.custom-cable-popup .leaflet-popup-content {
+  margin: 0 !important;
+  width: auto !important;
+  /* Adiciona um fundo leve e sombra aos botões agrupados */
+  background: white;
+  border-radius: 6px;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+  padding: 2px;
+}
+
+/* Customização da "Cauda" (Tip) */
+.custom-cable-popup .leaflet-popup-tip {
+  background: white;
+  /* Cor da seta */
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* Ajuste para Dark Mode (se usar) */
+.dark .custom-cable-popup .leaflet-popup-content,
+.dark .custom-cable-popup .leaflet-popup-tip {
+  background: #1f2937;
+  /* Cinza escuro */
+  border: 1px solid #374151;
+}
+
+
+/* --- CUSTOMIZAÇÃO DOS BOTÕES DE ZOOM (Leaflet Nativo) --- */
+/* Alvo: Os links (<a>) dentro do controle de zoom */
+.leaflet-control-zoom-in,
+.leaflet-control-zoom-out {
+  width: 45px !important;
+  height: 45px !important;
+
+  /* Centralização perfeita do ícone (+ / -) */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  /* Aumentar o tamanho do símbolo para acompanhar o botão */
+  font-size: 30px !important;
+  line-height: 45px !important;
+  /* Garante alinhamento vertical legado */
+
+  /* Opcional: Arredondar um pouco mais se quiser um visual moderno */
+  border-radius: 4px !important;
+  border: 2px;
+}
+
+/* Ajuste para garantir que o container não corte nada */
+.leaflet-bar {
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4) !important;
+  border: none !important;
+}
+
+/* Opcional: Se quiser separar os botões (um espaço entre o + e o -) */
+/* Descomente as linhas abaixo se quiser que eles fiquem separados */
+
+.leaflet-control-zoom-in {
+  margin-bottom: 2px !important;
+  border-bottom: none !important;
+  border-radius: 4px !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.leaflet-control-zoom-out {
+  border-radius: 4px !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.leaflet-control-zoom {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.map-toggle-cluster {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+}

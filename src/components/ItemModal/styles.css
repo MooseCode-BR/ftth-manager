@@ -1,0 +1,151 @@
+/* ===================================================
+   ItemModal – Estilos Unificados (Criação + Edição)
+   =================================================== */
+
+/* Overlay */
+.item-modal-overlay {
+    @apply fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-[60] p-4;
+}
+
+/* Card */
+.item-modal-card {
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-xs p-5 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto border dark:border-gray-700;
+}
+
+/* Cabeçalho */
+.item-modal-header {
+    @apply text-lg font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2;
+}
+
+.item-modal-header-icon {
+    @apply text-blue-600;
+}
+
+/* Corpo */
+.item-modal-body {
+    @apply space-y-4;
+}
+
+/* Inputs Gerais */
+.input-label {
+    @apply block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1;
+}
+
+.input-field {
+    @apply w-full border border-gray-300 dark:border-gray-600 rounded p-2 text-sm dark:bg-gray-700 dark:text-white outline-none focus:ring-1 focus:ring-blue-500;
+}
+
+/* Seção de Cores (Node) */
+.color-settings-group {
+    @apply space-y-2;
+}
+
+.btn-default-color {
+    @apply w-full flex items-center gap-2 p-2 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors;
+}
+
+.favorite-colors-grid {
+    @apply grid grid-cols-5 gap-2;
+}
+
+.btn-color-swatch {
+    @apply w-8 h-8 rounded border border-gray-300 dark:border-gray-600 hover:scale-110 transition-transform;
+}
+
+.color-picker-input {
+    @apply h-9 w-12 p-0 border-0 rounded cursor-pointer;
+}
+
+.hex-display {
+    @apply flex-1 flex items-center px-2 text-xs border dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-700 dark:text-gray-300 uppercase;
+}
+
+/* Seção de Cor (Cabo / Edição) */
+.color-section {
+    @apply mt-2;
+}
+
+.sub-label {
+    @apply text-[10px] text-gray-500 dark:text-gray-400 mb-1;
+}
+
+.color-grid {
+    @apply grid grid-cols-6 gap-1 mb-2;
+}
+
+.color-swatch-btn {
+    @apply w-6 h-6 rounded border border-gray-300 dark:border-gray-600 hover:scale-110 transition-transform;
+}
+
+.manual-color-wrapper {
+    @apply flex gap-2;
+}
+
+.color-input-picker {
+    @apply h-9 w-12 p-0 border rounded cursor-pointer;
+}
+
+.color-input-text {
+    @apply flex-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded p-2 text-sm uppercase outline-none focus:ring-1 focus:ring-blue-500;
+}
+
+/* Interfaces Dinâmicas (OLT/DIO) */
+.dynamic-interface-box {
+    @apply p-3 rounded border max-h-60 overflow-y-auto;
+}
+
+.box-variant-olt {
+    @apply bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800;
+}
+
+.box-variant-dio {
+    @apply bg-purple-50 dark:bg-purple-900/20 border-purple-100 dark:border-purple-800;
+}
+
+.box-title {
+    @apply block text-xs font-bold mb-2 flex items-center gap-1;
+}
+
+.text-olt { @apply text-blue-800 dark:text-blue-300; }
+.text-dio { @apply text-purple-800 dark:text-purple-300; }
+
+.interface-row {
+    @apply flex gap-2 items-end bg-white dark:bg-gray-800 p-2 rounded border dark:border-gray-600;
+}
+
+.input-label-mini {
+    @apply block text-[10px] text-gray-500 dark:text-gray-400;
+}
+
+.input-field-mini {
+    @apply w-full border border-gray-300 dark:border-gray-600 rounded p-1 text-sm dark:bg-gray-700 dark:text-white outline-none;
+}
+
+.btn-delete-slot {
+    @apply p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors;
+}
+
+.btn-add-slot {
+    @apply mt-2 w-full py-1 text-xs border border-dashed rounded transition-colors;
+}
+
+.btn-add-olt {
+    @apply border-blue-400 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/40;
+}
+
+.btn-add-dio {
+    @apply border-purple-400 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/40;
+}
+
+/* Rodapé */
+.modal-footer {
+    @apply flex justify-end gap-2 mt-6;
+}
+
+.btn-cancel {
+    @apply px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors;
+}
+
+.btn-confirm {
+    @apply px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 font-medium transition-colors;
+}

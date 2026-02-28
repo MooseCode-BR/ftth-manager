@@ -1,0 +1,71 @@
+/* Estrutura Principal */
+.client-details-overlay {
+    @apply fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4;
+}
+
+.client-details-card {
+    @apply bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-sm p-6 border dark:border-gray-700 animate-in zoom-in-95;
+}
+
+/* Cabeçalho */
+.card-header {
+    @apply flex justify-between items-center mb-6;
+}
+
+.card-title {
+    @apply text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2;
+}
+
+.btn-close {
+    @apply text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors;
+}
+
+/* Corpo e Inputs */
+.card-body {
+    @apply space-y-5;
+}
+
+.input-label {
+    @apply block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase;
+}
+
+.input-field {
+    @apply w-full border border-gray-300 dark:border-gray-600 rounded-lg p-2.5 text-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 outline-none;
+}
+
+
+/* Botões de Ação (Rodapé) */
+.actions-wrapper {
+    @apply flex flex-col gap-3 mt-8;
+}
+
+.btn-photos {
+    @apply w-full py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg font-bold text-sm flex items-center justify-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors;
+}
+
+.actions-footer-row {
+    @apply flex gap-3 pt-2 border-t dark:border-gray-700;
+}
+
+.btn-delete {
+    @apply flex-1 py-2.5 text-red-500 hover:text-red-700 dark:text-red-400 font-bold text-sm transition-colors;
+}
+
+.btn-save {
+    @apply flex-1 py-2.5 bg-green-600 text-white rounded-lg font-bold text-sm hover:bg-green-700 shadow-md transition-all;
+}
+
+/* Wrapper da área de notas para dar espaçamento */
+.notes-section {
+    @apply flex flex-col gap-2;
+}
+
+/* Estilo do Textarea - Herda características do input-field mas com altura fixa e resize vertical */
+.textarea-field {
+    @apply w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none resize-none h-32 leading-relaxed;
+}
+
+/* Opcional: Ajuste de cor do ícone de fotos se quiser diferenciar do cliente */
+.btn-photos svg {
+    @apply transition-transform group-hover:scale-110;
+}
