@@ -1,6 +1,7 @@
 /* Container Principal */
 .tag-selector-wrapper {
-    @apply space-y-2 relative; /* 'relative' adicionado para posicionar o dropdown absoluto corretamente */
+    @apply space-y-2 relative;
+    /* 'relative' adicionado para posicionar o dropdown absoluto corretamente */
 }
 
 /* Cabeçalho do Label */
@@ -13,7 +14,7 @@
 }
 
 .btn-manage {
-    @apply text-[10px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1;
+    @apply text-[10px] text-black dark:text-blue-600 hover:underline flex items-center gap-1;
 }
 
 /* Área de Input (Campo) */

@@ -213,7 +213,7 @@ const ItemModal = ({
                     {/* ── DROPDOWN DE TIPO (edição – nós passivos/OBJECT) ── */}
                     {isEdit && editCanChangeType && (
                         <div>
-                            <label className="input-label">Tipo do Equipamento</label>
+                            <label className="input-label text-gray-900 dark:text-gray-400">Tipo do Equipamento</label>
                             <select
                                 className="input-field"
                                 value={type}
@@ -231,7 +231,7 @@ const ItemModal = ({
 
                     {/* ── IDENTIFICAÇÃO / NOME ── */}
                     <div>
-                        <label className="input-label">Identificação</label>
+                        <label className="input-label text-gray-900 dark:text-gray-400">Identificação</label>
                         <input
                             autoFocus
                             className="input-field"
@@ -244,7 +244,7 @@ const ItemModal = ({
                     {/* ── COR DO NÓ (qualquer modo) ── */}
                     {isNode && (
                         <div className="color-settings-group">
-                            <label className="input-label">Cor</label>
+                            <label className="input-label text-gray-900 dark:text-gray-400">Cor</label>
 
                             {/* Botão cor padrão */}
                             {nodeColorSettings && activeType && nodeColorSettings[activeType] && (
@@ -266,7 +266,7 @@ const ItemModal = ({
                             {/* Cores favoritas */}
                             {favoriteColors && favoriteColors.length > 0 && (
                                 <div className="mb-2">
-                                    <p className="sub-label">Cores favoritas:</p>
+                                    <p className="input-label text-gray-900 dark:text-gray-400">Cores favoritas:</p>
                                     <div className="color-grid">
                                         {favoriteColors.map((favColor, idx) => (
                                             <button
@@ -303,7 +303,7 @@ const ItemModal = ({
                     {isCable && (
                         <div className="flex gap-4">
                             <div className="flex-1">
-                                <label className="input-label">Fibras</label>
+                                <label className="input-label text-gray-900 dark:text-gray-400">Fibras</label>
                                 <input
                                     type="number"
                                     className="input-field"
@@ -312,7 +312,7 @@ const ItemModal = ({
                                 />
                             </div>
                             <div className="flex-1 color-settings-group">
-                                <label className="input-label">Cor</label>
+                                <label className="input-label text-gray-900 dark:text-gray-400">Cor</label>
 
                                 {/* Botão cor padrão (Cabo) */}
                                 <div className="mb-2">
@@ -378,7 +378,7 @@ const ItemModal = ({
                                     {manualInterfaces.map((iface, idx) => (
                                         <div key={idx} className="interface-row">
                                             <div className="flex-1">
-                                                <label className="input-label-mini">Nome</label>
+                                                <label className="input-label-mini text-gray-900 dark:text-gray-400">Nome</label>
                                                 <input
                                                     className="input-field-mini"
                                                     value={iface.name}
@@ -386,7 +386,7 @@ const ItemModal = ({
                                                 />
                                             </div>
                                             <div className="w-20">
-                                                <label className="input-label-mini">Portas</label>
+                                                <label className="input-label-mini text-gray-900 dark:text-gray-400">Portas</label>
                                                 <input
                                                     type="number"
                                                     className="input-field-mini"
@@ -411,7 +411,7 @@ const ItemModal = ({
 
                             {isOLT && (
                                 <div>
-                                    <label className="input-label">Uplinks/Auxiliares</label>
+                                    <label className="input-label text-gray-900 dark:text-gray-400">Uplinks/Auxiliares</label>
                                     <input
                                         type="number"
                                         className="input-field"
@@ -426,7 +426,7 @@ const ItemModal = ({
                     {/* ── RATIO SPLITTER ── */}
                     {isSplitter && (
                         <div>
-                            <label className="input-label">Ratio</label>
+                            <label className="input-label text-gray-900 dark:text-gray-400">Ratio</label>
                             <select
                                 className="input-field"
                                 value={ports}
@@ -443,7 +443,7 @@ const ItemModal = ({
                     {/* ── ÍCONE DO OBJETO ── */}
                     {isObject && (
                         <div>
-                            <label className="input-label">Ícone do Objeto</label>
+                            <label className="input-label text-gray-900 dark:text-gray-400">Ícone do Objeto</label>
                             <div className="grid grid-cols-5 gap-2 mt-1 mb-3">
                                 {OBJECT_ICONS.map((opt) => (
                                     <button
@@ -469,7 +469,7 @@ const ItemModal = ({
                     {/* ── PORTAS (devices simples: Switch, Router, POE, Camera) ── */}
                     {!isPassiveContainer && !isCable && !isSplitter && !isOLT && !isDIO && !isObject && !isNode && (
                         <div>
-                            <label className="input-label">Portas</label>
+                            <label className="input-label text-gray-900 dark:text-gray-400">Portas</label>
                             <input
                                 type="number"
                                 className="input-field"
@@ -490,8 +490,8 @@ const ItemModal = ({
                 </div>
 
                 {/* Rodapé */}
-                <div className="modal-footer">
-                    <button onClick={onCancel} className="btn-cancel">Cancelar</button>
+                <div className="mt-6 flex justify-end gap-2">
+                    <button onClick={onCancel} className="btn-cancel text-gray-900 dark:text-gray-400">Cancelar</button>
                     <button onClick={handleConfirm} className="btn-confirm">
                         {isCreate ? 'Confirmar' : 'Salvar'}
                     </button>

@@ -29,37 +29,37 @@ const TagSelector = ({ availableTags = [], selectedTagIds = [], onChange, onMana
     return (
         <div className="tag-selector-wrapper">
             <div className="selector-header">
-                <label className="input-label">Etiquetas</label>
-                <button 
+                <label className="input-label text-gray-900 dark:text-gray-400">Etiquetas</label>
+                <button
                     type="button"
-                    onClick={onManageTags} 
+                    onClick={onManageTags}
                     className="btn-manage"
                 >
-                    <Tag size={10}/> Gerenciar
+                    <Tag size={10} /> Gerenciar
                 </button>
             </div>
 
             {/* Área de Visualização das Tags Selecionadas (No campo) */}
-            <div 
-                className="selector-input-area" 
+            <div
+                className="selector-input-area"
                 onClick={() => setIsOpen(!isOpen)}
             >
                 {selectedTagIds.length === 0 && <span className="placeholder-text">Nenhuma etiqueta...</span>}
-                
+
                 {selectedTagIds.map(id => {
                     const tag = availableTags.find(t => t.id === id);
                     if (!tag) return null;
                     return (
-                        <span 
-                            key={id} 
-                            className="tag-pill-display" 
-                            style={{backgroundColor: `${tag.color}20`, borderColor: tag.color, color: tag.color}}
+                        <span
+                            key={id}
+                            className="tag-pill-display"
+                            style={{ backgroundColor: `${tag.color}20`, borderColor: tag.color, color: tag.color }}
                         >
                             {tag.name}
                         </span>
                     );
                 })}
-                <button type="button" className="btn-chevron"><ChevronDown size={16}/></button>
+                <button type="button" className="btn-chevron"><ChevronDown size={16} /></button>
             </div>
 
             {/* Dropdown de Seleção */}
@@ -78,10 +78,10 @@ const TagSelector = ({ availableTags = [], selectedTagIds = [], onChange, onMana
                                     className="dropdown-item item-selected"
                                 >
                                     <div className="flex items-center gap-2">
-                                        <div className="tag-dot" style={{backgroundColor: tag.color}}></div>
+                                        <div className="tag-dot" style={{ backgroundColor: tag.color }}></div>
                                         <span className="tag-name">{tag.name}</span>
                                     </div>
-                                    <Check size={14} className="text-blue-600"/>
+                                    <Check size={14} className="text-blue-600" />
                                 </button>
                             ))}
 
@@ -99,7 +99,7 @@ const TagSelector = ({ availableTags = [], selectedTagIds = [], onChange, onMana
                                     className="dropdown-item item-idle"
                                 >
                                     <div className="flex items-center gap-2">
-                                        <div className="tag-dot" style={{backgroundColor: tag.color}}></div>
+                                        <div className="tag-dot" style={{ backgroundColor: tag.color }}></div>
                                         <span className="tag-name">{tag.name}</span>
                                     </div>
                                 </button>
