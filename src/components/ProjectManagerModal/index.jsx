@@ -166,7 +166,7 @@ const ProjectManagerModal = ({
             <div className="projects-card">
 
                 {/* Header */}
-                <div className="card-header">
+                <div className="card-header mb-0">
                     <div className="header-title-group">
                         <FolderOpen size={20} />
                         <h3 className="header-title">Projetos & Colaboração</h3>
@@ -199,8 +199,8 @@ const ProjectManagerModal = ({
                             onClick={toggleSelectAll}
                             className="btn-select-all"
                         >
-                            {selectedIds.size === myProjects.length && myProjects.length > 0 ? <CheckSquare size={16} className="text-blue-600" /> : <Square size={16} />}
-                            <span>Selecionar Todos ({selectedIds.size})</span>
+                            {selectedIds.size === myProjects.length && myProjects.length > 0 ? <CheckSquare size={12} className="text-blue-600" /> : <Square size={12} />}
+                            <span className="text-xs">Selecionar Todos ({selectedIds.size})</span>
                         </button>
 
                         {selectedIds.size > 0 && (

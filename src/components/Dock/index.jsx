@@ -208,7 +208,7 @@ const Dock = ({
                     label="Tema"
                     isActive={false}
                     onClick={() => setIsDarkMode(!isDarkMode)}
-                    colorClass="dark:text-yellow-400"
+                    colorClass="text-white dark:text-yellow-400"
                 />
 
                 <Divider />
@@ -219,7 +219,7 @@ const Dock = ({
                     label="Configurações"
                     isActive={false}
                     onClick={() => { onOpenSettings(); setActiveCategory(null); }}
-                    colorClass="text-gray-800 dark:text-white"
+                    colorClass="text-white dark:text-black"
                 />
             </div>
         </div>
