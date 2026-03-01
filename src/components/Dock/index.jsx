@@ -13,15 +13,21 @@ import {
 import { CEOIcon, CTOIcon, PostIcon } from '../../icons'; //Importação de Ícones
 
 // Botão Genérico do Dock (Compacto)
-const DockBtn = ({ icon: Icon, hoverIcon: HoverIcon, label, isActive, onClick, colorClass = "dock-icon-default" }) => {
+const DockBtn = ({ icon: Icon, hoverIcon: HoverIcon, label, isActive, onClick, onMouseEnter, onMouseLeave, colorClass = "dock-icon-default" }) => {
     const [isHovered, setIsHovered] = useState(false);
     const DisplayIcon = (isHovered && HoverIcon) ? HoverIcon : Icon;
 
     return (
         <button
             onClick={onClick}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
+            onMouseEnter={(e) => {
+                setIsHovered(true);
+                if (onMouseEnter) onMouseEnter(e);
+            }}
+            onMouseLeave={(e) => {
+                setIsHovered(false);
+                if (onMouseLeave) onMouseLeave(e);
+            }}
             className={`dock-btn ${isActive ? 'dock-btn-active' : 'dock-btn-idle'}`}
             title={label}
         >
@@ -30,8 +36,6 @@ const DockBtn = ({ icon: Icon, hoverIcon: HoverIcon, label, isActive, onClick, c
             <span className="dock-tooltip">
                 {label}
             </span>
-
-            {isActive && <span className="dock-active-dot"></span>}
         </button>
     );
 };
@@ -87,7 +91,10 @@ const Dock = ({
     };
 
     return (
-        <div className="dock-wrapper">
+        <div
+            className="dock-wrapper"
+            onMouseLeave={() => setActiveCategory(null)}
+        >
 
             {/* --- EXTENSÃO DO DOCK (SUB-MENU) --- */}
             {activeCategory && (
@@ -137,6 +144,7 @@ const Dock = ({
                                         label={cat.label}
                                         isActive={activeCategory === cat.id}
                                         onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
+                                        onMouseEnter={() => setActiveCategory(cat.id)}
                                         colorClass={currentColor}
                                     />
                                 );
@@ -200,7 +208,7 @@ const Dock = ({
                     label="Tema"
                     isActive={false}
                     onClick={() => setIsDarkMode(!isDarkMode)}
-                    colorClass="text-gray-700 dark:text-yellow-300"
+                    colorClass="dark:text-yellow-400"
                 />
 
                 <Divider />

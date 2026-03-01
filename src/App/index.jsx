@@ -4573,7 +4573,7 @@ const App = () => {
                     /* --- MODO CANVAS --- */
                     <div
                         ref={canvasRef}
-                        className={`w-full h-full relative overflow-hidden bg-gray-300 dark:bg-gray-900 ${interactionMode === 'SELECT' ? (isDraggingCanvas ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-crosshair'} touch-none`}
+                        className={`w-full h-full relative overflow-hidden bg-gray-300 dark:bg-black/30 ${interactionMode === 'SELECT' ? (isDraggingCanvas ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-crosshair'} touch-none`}
                         onMouseDown={(e) => handleStart(e, null)}
                         onMouseMove={handleMove}
                         onMouseUp={(e) => handleEnd(e, null)}
@@ -4582,7 +4582,7 @@ const App = () => {
                         onTouchMove={handleMove}
                         onTouchEnd={(e) => handleEnd(e, null)}
                         onWheel={handleWheel}
-                        style={{ backgroundImage: isDarkMode ? 'radial-gradient(#475569 1px, transparent 1px)' : 'radial-gradient(#617d85 1px, transparent 1px)', backgroundSize: `${20 * scale}px ${20 * scale}px`, backgroundPosition: `${pan.x}px ${pan.y}px` }}
+                        style={{ backgroundImage: isDarkMode ? 'radial-gradient(#aaaaaa 0.5px, transparent 1px)' : 'radial-gradient(#aaaaaa 0.5px, transparent 1px)', backgroundSize: `${20 * scale}px ${20 * scale}px`, backgroundPosition: `${pan.x}px ${pan.y}px` }}
                     >
                         <div className="origin-top-left absolute top-0 left-0 w-full h-full pointer-events-none" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})` }}>
                             <svg className="absolute top-0 left-0 w-[5000px] h-[5000px] pointer-events-none overflow-visible">
@@ -4617,7 +4617,7 @@ const App = () => {
                                 })}
 
                                 {/* 2. Drops Otimizados */}
-                                {visibleConnections.filter(c => c.type === 'DROP').map(c => {
+                                {/* {visibleConnections.filter(c => c.type === 'DROP').map(c => {
                                     const client = items.find(i => i.id === c.toId);
                                     let sourceItem = items.find(i => i.id === c.fromId);
                                     if (!client) return null;
@@ -4631,7 +4631,7 @@ const App = () => {
                                     const y2 = (client.y || 0) + 40;
 
                                     return <DropLine key={c.id} x1={x1} y1={y1} x2={x2} y2={y2} />;
-                                })}
+                                })} */}
 
                                 {/* Linha de desenho (Mantém igual) */}
                                 {interactionMode === 'DRAW_CABLE' && cableStartNode && <line x1={cableStartNode.x + ITEM_TYPES[cableStartNode.type].width / 2} y1={cableStartNode.y + 30} x2={draggingNode ? draggingNode.x : 0} y2={0} stroke={isDarkMode ? "white" : "black"} strokeDasharray="4" />}
@@ -4706,7 +4706,7 @@ const App = () => {
 
             {/* 2. BARRA DE BUSCA */}
             <div className="absolute top-2 left-4 md:left-8 z-[40] w-[90%] md:w-full max-w-[500px] flex flex-col items-start pointer-events-none">
-                <div className="w-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-full shadow-2xl border border-gray-200 dark:border-gray-700 flex items-center px-1.5 py-1.5 transition-all relative z-20 pointer-events-auto">
+                <div className="w-full flex items-center justify-between gap-5 px-1 py-1 bg-white/40 dark:bg-black/60 border border-white/60 dark:border-black/60 backdrop-blur-xl rounded-full shadow-2xl transition-all relative z-20 pointer-events-auto">
 
                     {/* Switch de Troca de Modo (Item vs Endereço) */}
                     {viewMode === 'MAP' ? (
@@ -4719,21 +4719,27 @@ const App = () => {
                             className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-full p-0.5 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-all shrink-0"
                             title={searchMode === 'ITEMS' ? "Mudar para Busca de Endereço" : "Mudar para Filtro de Itens"}
                         >
-                            <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ${searchMode === 'ITEMS' ? 'bg-white dark:bg-gray-500 shadow-md text-blue-600 dark:text-blue-300' : 'text-gray-400'}`}>
+                            <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ${searchMode === 'ITEMS' ? 'bg-blue-600 shadow-md text-white' : 'text-gray-400'}`}>
                                 <Search size={20} />
                             </div>
-                            <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ${searchMode === 'ADDRESS' ? 'bg-white dark:bg-gray-500 shadow-md text-blue-600 dark:text-blue-300' : 'text-gray-400'}`}>
+                            <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ${searchMode === 'ADDRESS' ? 'bg-blue-600 shadow-md text-white' : 'text-gray-400'}`}>
                                 <MapPin size={20} />
                             </div>
                         </div>
                     ) : (
-                        <div className="p-2 text-gray-400 shrink-0"><Search size={14} /></div>
+                        <div
+                            className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-full p-0.5 transition-all shrink-0"
+                        >
+                            <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 bg-blue-600 shadow-md text-white`}>
+                                <Search size={20} />
+                            </div>
+                        </div>
                     )}
 
                     {/* Input Otimizado (Debounced) */}
                     <DebouncedInput
-                        className="ml-2 bg-transparent outline-none text-sm w-full text-gray-700 dark:text-gray-200 placeholder-gray-400"
-                        placeholder={viewMode === 'MAP' && searchMode === 'ADDRESS' ? "Pesquisar endereço..." : "Pesquisar itens..."}
+                        className="ml-2 bg-transparent outline-none text-sm w-full text-black dark:text-white placeholder-gray-600"
+                        placeholder={viewMode === 'MAP' && searchMode === 'ADDRESS' ? "Pesquisar endereço" : "Pesquisar itens"}
                         value={searchTerm}
 
                         /* 1. MUDANÇA NO ONCHANGE: Recebe o valor direto (val) em vez do evento */
@@ -4791,7 +4797,7 @@ const App = () => {
 
                 {/* Lista de Sugestões de Busca (Dropdown) */}
                 {showSuggestions && suggestions.length > 0 && (
-                    <div className="w-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden mt-2 z-10 animate-in fade-in slide-in-from-top-2 max-h-60 overflow-y-auto pointer-events-auto">
+                    <div className="w-full bg-white/40 dark:bg-black/60 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/60 dark:border-black/60 overflow-hidden mt-2 z-10 animate-in fade-in slide-in-from-top-2 max-h-60 overflow-y-auto pointer-events-auto">
 
                         {/* OTIMIZAÇÃO 1: Preparamos um "Dicionário" de projetos antes do loop.
                            Isso é muuuito mais rápido do que procurar com .find() item por item.
