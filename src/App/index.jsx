@@ -628,6 +628,7 @@ const App = () => {
     const [searchMode, setSearchMode] = useState('ITEMS'); // 'ITEMS' ou 'ADDRESS'
     const [flyToCoords, setFlyToCoords] = useState(null); // Coordenada para enviar ao mapa
     const [isSearchingAddr, setIsSearchingAddr] = useState(false); // Loading da busca
+    const [userLocation, setUserLocation] = useState(null); // { lat, lng } — última localização conhecida (atualizada pelo botão "Onde estou")
     const [suggestions, setSuggestions] = useState([]); // Lista de endereços encontrados
     const [showSuggestions, setShowSuggestions] = useState(false); // Se a lista aparece ou não
     const [isDarkMode, setIsDarkMode] = useState(() => { return localStorage.getItem('ftth_theme') === 'dark'; });
@@ -996,6 +997,23 @@ const App = () => {
         }
     }, [loading, items.length, hasCentered]);
 
+    // Função auxiliar: obtém a localização atual do usuário via GPS
+    // Retorna { lat, lng } ou null se não conseguir (sem travar a busca)
+    const getUserLocation = () => {
+        return new Promise((resolve) => {
+            if (!navigator.geolocation) return resolve(null);
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                    setUserLocation(loc); // Atualiza o estado para uso futuro
+                    resolve(loc);
+                },
+                () => resolve(userLocation), // Fallback: usa última localização conhecida
+                { timeout: 3000, maximumAge: 60000 } // Cache de 1 min, timeout de 3s
+            );
+        });
+    };
+
     // Busca Endereços (API) ou Itens (Local)
     useEffect(() => {
         // Se a busca estiver vazia, limpa sugestões
@@ -1017,9 +1035,17 @@ const App = () => {
                 }
 
                 try {
-                    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&q=${encodeURIComponent(searchTerm)}`);
+                    const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+                    const loc = await getUserLocation();
+                    const proximityParam = loc ? `&proximity=${loc.lng},${loc.lat}` : '';
+                    const response = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchTerm)}.json?access_token=${mapboxToken}&limit=5&language=pt${proximityParam}`);
                     const data = await response.json();
-                    const formatted = data.map(d => ({ ...d, display_name: d.display_name, type: 'ADDRESS' }));
+                    const formatted = (data.features || []).map(f => ({
+                        display_name: f.place_name,
+                        lat: f.center[1],  // Mapbox retorna [lng, lat]
+                        lon: f.center[0],
+                        type: 'ADDRESS'
+                    }));
                     setSuggestions(formatted);
                     setShowSuggestions(true);
                 } catch (error) {
@@ -4000,14 +4026,16 @@ const App = () => {
             return;
         }
 
-        // 2. Busca endereço no Nominatim
+        // 2. Busca endereço no Mapbox
         try {
-            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchTerm)}`);
+            const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+            const loc = await getUserLocation();
+            const proximityParam = loc ? `&proximity=${loc.lng},${loc.lat}` : '';
+            const response = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchTerm)}.json?access_token=${mapboxToken}&limit=1&language=pt${proximityParam}`);
             const data = await response.json();
 
-            if (data && data.length > 0) {
-                const lat = parseFloat(data[0].lat);
-                const lon = parseFloat(data[0].lon);
+            if (data.features && data.features.length > 0) {
+                const [lon, lat] = data.features[0].center; // Mapbox retorna [lng, lat]
                 setFlyToCoords([lat, lon]);
             } else {
                 openAlert("Não encontrado", "Endereço não localizado.");
@@ -4695,6 +4723,7 @@ const App = () => {
                             onOpen={setDetailId}      // Duplo Clique -> Abre DetailPanel
                             onSwitchToCanvas={() => setViewMode('CANVAS')}
                             cableStartNodeId={cableStartNode?.id}
+                            onLocationFound={(latlng) => setUserLocation({ lat: latlng.lat, lng: latlng.lng })}
 
                         />
                     </div>

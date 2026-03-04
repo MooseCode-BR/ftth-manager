@@ -175,7 +175,7 @@ const FlyToHandler = ({ coords }) => {
     return null;
 };
 
-const LocationControl = () => {
+const LocationControl = ({ onLocationFound }) => {
     const map = useMap();
     const [position, setPosition] = useState(null);
 
@@ -204,6 +204,7 @@ const LocationControl = () => {
         locationfound(e) {
             setPosition(e.latlng);
             stopLocating(); // Parar animação
+            if (onLocationFound) onLocationFound(e.latlng); // Notifica o App
         },
         locationerror(e) {
             console.warn("GPS Indisponível:", e.message);
@@ -923,7 +924,7 @@ const RulerTool = ({ isActive, onDistanceChange }) => {
 
 const FiberMap = ({
     items, saveItem, isDarkMode, interactionMode, onMapClick, onNodeClick, isPickingMode, flyToCoords,
-    allItems, onEdit, onDelete, onOpen, onClearSearch, onSwitchToCanvas, cableStartNodeId
+    allItems, onEdit, onDelete, onOpen, onClearSearch, onSwitchToCanvas, cableStartNodeId, onLocationFound
 }) => {
     const defaultCenter = [0, 0];
     const [selectedId, setSelectedId] = useState(null);
@@ -1053,7 +1054,7 @@ const FiberMap = ({
                 <ZoomControl position="bottomright" />
 
                 {/* 4. LocationControl (TERCEIRO DA LISTA) */}
-                <LocationControl />
+                <LocationControl onLocationFound={onLocationFound} />
 
                 {/* 3. LayersControl (SEGUNDO DA LISTA) */}
                 <LayerTracker setLayer={setActiveBaseLayer} />
