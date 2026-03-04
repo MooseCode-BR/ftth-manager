@@ -242,10 +242,7 @@ const DetailPanel = ({
         const getDisplay = () => { if (targetItem.type === 'SPLITTER') return isInput ? 'IN' : portIndex; if (targetItem.type === 'OLT') { if (String(portIndex).startsWith('u-')) return 'U' + (parseInt(String(portIndex).split('-')[1]) + 1); if (String(portIndex).includes('-p-')) return parseInt(String(portIndex).split('-p-')[1]); } if (targetItem.type === 'DIO' && String(portIndex).includes('-p-')) { return parseInt(String(portIndex).split('-p-')[1]) + 1; } if (typeof portIndex === 'number') return portIndex + 1; return '•'; };
 
         return (
-            <div
-                className={`port-item-row ${isP ? 'row-disabled' : ''}`}
-                onClick={() => handleConnect(targetItem.id, portIndex, side)}
-            >
+            <div className={`port-item-row ${isP ? 'row-disabled' : ''}`}>
                 {/* Coluna Esquerda: Ícone e Informações */}
                 <div className="port-info-group">
 
@@ -278,7 +275,7 @@ const DetailPanel = ({
                         {/* Linha Inferior: Accordion de Ações */}
                         <div className="details-meta-row">
                             {/* Resumo do Sinal (sempre visível) */}
-                            <span className={`signal-text ${sig.length > 0 ? 'sig-active' : 'sig-empty'}`}>
+                            <span onClick={(e) => { e.stopPropagation(); handleSignalEdit(targetItem.id, portIndex, side); }} className={`signal-text ${sig.length > 0 ? 'sig-active' : 'sig-empty'}`}>
                                 {sig.length > 0 ? sig.map(s => s.name).join(' | ') : "Sem sinal"}
                             </span>
 
@@ -351,19 +348,17 @@ const DetailPanel = ({
                         </button>
                     ) : (
                         // Estado: DESCONECTADO (ou Pendente)
-                        !isP && (
-                            <button
-                                onClick={() => handleConnect(targetItem.id, portIndex, side)}
-                                className={`btn-connect ${pendingConn && pendingConn.id === targetItem.id && pendingConn.port === portIndex
-                                    ? 'btn-connect-active'
-                                    : 'btn-connect-idle'
-                                    }`}
-                            >
-                                {pendingConn && pendingConn.id === targetItem.id && pendingConn.port === portIndex
-                                    ? 'Cancelar '
-                                    : 'Conectar'}
-                            </button>
-                        )
+                        <button
+                            onClick={() => handleConnect(targetItem.id, portIndex, side)}
+                            className={`btn-connect ${pendingConn && pendingConn.id === targetItem.id && pendingConn.port === portIndex
+                                ? 'btn-connect-active'
+                                : 'btn-connect-idle'
+                                }`}
+                        >
+                            {pendingConn && pendingConn.id === targetItem.id && pendingConn.port === portIndex
+                                ? 'Cancelar '
+                                : 'Conectar'}
+                        </button>
                     )}
                 </div>
             </div>

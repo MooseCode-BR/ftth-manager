@@ -564,8 +564,6 @@ const App = () => {
     const [userRole, setUserRole] = useState('OWNER'); //funçãoDoUsuario, definirFunçãoDoUsuario
 
     const [user, setUser] = useState(null); //Usuario
-
-    // Hook customizado movido para cá (pois depende de 'user')
     // Hook customizado movido para cá (pois depende de 'user')
     const {
         incomingTransfers,
@@ -573,7 +571,6 @@ const App = () => {
         pendingInvites,
         outgoingInvites
     } = useProjectNotifications(user);
-
     // Hook de Push Notifications (FCM)
     usePushNotifications(user);
 
@@ -4706,7 +4703,7 @@ const App = () => {
 
             {/* 2. BARRA DE BUSCA */}
             <div className="absolute top-2 left-4 md:left-8 z-[40] w-[90%] md:w-full max-w-[500px] flex flex-col items-start pointer-events-none">
-                <div className="w-full flex items-center justify-between gap-5 px-1 py-1 dark:bg-white/40 bg-black/60 border dark:border-white/60 border-black/60 backdrop-blur-xl rounded-full shadow-2xl transition-all relative z-20 pointer-events-auto">
+                <div className="w-full flex items-center justify-between gap-5 px-1 py-1 bg-white/40 dark:bg-black/60 border border-white/60 dark:border-black/60 backdrop-blur-xl rounded-full shadow-2xl transition-all relative z-20 pointer-events-auto">
 
                     {/* Switch de Troca de Modo (Item vs Endereço) */}
                     {viewMode === 'MAP' ? (
@@ -4716,7 +4713,7 @@ const App = () => {
                                 setSearchMode(prev => prev === 'ITEMS' ? 'ADDRESS' : 'ITEMS');
                                 setSuggestions([]);
                             }}
-                            className="flex items-center dark:bg-gray-100 bg-gray-800 rounded-full p-0.5 cursor-pointer dark:hover:bg-gray-200 hover:bg-gray-600 transition-all shrink-0"
+                            className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-full p-0.5 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-all shrink-0"
                             title={searchMode === 'ITEMS' ? "Mudar para Busca de Endereço" : "Mudar para Filtro de Itens"}
                         >
                             <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ${searchMode === 'ITEMS' ? 'bg-blue-600 shadow-md text-white' : 'text-gray-400'}`}>
@@ -4728,7 +4725,7 @@ const App = () => {
                         </div>
                     ) : (
                         <div
-                            className="flex items-center dark:bg-gray-100 bg-gray-700 rounded-full p-0.5 transition-all shrink-0"
+                            className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-full p-0.5 transition-all shrink-0"
                         >
                             <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 bg-blue-600 shadow-md text-white`}>
                                 <Search size={20} />
@@ -4738,7 +4735,7 @@ const App = () => {
 
                     {/* Input Otimizado (Debounced) */}
                     <DebouncedInput
-                        className="ml-2 bg-transparent outline-none text-sm w-full dark:text-black text-white dark:placeholder-black placeholder-white"
+                        className="ml-2 bg-transparent outline-none text-sm w-full text-black dark:text-white placeholder-black dark:placeholder-white"
                         placeholder={viewMode === 'MAP' && searchMode === 'ADDRESS' ? "Pesquisar endereço" : "Pesquisar itens"}
                         value={searchTerm}
 
@@ -4797,7 +4794,7 @@ const App = () => {
 
                 {/* Lista de Sugestões de Busca (Dropdown) */}
                 {showSuggestions && suggestions.length > 0 && (
-                    <div className="w-full dark:bg-white/40 bg-black/60 backdrop-blur-sm rounded-2xl shadow-2xl border dark:border-white/60 border-black/60 overflow-hidden mt-2 z-10 animate-in fade-in slide-in-from-top-2 max-h-60 overflow-y-auto pointer-events-auto">
+                    <div className="w-full bg-white/40 dark:bg-black/60 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/60 dark:border-black/60 overflow-hidden mt-2 z-10 animate-in fade-in slide-in-from-top-2 max-h-60 overflow-y-auto pointer-events-auto">
 
                         {/* OTIMIZAÇÃO 1: Preparamos um "Dicionário" de projetos antes do loop.
                            Isso é muuuito mais rápido do que procurar com .find() item por item.
@@ -4829,12 +4826,12 @@ const App = () => {
                                             setSearchTerm('');
                                             setShowSuggestions(false);
                                         }}
-                                        className="px-4 py-2 text-xs border-b dark:border-gray-300 border-gray-700 last:border-0 dark:hover:bg-blue-50 hover:bg-gray-700 cursor-pointer dark:text-black text-white flex items-center gap-2"
+                                        className="px-4 py-2 text-xs border-b border-gray-300 dark:border-gray-700 last:border-0 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer text-black dark:text-white flex items-center gap-2"
                                     >
                                         <IconComponent size={12} className={`shrink-0 ${iconColor}`} />
 
                                         {projectName && (
-                                            <span className="shrink-0 dark:bg-gray-200 bg-gray-600 dark:text-black text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                            <span className="shrink-0 bg-gray-200 dark:bg-gray-600 text-black dark:text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">
                                                 {projectName}
                                             </span>
                                         )}

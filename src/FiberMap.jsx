@@ -961,11 +961,11 @@ const FiberMap = ({
     };
 
     const tileLayerInfo = isDarkMode ? {
-        url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-        attribution: '&copy; OpenStreetMap &copy; CARTO'
-    } : {
         url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
         attribution: '&copy; OpenStreetMap contributors'
+    } : {
+        url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+        attribution: '&copy; OpenStreetMap &copy; CARTO'
     };
 
     // FUNÇÃO AUXILIAR: Para limpar a busca e selecionar o item ao mesmo tempo
@@ -1013,6 +1013,7 @@ const FiberMap = ({
             <MapContainer
                 center={defaultCenter}
                 zoom={5}
+                minZoom={3}
                 style={{ height: '100%', width: '100%' }}
 
                 // 1. ZoomControl false (vamos adicionar manualmente na ordem certa)
@@ -1029,13 +1030,13 @@ const FiberMap = ({
                 {/* Botão de Toggle do Cluster */}
                 <button
                     onClick={() => setToggleCluster(!toggleCluster)}
-                    className={`absolute top-20 right-3 z-[900] max-w-[50px] p-2 rounded-lg shadow-lg border transition-all ${toggleCluster
-                        ? 'bg-blue-500 text-white border-blue-600 hover:bg-blue-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600'
+                    className={`absolute top-20 right-3 z-[900] max-w-[50px] p-2 backdrop-blur-xl rounded-2xl shadow-2xl border transition-all ${toggleCluster
+                        ? 'bg-blue-600 text-white border-blue-500 hover:bg-blue-700'
+                        : 'bg-white/40 dark:bg-black/60 text-black dark:text-white border-white/60 dark:border-black/60 hover:bg-white/60 dark:hover:bg-black/80'
                         }`}
                     title={toggleCluster ? 'Desagrupar Ícones' : 'Agrupar Ícones'}
                 >
-                    {toggleCluster ? <Ungroup size={20} /> : <Group size={20} />}
+                    {toggleCluster ? <Ungroup size={24} /> : <Group size={24} />}
                 </button>
 
                 <CustomRotateControl />
@@ -1172,31 +1173,34 @@ const FiberMap = ({
 
             </MapContainer>
 
-            {/* --- CAIXA DE AJUDA / INSTRUÇÕES --- */}
+            {/* --- CAIXA DE AJUDA / INSTRUÇÕES (Glassmorphic) --- */}
             <div className={`
                 absolute top-20 left-3 z-[900] 
-                bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm 
-                rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 
+                bg-white/40 dark:bg-black/60 
+                border border-white/60 dark:border-black/60 
+                backdrop-blur-xl rounded-2xl shadow-2xl
+                text-black dark:text-white
                 transition-all duration-300 ease-in-out overflow-hidden
-                ${isHelpExpanded ? 'max-w-[220px] p-3' : 'max-w-[50px] p-2'}
+                ${isHelpExpanded ? 'max-w-[220px] p-4' : 'max-w-[50px] p-2'}
             `}>
 
                 {/* Cabeçalho com Botão Toggle */}
                 <div
-                    className={`flex items-center ${isHelpExpanded ? 'justify-between mb-2' : 'justify-center'} cursor-pointer`}
+                    className={`flex items-center ${isHelpExpanded ? 'justify-between pb-2 mb-2 border-b border-white/60 dark:border-black/60' : 'justify-center'} cursor-pointer`}
                     onClick={() => setIsHelpExpanded(!isHelpExpanded)}
                     title={isHelpExpanded ? "Minimizar" : "Mostrar Instruções"}
                 >
                     {isHelpExpanded ? (
-                        <span className="font-bold text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        <span className="font-bold text-xs flex items-center gap-1.5">
+                            <Info size={14} className="text-blue-600" />
                             Instruções
                         </span>
                     ) : (
-                        <Info size={18} className="text-blue-600 dark:text-blue-400" />
+                        <Info size={24} className="text-blue-600 dark:text-blue-400" />
                     )}
 
                     {isHelpExpanded && (
-                        <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                        <button className="opacity-60 hover:opacity-100 transition-opacity">
                             <ChevronUp size={14} />
                         </button>
                     )}
@@ -1207,8 +1211,8 @@ const FiberMap = ({
                     <div className="text-xs animate-in fade-in slide-in-from-top-1 duration-200">
                         {interactionMode === 'SELECT' ? (
                             <>
-                                <p className="font-bold text-gray-800 dark:text-gray-200 mb-1">Navegação</p>
-                                <ul className="text-gray-600 dark:text-gray-300 space-y-1 list-disc pl-3 leading-tight">
+                                <p className="font-bold mb-1">Navegação</p>
+                                <ul className="opacity-80 space-y-1 list-disc pl-3 leading-tight">
                                     <li><strong>Arrastar:</strong> Move o mapa.</li>
                                     <li><strong>Clique:</strong> Seleciona itens.</li>
                                     <li><strong>Duplo Clique:</strong> Abre detalhes.</li>
@@ -1216,8 +1220,8 @@ const FiberMap = ({
                             </>
                         ) : interactionMode === 'MEASURE' ? (
                             <>
-                                <p className="font-bold text-gray-800 dark:text-gray-200 mb-1">Régua</p>
-                                <ul className="text-gray-600 dark:text-gray-300 space-y-1 list-disc pl-3 leading-tight">
+                                <p className="font-bold mb-1">Régua</p>
+                                <ul className="opacity-80 space-y-1 list-disc pl-3 leading-tight">
                                     <li><strong>Arrastar:</strong> Move o mapa.</li>
                                     <li><strong>Clique/Botão Esq. Mouse:</strong> Adiciona pontos.</li>
                                     <li><strong>Clique Longo/Botão Dir. Mouse:</strong> Remove último ponto adicionado.</li>
@@ -1225,24 +1229,24 @@ const FiberMap = ({
                             </>
                         ) : interactionMode === 'ADD_NODE' ? (
                             <>
-                                <p className="font-bold text-gray-800 dark:text-gray-200 mb-1">Adicionar Equipamento</p>
-                                <ul className="text-gray-600 dark:text-gray-300 space-y-1 list-disc pl-3 leading-tight">
+                                <p className="font-bold mb-1">Adicionar Equipamento</p>
+                                <ul className="opacity-80 space-y-1 list-disc pl-3 leading-tight">
                                     <li><strong>Posicione a mira</strong> sobre o local desejado.</li>
                                     <li><strong>Clique</strong> em qualquer lugar para confirmar.</li>
                                 </ul>
                             </>
                         ) : interactionMode === 'ADD_CLIENT' ? (
                             <>
-                                <p className="font-bold text-gray-800 dark:text-gray-200 mb-1">Adicionar Cliente</p>
-                                <ul className="text-gray-600 dark:text-gray-300 space-y-1 list-disc pl-3 leading-tight">
+                                <p className="font-bold mb-1">Adicionar Cliente</p>
+                                <ul className="opacity-80 space-y-1 list-disc pl-3 leading-tight">
                                     <li><strong>Posicione a mira</strong> sobre o local desejado.</li>
                                     <li><strong>Clique</strong> em qualquer lugar para adicionar.</li>
                                 </ul>
                             </>
                         ) : interactionMode === 'DRAW_CABLE' ? (
                             <>
-                                <p className="font-bold text-gray-800 dark:text-gray-200 mb-1">Adicionar Cabo</p>
-                                <ul className="text-gray-600 dark:text-gray-300 space-y-1 list-disc pl-3 leading-tight">
+                                <p className="font-bold mb-1">Adicionar Cabo</p>
+                                <ul className="opacity-80 space-y-1 list-disc pl-3 leading-tight">
                                     <li><strong>Clique no 1º equipamento</strong> para definir a origem do cabo.</li>
                                     <li><strong>Clique no 2º equipamento</strong> para definir o destino e criar o cabo.</li>
                                     <li>Após criar, selecione o cabo e desbloqueie o cadeado para ajustar a rota.</li>
@@ -1250,23 +1254,21 @@ const FiberMap = ({
                             </>
                         ) : (
                             <>
-                                <p className="font-bold text-gray-800 dark:text-gray-200 mb-1">Navegação</p>
-                                <ul className="text-gray-600 dark:text-gray-300 space-y-1 list-disc pl-3 leading-tight">
+                                <p className="font-bold mb-1">Navegação</p>
+                                <ul className="opacity-80 space-y-1 list-disc pl-3 leading-tight">
                                     <li><strong>Arrastar:</strong> Move o mapa.</li>
                                     <li><strong>Clique:</strong> Seleciona itens.</li>
                                     <li><strong>Duplo Clique:</strong> Abre detalhes.</li>
                                 </ul>
                             </>
                         )}
-                        {/* --- MENSAGEM DE SELEÇÃO (NOVO) --- */}
+                        {/* --- MENSAGEM DE SELEÇÃO --- */}
                         {selectedItem && (
                             <>
-                                <br />
-                                <p className="font-bold text-gray-800 dark:text-gray-200 mb-2">{selectedItem.type === 'CABLE' ? "Cabo Selecionado" : "Item Selecionado"}</p>
-                                {/* Removi o 'list-disc' (bolinhas) porque os ícones já servem de marcador */}
-                                <ul className="text-gray-600 dark:text-gray-300 space-y-2 leading-tight">
+                                <div className="border-t border-white/60 dark:border-black/60 my-2" />
+                                <p className="font-bold mb-2">{selectedItem.type === 'CABLE' ? "Cabo Selecionado" : "Item Selecionado"}</p>
+                                <ul className="opacity-80 space-y-2 leading-tight">
 
-                                    {/* Cada item agora é um <li> com 'flex' para alinhar lado a lado */}
                                     <li className="flex items-center gap-2">
                                         <Lock size={12} />
                                         {selectedItem.type === 'CABLE' ? <span>Desbloqueia o cabo para ajustar a rota</span> : <span>Desbloqueia o item para arrastar</span>}
