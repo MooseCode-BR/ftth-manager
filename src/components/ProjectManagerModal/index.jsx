@@ -396,18 +396,9 @@ const ProjectManagerModal = ({
                                             <div className="project-card-header">
                                                 <div className="flex items-center gap-3 overflow-hidden flex-1">
                                                     <div className="flex flex-col flex-1 min-w-0 mr-2">
-                                                        {isEditing ? (
-                                                            <div className="flex items-center gap-3">
-                                                                <input autoFocus className="input-edit-name" value={editNameValue} onChange={e => setEditNameValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveEdit(proj.id); if (e.key === 'Escape') setEditingId(null); }} />
-                                                                <button onClick={() => saveEdit(proj.id)} className="text-green-600"><Check size={14} /></button>
-                                                                <button onClick={() => setEditingId(null)} className="text-red-600"><X size={14} /></button>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="title-row-group gap-3">
-                                                                <span className={`project-name ${isActive ? 'name-active' : 'name-idle'}`} onClick={() => startEditing(proj)}>{proj.name}</span>
-                                                                <button onClick={() => startEditing(proj)} className="btn-rename"><Edit3 size={12} /></button>
-                                                            </div>
-                                                        )}
+                                                        <div className="title-row-group gap-3">
+                                                            <span className={`font-bold text-sm truncate ${isActive ? 'name-active' : 'name-idle'}`}>{proj.name}</span>
+                                                        </div>
 
                                                         {/* Status e Accordion */}
                                                         <div className="status-row">
@@ -415,7 +406,7 @@ const ProjectManagerModal = ({
                                                             {isVisible && <span className="status-badge-green">● Visível</span>}
                                                             <span
                                                                 title={proj.fromEmail}
-                                                                className={`btn-toggle-accordion accordion-closed`}
+                                                                className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full font-semibold bg-white/30 dark:bg-white/10 text-gray-600 dark:text-gray-300`}
                                                             >
                                                                 <Users size={10} />
                                                                 Dono: {proj.fromEmail || "Desconhecido"}

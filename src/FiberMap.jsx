@@ -1013,6 +1013,14 @@ const FiberMap = ({
             <MapContainer
                 center={defaultCenter}
                 zoom={5}
+                zoomSnap={0} // 1. O segredo da fluidez: 0 permite qualquer valor decimal (ex: 5.12)
+                zoomDelta={1} // 2. Define quanto o zoom pula ao clicar nos botões + e - ou duplo clique
+                wheelPxPerZoomLevel={30} // 3. Ajusta a sensibilidade do scroll do mouse (quanto menor, mais rápido o zoom)
+                maxBounds={[[-90, -180], [90, 180]]} // 4. Define os limites geográficos do mapa
+                maxBoundsViscosity={1.0} // 5. Define a viscosidade dos limites geográficos
+                zoomAnimation={true} // 6. Habilita a animação de zoom
+                zoomAnimationDuration={1} // 7. Define a duração da animação de zoom
+
                 minZoom={3}
                 style={{ height: '100%', width: '100%' }}
 
