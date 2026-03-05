@@ -1,19 +1,30 @@
-/* --- Wrapper Principal (Centralização) --- */
+/* ===================================================
+   AuthScreen – Glassmorphic Style
+   Mesma identidade visual do Dock, Barra de Busca e ItemModal
+   =================================================== */
+
+/* --- Wrapper Principal --- */
 .auth-wrapper {
-    @apply flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors p-4 relative;
+    @apply flex items-center justify-center min-h-screen p-4 relative;
+    background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%, #e2e8f0 100%);
 }
 
+:is(.dark) .auth-wrapper {
+    background: linear-gradient(135deg, #000000 0%, #1e293b 50%, #000000 100%);
+}
+
+/* --- Card Principal (Glassmorphic) --- */
 .auth-card {
-    @apply w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden border border-gray-200 dark:border-gray-700 animate-in fade-in zoom-in-95 duration-300;
+    @apply w-full max-w-md bg-white/10 dark:bg-black/60 border border-white/60 dark:border-black/60 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden text-black dark:text-white animate-in fade-in zoom-in-95 duration-300;
 }
 
 /* --- Cabeçalho Visual (Azul) --- */
 .auth-header {
-    @apply bg-blue-600 p-6 text-center;
+    @apply bg-white dark:bg-black backdrop-blur-sm p-6 text-center;
 }
 
 .logo-container {
-    @apply w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner;
+    @apply w-16 h-16 bg-black/10 dark:bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner;
 }
 
 .logo-img {
@@ -21,11 +32,11 @@
 }
 
 .app-title {
-    @apply text-2xl font-bold text-white tracking-wide;
+    @apply text-2xl font-bold text-black dark:text-white tracking-wide;
 }
 
 .app-subtitle {
-    @apply text-blue-100 text-sm mt-1;
+    @apply text-gray-500 dark:text-blue-100 text-sm mt-1;
 }
 
 /* --- Corpo do Formulário --- */
@@ -34,7 +45,7 @@
 }
 
 .form-title {
-    @apply text-xl font-bold text-gray-800 dark:text-white mb-6 text-center;
+    @apply text-xl font-bold mb-6 text-center;
 }
 
 .auth-form {
@@ -47,7 +58,7 @@
 }
 
 .input-label {
-    @apply text-xs font-bold text-gray-500 dark:text-gray-400 ml-1;
+    @apply text-xs font-bold opacity-60 ml-1;
 }
 
 .input-wrapper {
@@ -55,19 +66,16 @@
 }
 
 .input-icon {
-    /* O ícone fica a 12px da esquerda (left-3) */
-    @apply absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none;
+    @apply absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none;
 }
 
 .text-input {
-    /* pl-10 = 40px de espaço. O ícone ocupa ~30px com a margem. 
-       Se não funcionar, tente pl-12 */
-    @apply w-full pr-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all;
+    @apply w-full pr-4 py-2.5 rounded-lg border border-white/60 dark:border-white/20 bg-white/40 dark:bg-white/10 outline-none focus:ring-2 focus:ring-blue-500 transition-all;
 }
 
 /* Estados de validação do input */
 .input-default {
-    @apply border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500;
+    @apply border-white/60 dark:border-white/20 focus:ring-2 focus:ring-blue-500;
 }
 
 .input-error {
@@ -75,11 +83,11 @@
 }
 
 .btn-toggle-password {
-    @apply absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors;
+    @apply absolute right-3 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-80 transition-opacity;
 }
 
 .error-msg-tiny {
-    @apply text-[10px] text-red-500 ml-1;
+    @apply text-[10px] text-red-400 ml-1;
 }
 
 /* --- Botões e Links --- */
@@ -88,7 +96,7 @@
 }
 
 .btn-forgot {
-    @apply text-xs text-blue-600 dark:text-blue-400 hover:underline;
+    @apply text-xs text-blue-500 hover:underline;
 }
 
 .btn-submit {
@@ -97,35 +105,35 @@
 
 /* --- Feedback Boxes --- */
 .feedback-box {
-    @apply p-3 rounded-lg border flex items-start gap-2 text-sm animate-in fade-in;
+    @apply p-3 rounded-lg border flex items-start gap-2 text-sm animate-in fade-in backdrop-blur-sm;
 }
 
 .error-box {
-    @apply bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-600 dark:text-red-300;
+    @apply bg-red-500/10 border-red-500/30 text-red-400;
 }
 
 .success-box {
-    @apply bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-600 dark:text-green-300 flex items-center;
+    @apply bg-green-500/10 border-green-500/30 text-green-400 flex items-center;
 }
 
 /* --- Footer Actions --- */
 .auth-footer-actions {
-    @apply mt-6 pt-6 border-t border-gray-100 dark:border-gray-700 text-center;
+    @apply mt-6 pt-6 border-t border-white/40 dark:border-white/20 text-center;
 }
 
 .btn-back-login {
-    @apply text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white font-medium flex items-center justify-center gap-1 mx-auto;
+    @apply text-sm opacity-60 hover:opacity-100 font-medium flex items-center justify-center gap-1 mx-auto transition-opacity;
 }
 
 .toggle-mode-text {
-    @apply text-sm text-gray-600 dark:text-gray-400;
+    @apply text-sm;
 }
 
 .btn-toggle-mode {
-    @apply ml-1 text-blue-600 dark:text-blue-400 font-bold hover:underline;
+    @apply ml-1 text-blue-500 font-bold hover:underline;
 }
 
 /* --- Copyright --- */
 .copyright-text {
-    @apply absolute bottom-4 text-xs text-gray-400 dark:text-gray-600 text-center w-full;
+    @apply absolute bottom-4 text-xs text-black/30 dark:text-white/30 text-center w-full;
 }

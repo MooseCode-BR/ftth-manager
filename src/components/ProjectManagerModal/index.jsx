@@ -3,11 +3,9 @@
 import './styles.css';
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-    Folder, Trash2, Eye, EyeOff, Edit3, Check, PenTool, FolderOpen, X as XIcon,
-    Share2, UserCheck, Inbox, UserMinus, Users, ArrowRightLeft,
-    AlertTriangle, Square, CheckSquare, Plus, ChevronDown, ChevronUp,
-    X,
-    Focus
+    Folder, Trash2, Eye, EyeOff, Edit3, Check, PenTool, FolderOpen,
+    Share2, UserCheck, Inbox, UserMinus, Users, ArrowRightLeft, AlertTriangle,
+    Square, CheckSquare, Plus, ChevronDown, ChevronUp, X, Focus
 } from 'lucide-react';
 
 const ProjectManagerModal = ({
@@ -171,8 +169,8 @@ const ProjectManagerModal = ({
                         <FolderOpen size={20} />
                         <h3 className="header-title">Projetos & Colaboração</h3>
                     </div>
-                    <button onClick={onClose} className="btn-close-header">
-                        <XIcon size={20} />
+                    <button onClick={onClose} className="btn-close-header" title="Fechar">
+                        <X size={20} />
                     </button>
                 </div>
 
@@ -292,13 +290,13 @@ const ProjectManagerModal = ({
                                                         {isEditing ? (
                                                             <div className="flex items-center gap-3">
                                                                 <input autoFocus className="input-edit-name" value={editNameValue} onChange={e => setEditNameValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveEdit(proj.id); if (e.key === 'Escape') setEditingId(null); }} />
-                                                                <button onClick={() => saveEdit(proj.id)} className="text-green-600"><Check size={14} /></button>
-                                                                <button onClick={() => setEditingId(null)} className="text-red-600"><X size={14} /></button>
+                                                                <button onClick={() => saveEdit(proj.id)} className="text-green-600" title="Salvar"><Check size={14} /></button>
+                                                                <button onClick={() => setEditingId(null)} className="text-red-600" title="Cancelar"><X size={14} /></button>
                                                             </div>
                                                         ) : (
                                                             <div className="title-row-group gap-3">
                                                                 <span className={`project-name ${isActive ? 'name-active' : 'name-idle'}`} onClick={() => startEditing(proj)}>{proj.name}</span>
-                                                                <button onClick={() => startEditing(proj)} className="btn-rename"><Edit3 size={12} /></button>
+                                                                <button onClick={() => startEditing(proj)} className="btn-rename" title="Renomear"><Edit3 size={12} /></button>
                                                             </div>
                                                         )}
 
@@ -333,15 +331,31 @@ const ProjectManagerModal = ({
                                                     </button>
 
                                                     {/* BOTÃO DE ATIVAR/DESATIVAR PROJETO */}
-                                                    <button onClick={() => onSetActive(proj)} className={`btn-visibility ${isActive ? 'vis-active' : 'vis-idle'}`}>
+                                                    <button
+                                                        onClick={() => onSetActive(proj)}
+                                                        className={`btn-visibility ${isActive ? 'vis-active' : 'vis-idle'}`}
+                                                        title={isActive ? "Desativar Projeto" : "Ativar Projeto"}
+                                                    >
                                                         <PenTool size={20} />
                                                     </button>
 
                                                     {/* BOTÃO DE VISÍVEL/INVISÍVEL */}
-                                                    <button onClick={() => onToggleVisibility(proj.id)} className={`btn-visibility ${isVisible ? 'vis-active' : 'vis-idle'}`}>{isVisible ? <Eye size={20} /> : <EyeOff size={20} />}</button>
+                                                    <button
+                                                        onClick={() => onToggleVisibility(proj.id)}
+                                                        className={`btn-visibility ${isVisible ? 'vis-active' : 'vis-idle'}`}
+                                                        title={isVisible ? "Ocultar Projeto" : "Ver Projeto"}
+                                                    >
+                                                        {isVisible ? <Eye size={20} /> : <EyeOff size={20} />}
+                                                    </button>
 
                                                     {/* BOTÃO PRA DELETAR PROJETO */}
-                                                    <button onClick={() => onDeleteProject(proj.id)} className="btn-delete-project"><Trash2 size={20} /></button>
+                                                    <button
+                                                        onClick={() => onDeleteProject(proj.id)}
+                                                        className="btn-delete-project"
+                                                        title="Deletar Projeto"
+                                                    >
+                                                        <Trash2 size={20} />
+                                                    </button>
                                                 </div>
                                             </div>
 
@@ -420,18 +434,28 @@ const ProjectManagerModal = ({
                                                     <button
                                                         onClick={() => onFocusProject(proj.id)}
                                                         className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors"
-                                                        title="Localizar e Focar no Canvas"
+                                                        title="Localizar e Focar esse Projeto"
                                                     >
                                                         <Focus size={20} />
                                                     </button>
 
                                                     {/* BOTÃO DE ATIVAR/DESATIVAR PROJETO */}
-                                                    <button onClick={() => onSetActive(proj)} className={`btn-visibility ${isActive ? 'vis-active' : 'vis-idle'}`}>
+                                                    <button
+                                                        onClick={() => onSetActive(proj)}
+                                                        className={`btn-visibility ${isActive ? 'vis-active' : 'vis-idle'}`}
+                                                        title={isActive ? "Desativar Projeto" : "Ativar Projeto"}
+                                                    >
                                                         <PenTool size={20} />
                                                     </button>
 
                                                     {/* BOTÃO DE VISÍVEL/INVISÍVEL */}
-                                                    <button onClick={() => onToggleVisibility(proj.id)} className={`btn-visibility ${isVisible ? 'vis-active' : 'vis-idle'}`}>{isVisible ? <Eye size={20} /> : <EyeOff size={20} />}</button>
+                                                    <button
+                                                        onClick={() => onToggleVisibility(proj.id)}
+                                                        className={`btn-visibility ${isVisible ? 'vis-active' : 'vis-idle'}`}
+                                                        title={isVisible ? "Ocultar Projeto" : "Ver Projeto"}
+                                                    >
+                                                        {isVisible ? <Eye size={20} /> : <EyeOff size={20} />}
+                                                    </button>
                                                 </div>
                                             </div>
 
@@ -485,11 +509,11 @@ const ProjectManagerModal = ({
                                         if (e.key === 'Escape') { setIsCreating(false); setNewProjectName(''); }
                                     }}
                                 />
-                                <button onClick={handleCreate} className="btn-confirm-create"><Check size={18} /></button>
-                                <button onClick={() => { setIsCreating(false); setNewProjectName(''); }} className="btn-cancel-create"><XIcon size={18} /></button>
+                                <button onClick={handleCreate} className="btn-confirm-create" title="Salvar"><Check size={18} /></button>
+                                <button onClick={() => { setIsCreating(false); setNewProjectName(''); }} className="btn-cancel-create" title="Cancelar"><X size={18} /></button>
                             </div>
                         ) : (
-                            <button onClick={() => setIsCreating(true)} className="btn-start-create">
+                            <button onClick={() => setIsCreating(true)} className="btn-start-create" title="Criar Novo Projeto">
                                 <Plus size={18} /> Criar Novo Projeto
                             </button>
                         )}
@@ -504,7 +528,7 @@ const ProjectManagerModal = ({
                                 {bulkAction === 'SHARE' ? <Share2 className="text-indigo-600" /> : <ArrowRightLeft className="text-orange-600" />}
                                 {bulkAction === 'SHARE' ? 'Compartilhar em Massa' : 'Transferir Propriedade'}
                             </h3>
-                            <button onClick={() => { setBulkAction(null); setTargetEmails([]); }} className="btn-close-header"><XIcon size={20} /></button>
+                            <button onClick={() => { setBulkAction(null); setTargetEmails([]); }} className="btn-close-header" title="Fechar"><X size={20} /></button>
                         </div>
 
                         <div className="flex-1 flex flex-col gap-4">
@@ -522,7 +546,7 @@ const ProjectManagerModal = ({
                                     {targetEmails.map(email => (
                                         <span key={email} className="email-chip">
                                             {email}
-                                            <button onClick={() => removeEmail(email)} className="hover:text-red-500"><XIcon size={12} /></button>
+                                            <button onClick={() => removeEmail(email)} className="hover:text-red-500" title="Remover"><X size={12} /></button>
                                         </span>
                                     ))}
                                     <input

@@ -327,7 +327,7 @@
 
 /* --- OVERLAY DE AÇÃO EM MASSA --- */
 .bulk-action-overlay {
-    @apply absolute inset-0 z-10 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl flex flex-col p-6 animate-in slide-in-from-bottom-10;
+    @apply absolute inset-0 z-10 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl flex flex-col p-6 animate-in slide-in-from-bottom-10 overflow-y-auto;
 }
 
 .bulk-title {
@@ -363,7 +363,7 @@
 }
 
 .btn-execute-bulk {
-    @apply w-full py-4 rounded-xl text-white font-bold text-lg shadow-lg transition-all;
+    @apply w-full py-4 rounded-xl text-white font-bold text-lg shadow-lg transition-all mt-4;
 }
 
 .btn-disabled {

@@ -4,6 +4,7 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswor
 import { auth } from '../firebaseConfig';
 import { Mail, Lock, ArrowRight, Loader2, AlertCircle, CheckCircle2, ChevronLeft, Eye, EyeOff } from 'lucide-react';
 import { VERSAO } from '../constants';
+import { CEOIcon } from '../icons';
 
 const AuthScreen = ({ onLogin }) => {
     // Estados de Controle de Tela
@@ -115,11 +116,7 @@ const AuthScreen = ({ onLogin }) => {
                 {/* Cabeçalho Visual */}
                 <div className="auth-header">
                     <div className="logo-container">
-                        <img
-                            src="https://cdn-icons-png.flaticon.com/512/2463/2463046.png"
-                            alt="Logo"
-                            className="logo-img"
-                        />
+                        <CEOIcon size={40} className="logo-img" />
                     </div>
                     <h2 className="app-title">FTTH Manager</h2>
                     <p className="app-subtitle">Gestão de Redes de Fibra Óptica</p>
@@ -236,9 +233,7 @@ const AuthScreen = ({ onLogin }) => {
                         >
                             {loading ? <Loader2 size={20} className="animate-spin" /> : (
                                 <>
-                                    {isResetting ? "Enviar Link de Recuperação" : (isLogin ? "Entrar na Plataforma" : "Criar Conta")}
-                                    {!loading && !isResetting && <ArrowRight size={18} />}
-                                    {isResetting && <Mail size={18} />}
+                                    {isResetting ? "Enviar Link de Recuperação" : (isLogin ? "Entrar" : "Criar Conta")}
                                 </>
                             )}
                         </button>

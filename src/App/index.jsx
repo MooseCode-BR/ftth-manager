@@ -40,6 +40,7 @@ import {
 // ITEM_TYPES: Define todos os tipos de equipamentos (POP, CEO, CTO, SPLITTER, DIO, etc)
 // ICON_MAP: Mapeia tipos de objetos para seus ícones correspondentes
 import { ITEM_TYPES, ICON_MAP, VERSAO } from '../constants';
+import { CEOIcon } from '../icons';
 
 // Funções Utilitárias
 // findConnection: Busca conexões específicas entre itens e portas
@@ -4498,11 +4499,7 @@ const App = () => {
                 <div className="flex flex-col items-center animate-pulse">
                     {/* Logo ou Ícone do App */}
                     <div className="p-4 mb-6">
-                        <img
-                            src="https://cdn-icons-png.flaticon.com/512/2463/2463046.png"
-                            alt="Ícone Network"
-                            className="w-16 h-16"
-                        />
+                        <CEOIcon size={64} className="text-gray-800 dark:text-white" />
                     </div>
 
                     <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
@@ -5135,12 +5132,8 @@ const App = () => {
             )}
 
             {/* Crédito de Versão (Centralizado na Margem Inferior) */}
-            <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-1.5 text-[9px] text-gray-800 dark:text-gray-500 font-medium select-none pointer-events-none opacity-100">
-                <img
-                    src="https://cdn-icons-png.flaticon.com/512/2463/2463046.png"
-                    alt="Ícone Network"
-                    className="w-3 h-3"
-                />
+            <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-1.5 text-[9px] dark:text-gray-800 text-gray-400 font-medium select-none pointer-events-none opacity-100">
+                <CEOIcon size={12} />
                 <span>{VERSAO.NUMERO_VERSAO}</span>
             </div>
         </div>
