@@ -69,7 +69,7 @@ export default function DraggableToolbar({ children, className = '', containerSt
 
     return (
         <div
-            className={`cursor-grab bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-300 dark:border-gray-600 p-1 flex flex-col items-center min-w-[120px] transition-shadow ${isDragging ? 'shadow-2xl cursor-grabbing opacity-90 scale-105' : ''} ${className}`}
+            className={`cursor-grab bg-white/40 dark:bg-black/60 border border-white/60 dark:border-black/60 backdrop-blur-xl shadow-2xl rounded-2xl p-2 flex flex-col items-center min-w-[120px] transition-all duration-300 ${isDragging ? 'shadow-2xl cursor-grabbing scale-105 bg-white/60 dark:bg-black/80' : ''} ${className}`}
             style={{
                 transform: `translate(${offset.x}px, ${offset.y}px)`,
                 touchAction: 'none',

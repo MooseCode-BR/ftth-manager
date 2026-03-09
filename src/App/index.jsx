@@ -199,23 +199,23 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
                 >
                     <DraggableToolbar>
                         {/* 1. Nome no Topo (Header) */}
-                        <div className="w-full text-center border-b border-gray-200 dark:border-gray-700 pb-1 mb-1">
-                            <span className="text-xs font-bold text-gray-700 dark:text-gray-200 block truncate max-w-[140px] mx-auto px-1">
+                        <div className="w-full text-center border-b border-gray-300/50 dark:border-gray-600/50 pb-1.5 mb-1.5">
+                            <span className="text-[10px] font-bold text-black dark:text-white block truncate max-w-[140px] mx-auto px-1">
                                 {node.name}
                             </span>
                         </div>
 
                         {/* 2. Botões de Ação (Linha) */}
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center justify-center gap-1.5 w-full">
                             {/* TRAVAR / DESTRAVAR */}
                             <button
                                 onClick={(e) => { e.stopPropagation(); setIsUnlocked(!isUnlocked); }}
-                                className={`p-1.5 rounded flex items-center justify-center transition-colors border ${isUnlocked
-                                    ? 'bg-green-500 text-white border-green-600'
-                                    : 'bg-white text-gray-500 border-gray-300 hover:bg-gray-100 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'
+                                className={`p-1.5 rounded-full flex items-center justify-center transition-colors border ${isUnlocked
+                                    ? 'bg-green-500/90 text-white border-green-500/50 shadow-sm'
+                                    : 'bg-transparent text-gray-700 dark:text-gray-200 border-transparent hover:bg-white/50 dark:hover:bg-gray-700/50'
                                     }`}
                                 title={isUnlocked ? "Bloquear Posição" : "Liberar Movimento"}
-                                style={{ width: '26px', height: '26px' }}
+                                style={{ width: '28px', height: '28px' }}
                             >
                                 {isUnlocked ? <Unlock size={14} /> : <Lock size={14} />}
                             </button>
@@ -223,8 +223,8 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
                             {/* EDITAR */}
                             <button
                                 onClick={(e) => { e.stopPropagation(); onEdit(node.id, node.name); }}
-                                className="bg-white text-blue-500 border border-blue-200 p-1.5 rounded hover:bg-blue-50 dark:bg-gray-700 dark:border-gray-600 dark:text-blue-400 flex items-center justify-center"
-                                style={{ width: '26px', height: '26px' }}
+                                className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors"
+                                style={{ width: '28px', height: '28px' }}
                                 title="Editar"
                             >
                                 <Edit3 size={14} />
@@ -233,8 +233,8 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
                             {/* DETALHES (Novo) */}
                             <button
                                 onClick={(e) => { e.stopPropagation(); if (onOpen) onOpen(node.id); }}
-                                className="bg-white text-green-600 border border-green-200 p-1.5 rounded hover:bg-green-50 dark:bg-gray-700 dark:border-gray-600 dark:text-green-400 flex items-center justify-center"
-                                style={{ width: '26px', height: '26px' }}
+                                className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors"
+                                style={{ width: '28px', height: '28px' }}
                                 title="Detalhes"
                             >
                                 <DoorOpen size={14} />
@@ -243,8 +243,8 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
                             {/* EXCLUIR */}
                             <button
                                 onClick={(e) => { e.stopPropagation(); onDelete(node.id); }}
-                                className="bg-white text-red-500 border border-red-200 p-1.5 rounded hover:bg-red-50 dark:bg-gray-700 dark:border-gray-600 dark:text-red-400 flex items-center justify-center"
-                                style={{ width: '26px', height: '26px' }}
+                                className="bg-transparent text-red-600 dark:text-red-400 border border-transparent p-1.5 rounded-full hover:bg-red-100/50 dark:hover:bg-red-900/40 flex items-center justify-center transition-colors shadow-none"
+                                style={{ width: '28px', height: '28px' }}
                                 title="Excluir"
                             >
                                 <Trash2 size={14} />
@@ -369,19 +369,19 @@ const CableLine = memo(({ cable, nodeA, nodeB, index, count, itemTypes, onSelect
         >
             <DraggableToolbar>
                 {/* 1. Nome no Topo */}
-                <div className="w-full text-center border-b border-gray-200 dark:border-gray-700 pb-1 mb-1">
-                    <span className="text-xs font-bold text-gray-700 dark:text-gray-200 block truncate max-w-[140px] mx-auto px-1">
+                <div className="w-full text-center border-b border-gray-300/50 dark:border-gray-600/50 pb-1.5 mb-1.5">
+                    <span className="text-xs font-bold text-black dark:text-white block truncate max-w-[140px] mx-auto px-1">
                         {cable.name}
                     </span>
                 </div>
 
                 {/* 2. Botões */}
-                <div className="flex items-center gap-1">
+                <div className="flex items-center justify-center gap-1.5 w-full">
                     {/* EDITAR */}
                     <button
                         onClick={(e) => { e.stopPropagation(); onEdit(cable.id, cable.name); }}
-                        className="bg-white text-blue-500 border border-blue-200 p-1.5 rounded hover:bg-blue-50 dark:bg-gray-700 dark:border-gray-600 dark:text-blue-400 flex items-center justify-center"
-                        style={{ width: '26px', height: '26px' }}
+                        className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors"
+                        style={{ width: '28px', height: '28px' }}
                         title="Editar"
                     >
                         <Edit3 size={14} />
@@ -390,8 +390,8 @@ const CableLine = memo(({ cable, nodeA, nodeB, index, count, itemTypes, onSelect
                     {/* DETALHES (Novo) */}
                     <button
                         onClick={(e) => { e.stopPropagation(); if (onOpen) onOpen(cable.id); }}
-                        className="bg-white text-green-600 border border-green-200 p-1.5 rounded hover:bg-green-50 dark:bg-gray-700 dark:border-gray-600 dark:text-green-400 flex items-center justify-center"
-                        style={{ width: '26px', height: '26px' }}
+                        className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors"
+                        style={{ width: '28px', height: '28px' }}
                         title="Detalhes"
                     >
                         <DoorOpen size={14} />
@@ -400,8 +400,8 @@ const CableLine = memo(({ cable, nodeA, nodeB, index, count, itemTypes, onSelect
                     {/* EXCLUIR */}
                     <button
                         onClick={(e) => { e.stopPropagation(); onDelete(cable.id); }}
-                        className="bg-white text-red-500 border border-red-200 p-1.5 rounded hover:bg-red-50 dark:bg-gray-700 dark:border-gray-600 dark:text-red-400 flex items-center justify-center"
-                        style={{ width: '26px', height: '26px' }}
+                        className="bg-transparent text-red-600 dark:text-red-400 border border-transparent p-1.5 rounded-full hover:bg-red-100/50 dark:hover:bg-red-900/40 flex items-center justify-center transition-colors shadow-none"
+                        style={{ width: '28px', height: '28px' }}
                         title="Excluir"
                     >
                         <Trash2 size={14} />

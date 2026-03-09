@@ -529,14 +529,14 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                 >
                     <DraggableToolbar>
                         {/* --- NOME DO NODE (EM CIMA) --- */}
-                        <div className="w-full text-center border-b border-gray-200 dark:border-gray-600 pb-1 mb-1">
-                            <span className="text-xs font-bold text-gray-700 dark:text-gray-200 block truncate max-w-[180px] mx-auto">
+                        <div className="w-full text-center border-b border-gray-300/50 dark:border-gray-600/50 pb-1.5 mb-1.5">
+                            <span className="text-[10px] font-bold text-black dark:text-white block truncate max-w-[180px] mx-auto px-1">
                                 {item.name}
                             </span>
                         </div>
 
                         {/* --- BOTÕES (EMBAIXO, LADO A LADO) --- */}
-                        <div className="flex flex-row items-center justify-center gap-2"
+                        <div className="flex flex-row items-center justify-center gap-1.5 w-full"
                             onPointerDown={(e) => {
                                 // L.DomEvent.stopPropagation não é suficiente para interact.js ou native draggables no Leaflet,
                                 // O e.stopPropagation() já é feito no DraggableToolbar
@@ -549,14 +549,14 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                                     e.preventDefault();
                                     setIsUnlocked(!isUnlocked);
                                 }}
-                                className={`p-1.5 rounded flex items-center justify-center transition-colors border ${isUnlocked
-                                    ? 'bg-green-500 text-white border-green-600'
-                                    : 'bg-white text-gray-500 border-gray-300 hover:bg-gray-100'
+                                className={`p-1.5 rounded-full flex items-center justify-center transition-colors border ${isUnlocked
+                                    ? 'bg-green-500/90 text-white border-green-500/50 shadow-sm'
+                                    : 'bg-transparent text-gray-700 dark:text-gray-200 border-transparent hover:bg-white/50 dark:hover:bg-gray-700/50'
                                     }`}
                                 title={isUnlocked ? "Bloquear Posição" : "Liberar Movimento"}
-                                style={{ width: '25px', height: '25px' }}
+                                style={{ width: '28px', height: '28px' }}
                             >
-                                {isUnlocked ? <Unlock size={20} /> : <Lock size={20} />}
+                                {isUnlocked ? <Unlock size={14} /> : <Lock size={14} />}
                             </button>
 
                             {/* Botão EDITAR */}
@@ -565,11 +565,11 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                                     e.stopPropagation();
                                     if (onEdit) onEdit(item.id, item.name);
                                 }}
-                                className="bg-white text-blue-500 border border-blue-200 p-1.5 rounded hover:bg-blue-50 flex items-center justify-center"
-                                style={{ width: '25px', height: '25px' }}
+                                className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors"
+                                style={{ width: '28px', height: '28px' }}
                                 title="Editar Propriedades"
                             >
-                                <Edit3 size={20} />
+                                <Edit3 size={14} />
                             </button>
 
                             {/* Botão DETALHES (Novo, para igualar ao cabo) */}
@@ -578,11 +578,11 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                                     e.stopPropagation();
                                     if (onOpen) onOpen(item.id);
                                 }}
-                                className="bg-white text-green-600 border border-green-200 p-1.5 rounded hover:bg-green-50 flex items-center justify-center"
-                                style={{ width: '25px', height: '25px' }}
+                                className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors"
+                                style={{ width: '28px', height: '28px' }}
                                 title="Abrir Detalhes"
                             >
-                                <DoorOpen size={20} />
+                                <DoorOpen size={14} />
                             </button>
 
                             {/* Botão EXCLUIR */}
@@ -591,11 +591,11 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                                     e.stopPropagation();
                                     if (onDelete) onDelete(item.id);
                                 }}
-                                className="bg-white text-red-500 border border-red-200 p-1.5 rounded hover:bg-red-50 flex items-center justify-center"
-                                style={{ width: '25px', height: '25px' }}
+                                className="bg-transparent text-red-600 dark:text-red-400 border border-transparent p-1.5 rounded-full hover:bg-red-100/50 dark:hover:bg-red-900/40 flex items-center justify-center transition-colors shadow-none"
+                                style={{ width: '28px', height: '28px' }}
                                 title="Excluir Item"
                             >
-                                <Trash2 size={20} />
+                                <Trash2 size={14} />
                             </button>
                         </div>
                     </DraggableToolbar>
@@ -724,58 +724,58 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
                 >
                     <DraggableToolbar>
                         {/* --- NOME DO CABO (EM CIMA) --- */}
-                        <div className="w-full text-center border-b border-gray-200 dark:border-gray-600 pb-1 mb-1">
-                            <span className="text-xs font-bold text-gray-700 dark:text-gray-200 block truncate max-w-[180px] mx-auto">
+                        <div className="w-full text-center border-b border-gray-300/50 dark:border-gray-600/50 pb-1.5 mb-1.5">
+                            <span className="text-[10px] font-bold text-black dark:text-white block truncate max-w-[180px] mx-auto px-1">
                                 {cable.name}
                             </span>
                         </div>
 
                         {/* --- BOTÕES (EMBAIXO, LADO A LADO) --- */}
-                        <div className="flex flex-row items-center justify-center gap-2">
+                        <div className="flex flex-row items-center justify-center gap-1.5 w-full">
 
                             <button
                                 onClick={(e) => { e.stopPropagation(); setIsUnlocked(!isUnlocked); }}
-                                className={`p-1.5 rounded flex items-center justify-center transition-colors border ${isUnlocked ? 'bg-green-500 text-white border-green-600' : 'bg-white text-gray-500 border-gray-300 hover:bg-gray-100'}`}
+                                className={`p-1.5 rounded-full flex items-center justify-center transition-colors border ${isUnlocked ? 'bg-green-500/90 text-white border-green-500/50 shadow-sm' : 'bg-transparent text-gray-700 dark:text-gray-200 border-transparent hover:bg-white/50 dark:hover:bg-gray-700/50'}`}
                                 title={isUnlocked ? "Bloquear" : "Desbloquear"}
-                                style={{ width: '25px', height: '25px' }}
+                                style={{ width: '28px', height: '28px' }}
                             >
-                                {isUnlocked ? <Unlock size={20} /> : <Lock size={20} />}
+                                {isUnlocked ? <Unlock size={14} /> : <Lock size={14} />}
                             </button>
 
                             <button
                                 onClick={(e) => { e.stopPropagation(); if (onEdit) onEdit(cable.id, cable.name); }}
-                                className="bg-white text-blue-500 border border-blue-200 p-1.5 rounded hover:bg-blue-50 flex items-center justify-center"
-                                style={{ width: '25px', height: '25px' }}
+                                className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors"
+                                style={{ width: '28px', height: '28px' }}
                                 title="Editar"
                             >
-                                <Edit3 size={20} />
+                                <Edit3 size={14} />
                             </button>
 
                             <button
                                 onClick={(e) => { e.stopPropagation(); if (onOpen) onOpen(cable.id, clickPosition); }}
-                                className="bg-white text-green-600 border border-green-200 p-1.5 rounded hover:bg-green-50 flex items-center justify-center"
-                                style={{ width: '25px', height: '25px' }}
+                                className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors"
+                                style={{ width: '28px', height: '28px' }}
                                 title="Detalhes"
                             >
-                                <DoorOpen size={20} />
+                                <DoorOpen size={14} />
                             </button>
 
                             <button
                                 onClick={(e) => { e.stopPropagation(); if (onDelete) onDelete(cable.id); }}
-                                className="bg-white text-red-500 border border-red-200 p-1.5 rounded hover:bg-red-50 flex items-center justify-center"
-                                style={{ width: '25px', height: '25px' }}
+                                className="bg-transparent text-red-600 dark:text-red-400 border border-transparent p-1.5 rounded-full hover:bg-red-100/50 dark:hover:bg-red-900/40 flex items-center justify-center transition-colors shadow-none"
+                                style={{ width: '28px', height: '28px' }}
                                 title="Excluir"
                             >
-                                <Trash2 size={20} />
+                                <Trash2 size={14} />
                             </button>
 
                             <button
                                 onClick={(e) => { e.stopPropagation(); if (onSplit) onSplit(cable.id, clickPosition); }}
-                                className="bg-white text-orange-500 border border-orange-200 p-1.5 rounded hover:bg-orange-50 flex items-center justify-center"
-                                style={{ width: '25px', height: '25px' }}
+                                className="bg-transparent text-orange-600 dark:text-orange-400 border border-transparent p-1.5 rounded-full hover:bg-orange-100/50 dark:hover:bg-orange-900/40 flex items-center justify-center transition-colors shadow-none"
+                                style={{ width: '28px', height: '28px' }}
                                 title="Seccionar (Dividir)"
                             >
-                                <Scissors size={20} className="rotate-90" />
+                                <Scissors size={14} className="rotate-90" />
                             </button>
                         </div>
                     </DraggableToolbar>
@@ -1224,8 +1224,8 @@ const FiberMap = ({
                                 <p className="font-bold mb-1">Navegação</p>
                                 <ul className="opacity-80 space-y-1 list-disc pl-3 leading-tight">
                                     <li><strong>Arrastar:</strong> Move o mapa.</li>
-                                    <li><strong>Clique:</strong> Seleciona itens.</li>
-                                    <li><strong>Duplo Clique:</strong> Abre detalhes.</li>
+                                    <li><strong>Clique no item:</strong> Seleciona itens.</li>
+                                    <li><strong>Duplo clique no item:</strong> Abre detalhes.</li>
                                 </ul>
                             </>
                         ) : interactionMode === 'MEASURE' ? (
@@ -1267,8 +1267,8 @@ const FiberMap = ({
                                 <p className="font-bold mb-1">Navegação</p>
                                 <ul className="opacity-80 space-y-1 list-disc pl-3 leading-tight">
                                     <li><strong>Arrastar:</strong> Move o mapa.</li>
-                                    <li><strong>Clique:</strong> Seleciona itens.</li>
-                                    <li><strong>Duplo Clique:</strong> Abre detalhes.</li>
+                                    <li><strong>Clique no item:</strong> Seleciona itens.</li>
+                                    <li><strong>Duplo clique no item:</strong> Abre detalhes.</li>
                                 </ul>
                             </>
                         )}
@@ -1290,9 +1290,21 @@ const FiberMap = ({
                                     </li>
 
                                     <li className="flex items-center gap-2">
+                                        <DoorOpen size={12} />
+                                        {selectedItem.type === 'CABLE' ? <span>Abrir detalhes do cabo</span> : <span>Abrir detalhes do item</span>}
+                                    </li>
+
+                                    <li className="flex items-center gap-2">
                                         <Trash2 size={12} />
                                         {selectedItem.type === 'CABLE' ? <span>Excluir cabo</span> : <span>Excluir item</span>}
                                     </li>
+
+                                    {selectedItem.type === 'CABLE' && (
+                                        <li className="flex items-center gap-2">
+                                            <Scissors size={12} />
+                                            <span>Seccionar (Cortar) cabo</span>
+                                        </li>
+                                    )}
 
                                 </ul>
                             </>
