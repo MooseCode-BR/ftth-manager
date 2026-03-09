@@ -563,17 +563,7 @@ const DetailPanel = ({
                         <button onClick={() => onEditRequest(item.id, item.name)} className="btn-edit-title"><Edit3 size={14} /></button>
                     </div>
                     <div className="header-actions-group">
-                        {/* --- SE CABO, BOTÃO CORTAR CABO --- */}
-                        {item.type === 'CABLE' && (
-                            <button
-                                onClick={() => onSplitCable(item.id)}
-                                className="btn-action-split"
-                                title="Seccionar Cabo (Criar Emenda)"
-                            >
-                                <Scissors size={14} className="rotate-90" />
-                                <span className="hidden sm:inline">Seccionar</span>
-                            </button>
-                        )}
+                        {/* --- DEPRECATED: BOTÃO CORTAR CABO (MOVIDO PARA TOOLBAR) --- */}
 
                         {/* --- BOTÃO DE NOTAS --- */}
                         <button

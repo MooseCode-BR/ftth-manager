@@ -273,7 +273,7 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
 
 // 2. Cabo Otimizado
 // Recebe index e count calculados pelo Pai, evitando filtro O(N^2) interno
-const CableLine = memo(({ cable, nodeA, nodeB, index, count, itemTypes, onSelect, onOpen, onDelete, onEdit, isSelected }) => {
+const CableLine = memo(({ cable, nodeA, nodeB, index, count, itemTypes, onSelect, onOpen, onSplit, onDelete, onEdit, isSelected }) => {
 
     const [isHovered, setIsHovered] = useState(false);
 
@@ -3482,6 +3482,8 @@ const App = () => {
         });
     };
 
+    const [lastCableClickCoords, setLastCableClickCoords] = useState(null);
+
     const splitCable = (cableId) => {
         const cable = items.find(i => i.id === cableId);
         if (!cable) return;
@@ -3504,9 +3506,63 @@ const App = () => {
 
             const existingConnections = connections.filter(c => c.fromId === cableId || c.toId === cableId);
 
-            // 2. Calcular ponto médio
+            // 1.5. Determinar os Waypoints Originais e divisão geográfica
+            const originalWaypoints = cable.waypoints || [];
+            let splitIndex = -1; // -1 significa que vai pegar tudo no cable1 por padrão ou meio a meio
+
+            let finalLat = null;
+            let finalLng = null;
+
+            if (viewMode === 'MAP' && lastCableClickCoords) {
+                finalLat = lastCableClickCoords.lat;
+                finalLng = lastCableClickCoords.lng;
+                setLastCableClickCoords(null);
+
+                // Algoritmo matemático para achar em qual segmento do cabo poligonal ocorreu o clique
+                if (originalWaypoints.length > 0 && nodeA.lat && nodeB.lat) {
+                    const vertices = [
+                        { lat: nodeA.lat, lng: nodeA.lng },
+                        ...originalWaypoints,
+                        { lat: nodeB.lat, lng: nodeB.lng }
+                    ];
+
+                    // Função auxiliar de distância Ponto a Segmento
+                    const distToSegmentSquared = (p, v, w) => {
+                        const l2 = (w.lat - v.lat) ** 2 + (w.lng - v.lng) ** 2;
+                        if (l2 === 0) return (p.lat - v.lat) ** 2 + (p.lng - v.lng) ** 2;
+                        let t = ((p.lat - v.lat) * (w.lat - v.lat) + (p.lng - v.lng) * (w.lng - v.lng)) / l2;
+                        t = Math.max(0, Math.min(1, t));
+                        return (p.lat - (v.lat + t * (w.lat - v.lat))) ** 2 + (p.lng - (v.lng + t * (w.lng - v.lng))) ** 2;
+                    };
+
+                    let minDist = Infinity;
+                    let bestSegmentIndex = -1;
+
+                    // Itera sobre todas as "fatias" de pares de vértices
+                    for (let i = 0; i < vertices.length - 1; i++) {
+                        const d2 = distToSegmentSquared({ lat: finalLat, lng: finalLng }, vertices[i], vertices[i + 1]);
+                        if (d2 < minDist) {
+                            minDist = d2;
+                            bestSegmentIndex = i;
+                        }
+                    }
+
+                    // bestSegmentIndex é onde o ponto entrou.
+                    // O cable1 (A até nova caixa) leva os waypoints de 0 até bestSegmentIndex
+                    if (bestSegmentIndex !== -1) {
+                        splitIndex = bestSegmentIndex;
+                    }
+                }
+            }
+
+            // 2. Calcular ponto médio provisório para Canvas e X/Y
             const midX = (nodeA.x + nodeB.x) / 2;
             const midY = (nodeA.y + nodeB.y) / 2;
+
+            if (viewMode === 'CANVAS' && splitIndex === -1 && originalWaypoints.length > 0) {
+                // Divisão burra se for pelo canvas com waypoints (metade pra cada)
+                splitIndex = Math.floor(originalWaypoints.length / 2);
+            }
 
             // 3. Criar a Nova Caixa
             const newBoxId = `node_${Date.now()}`;
@@ -3516,16 +3572,35 @@ const App = () => {
                 name: 'CX Emenda (Reparo)',
                 x: midX,
                 y: midY,
+                ...(finalLat !== null && { lat: finalLat }),
+                ...(finalLng !== null && { lng: finalLng }),
                 ports: 0,
                 cards: [{ id: Date.now(), name: 'Bandeja Principal', portCount: Math.max(12, cable.ports) }]
             };
 
-            // 4. Criar os dois novos cabos
+            // 4. Criar os dois novos cabos com a respectiva fatia de waypoints
+            const cable1Waypoints = splitIndex >= 0 ? originalWaypoints.slice(0, splitIndex) : [];
+            const cable2Waypoints = splitIndex >= 0 ? originalWaypoints.slice(splitIndex) : [];
+
             // Trecho 1: Liga NodeA -> Nova Caixa
-            const cable1 = { ...cable, id: `cable_${Date.now()}_1`, fromNode: cable.fromNode, toNode: newBoxId, name: `${cable.name} (Trecho 1)` };
+            const cable1 = {
+                ...cable,
+                id: `cable_${Date.now()}_1`,
+                fromNode: cable.fromNode,
+                toNode: newBoxId,
+                name: `${cable.name} (Trecho 1)`,
+                waypoints: cable1Waypoints
+            };
 
             // Trecho 2: Liga Nova Caixa -> NodeB
-            const cable2 = { ...cable, id: `cable_${Date.now()}_2`, fromNode: newBoxId, toNode: cable.toNode, name: `${cable.name} (Trecho 2)` };
+            const cable2 = {
+                ...cable,
+                id: `cable_${Date.now()}_2`,
+                fromNode: newBoxId,
+                toNode: cable.toNode,
+                name: `${cable.name} (Trecho 2)`,
+                waypoints: cable2Waypoints
+            };
 
             // 5. Preparar conexões RECUPERADAS (A CORREÇÃO ESTÁ AQUI)
             const restoredConnections = existingConnections.map(conn => {
@@ -4631,6 +4706,7 @@ const App = () => {
                                             itemTypes={ITEM_TYPES}
                                             onSelect={(id) => setSelectedIds(new Set([id]))}
                                             onOpen={setDetailId}
+                                            onSplit={splitCable}
                                             onDelete={deleteItem}
                                             onEdit={renameItem}
                                             isSelected={selectedIds.has(c.id)}
@@ -4717,7 +4793,18 @@ const App = () => {
                             searchMode={searchMode}
                             onEdit={renameItem}
                             onDelete={deleteItem}
-                            onOpen={setDetailId}      // Duplo Clique -> Abre DetailPanel
+                            onOpen={(id, coords) => {
+                                setDetailId(id);
+                                if (coords && coords.lat != null) {
+                                    setLastCableClickCoords(coords);
+                                }
+                            }}
+                            onSplit={(id, coords) => {
+                                if (coords && coords.lat != null) {
+                                    setLastCableClickCoords(coords);
+                                }
+                                splitCable(id);
+                            }}
                             onSwitchToCanvas={() => setViewMode('CANVAS')}
                             cableStartNodeId={cableStartNode?.id}
                             onLocationFound={(latlng) => setUserLocation({ lat: latlng.lat, lng: latlng.lng })}

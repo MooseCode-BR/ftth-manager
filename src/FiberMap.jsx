@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { ITEM_TYPES, ICON_MAP } from './constants';
 import { CompassIcon } from './icons';
 import {
-    ChevronUp, Info, Lock, Unlock, Edit3, Trash2, Ruler, MapPin, DiamondPlus, Layers,
+    ChevronUp, Info, Lock, Unlock, Edit3, Trash2, Ruler, MapPin, Scissors,
     Group, Ungroup, Crosshair
 } from 'lucide-react';
 
@@ -618,7 +618,7 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
     );
 });
 
-const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect, onEdit, onDelete, onOpen, /*onReconnect*/ }) => {
+const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect, onEdit, onDelete, onOpen, onSplit }) => {
     const [isUnlocked, setIsUnlocked] = useState(false);
     const [clickPosition, setClickPosition] = useState(null);
 
@@ -676,7 +676,7 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
     const handleLineDblClick = (e) => {
         L.DomEvent.stopPropagation(e);
         e.originalEvent.preventDefault();
-        if (onOpen) onOpen(cable.id);
+        if (onOpen) onOpen(cable.id, e.latlng);
     };
 
     const handleDragHandle = (index, lat, lng) => {
@@ -761,7 +761,7 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
                             </button>
 
                             <button
-                                onClick={(e) => { e.stopPropagation(); if (onOpen) onOpen(cable.id); }}
+                                onClick={(e) => { e.stopPropagation(); if (onOpen) onOpen(cable.id, clickPosition); }}
                                 className="bg-white text-green-600 border border-green-200 p-1.5 rounded hover:bg-green-50 flex items-center justify-center"
                                 style={{ width: '25px', height: '25px' }}
                                 title="Detalhes"
@@ -776,6 +776,15 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
                                 title="Excluir"
                             >
                                 <Trash2 size={20} />
+                            </button>
+
+                            <button
+                                onClick={(e) => { e.stopPropagation(); if (onSplit) onSplit(cable.id, clickPosition); }}
+                                className="bg-white text-orange-500 border border-orange-200 p-1.5 rounded hover:bg-orange-50 flex items-center justify-center"
+                                style={{ width: '25px', height: '25px' }}
+                                title="Seccionar (Dividir)"
+                            >
+                                <Scissors size={20} className="rotate-90" />
                             </button>
                         </div>
                     </div>
@@ -924,7 +933,7 @@ const RulerTool = ({ isActive, onDistanceChange }) => {
 
 const FiberMap = ({
     items, saveItem, isDarkMode, interactionMode, onMapClick, onNodeClick, isPickingMode, flyToCoords,
-    allItems, onEdit, onDelete, onOpen, onClearSearch, onSwitchToCanvas, cableStartNodeId, onLocationFound
+    allItems, onEdit, onDelete, onOpen, onSplit, onClearSearch, onSwitchToCanvas, cableStartNodeId, onLocationFound
 }) => {
     const defaultCenter = [0, 0];
     const [selectedId, setSelectedId] = useState(null);
@@ -1129,6 +1138,7 @@ const FiberMap = ({
                                 onEdit={() => onEdit(cable.id, cable.name)}
                                 onDelete={() => onDelete(cable.id)}
                                 onOpen={() => onOpen(cable.id)}
+                                onSplit={onSplit}
                             // onReconnect={onReconnect}
                             />
                         );

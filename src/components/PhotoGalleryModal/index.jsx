@@ -2,7 +2,7 @@
 
 import './styles.css';
 import React, { useRef, useState, useEffect } from 'react';
-import { Camera, X, ImageIcon, Maximize2, Trash2, UploadCloud, CheckCircle2, Circle } from 'lucide-react';
+import { Camera, X, ImageIcon, Trash2, UploadCloud, CheckCircle2, Circle } from 'lucide-react';
 import ImageViewer from '../ImageViewer'; // <--- 1. IMPORTANTE: Importe o componente novo
 
 const PhotoGalleryModal = ({ item, onClose, onUpload, onDelete, onBatchDelete, uploading }) => {
@@ -146,7 +146,7 @@ const PhotoGalleryModal = ({ item, onClose, onUpload, onDelete, onBatchDelete, u
                                             alt="Evidência"
                                             className="photo-img"
                                             // --- 5. OTIMIZAÇÃO DAS MINIATURAS ---
-                                            loading="lazy" 
+                                            loading="lazy"
                                             decoding="async"
                                             onError={(e) => {
                                                 e.target.onerror = null;
@@ -169,18 +169,6 @@ const PhotoGalleryModal = ({ item, onClose, onUpload, onDelete, onBatchDelete, u
                                         {/* Overlay de Ações (Hover) */}
                                         {!isSelectionMode && (
                                             <div className="action-overlay">
-                                                {/* --- 6. ALTERADO: Botão Maximize agora abre o Viewer --- */}
-                                                {/* <button
-                                                    onClick={(e) => { 
-                                                        e.stopPropagation(); // Evita clicar no card pai
-                                                        openViewer(idx); 
-                                                    }}
-                                                    className="btn-action-icon"
-                                                    title="Visualizar"
-                                                >
-                                                    <Maximize2 size={16} />
-                                                </button> */}
-                                                
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); onDelete(item, photo); }}
                                                     className="btn-delete-icon"
@@ -234,7 +222,7 @@ const PhotoGalleryModal = ({ item, onClose, onUpload, onDelete, onBatchDelete, u
 
             {/* --- 7. RENDERIZA O COMPONENTE VIEWER --- */}
             {isViewerOpen && item.photos && (
-                <ImageViewer 
+                <ImageViewer
                     photos={item.photos}
                     initialIndex={viewerIndex}
                     onClose={() => setIsViewerOpen(false)}

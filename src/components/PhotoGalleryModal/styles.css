@@ -104,14 +104,14 @@
     @apply absolute top-2 left-2 z-10;
 }
 
-/* Overlay de Ações (Hover) */
+/* Overlay de Ações (Sempre visível o botão, fundo no hover) */
 .action-overlay {
-    @apply absolute inset-0 bg-black/50 opacity-0 transition-opacity flex items-start justify-end p-2;
+    @apply absolute inset-0 transition-all duration-300 flex items-start justify-end p-2;
 }
 
 /* Regra de Hover (substitui group-hover) */
 .photo-card:hover .action-overlay {
-    @apply opacity-100;
+    @apply bg-black/50 backdrop-blur-[2px];
 }
 
 /* .btn-action-icon {
