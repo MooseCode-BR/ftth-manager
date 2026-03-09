@@ -7,8 +7,10 @@ import { ITEM_TYPES, ICON_MAP } from './constants';
 import { CompassIcon } from './icons';
 import {
     ChevronUp, Info, Lock, Unlock, Edit3, Trash2, Ruler, MapPin, Scissors,
-    Group, Ungroup, Crosshair
+    Group, Ungroup, Crosshair,
+    DoorOpen
 } from 'lucide-react';
+import DraggableToolbar from './components/DraggableToolbar/DraggableToolbar';
 
 // Configuração padrão do ícone do Leaflet
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -518,88 +520,87 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
             {/* Não renderiza o Popup quando está no modo de seleção de nós para cabos,
                 pois o Leaflet abre o popup nativamente ao clicar no Marker,
                 interrompendo o fluxo de seleção do 2º nó. */}
-            {!isPickingMode && <Popup
-                closeButton={false}
-                autoPan={true}
-                className="custom-cable-popup"
-                offset={[0, -10]} // Offset maior para ficar acima do ícone do pino
-            >
-                {/* WRAPPER PRINCIPAL */}
-                <div
-                    className="flex flex-col items-center justify-center min-w-[120px] p-1"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        L.DomEvent.disableClickPropagation(e.currentTarget);
-                    }}
+            {!isPickingMode && (
+                <Popup
+                    closeButton={false}
+                    autoPan={false}
+                    className="hide-leaflet-popup-tail"
+                    offset={[0, -10]} // Offset maior para ficar acima do ícone do pino
                 >
-                    {/* --- NOME DO NODE (EM CIMA) --- */}
-                    <div className="w-full text-center border-b border-gray-200 dark:border-gray-600 pb-1 mb-1">
-                        <span className="text-xs font-bold text-gray-700 dark:text-gray-200 block truncate max-w-[180px] mx-auto">
-                            {item.name}
-                        </span>
-                    </div>
+                    <DraggableToolbar>
+                        {/* --- NOME DO NODE (EM CIMA) --- */}
+                        <div className="w-full text-center border-b border-gray-200 dark:border-gray-600 pb-1 mb-1">
+                            <span className="text-xs font-bold text-gray-700 dark:text-gray-200 block truncate max-w-[180px] mx-auto">
+                                {item.name}
+                            </span>
+                        </div>
 
-                    {/* --- BOTÕES (EMBAIXO, LADO A LADO) --- */}
-                    <div className="flex flex-row items-center justify-center gap-2">
+                        {/* --- BOTÕES (EMBAIXO, LADO A LADO) --- */}
+                        <div className="flex flex-row items-center justify-center gap-2"
+                            onPointerDown={(e) => {
+                                // L.DomEvent.stopPropagation não é suficiente para interact.js ou native draggables no Leaflet,
+                                // O e.stopPropagation() já é feito no DraggableToolbar
+                            }}>
 
-                        {/* Botão MOVER / TRAVAR */}
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                setIsUnlocked(!isUnlocked);
-                            }}
-                            className={`p-1.5 rounded flex items-center justify-center transition-colors border ${isUnlocked
-                                ? 'bg-green-500 text-white border-green-600'
-                                : 'bg-white text-gray-500 border-gray-300 hover:bg-gray-100'
-                                }`}
-                            title={isUnlocked ? "Bloquear Posição" : "Liberar Movimento"}
-                            style={{ width: '25px', height: '25px' }}
-                        >
-                            {isUnlocked ? <Unlock size={20} /> : <Lock size={20} />}
-                        </button>
+                            {/* Botão MOVER / TRAVAR */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    setIsUnlocked(!isUnlocked);
+                                }}
+                                className={`p-1.5 rounded flex items-center justify-center transition-colors border ${isUnlocked
+                                    ? 'bg-green-500 text-white border-green-600'
+                                    : 'bg-white text-gray-500 border-gray-300 hover:bg-gray-100'
+                                    }`}
+                                title={isUnlocked ? "Bloquear Posição" : "Liberar Movimento"}
+                                style={{ width: '25px', height: '25px' }}
+                            >
+                                {isUnlocked ? <Unlock size={20} /> : <Lock size={20} />}
+                            </button>
 
-                        {/* Botão EDITAR */}
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if (onEdit) onEdit(item.id, item.name);
-                            }}
-                            className="bg-white text-blue-500 border border-blue-200 p-1.5 rounded hover:bg-blue-50 flex items-center justify-center"
-                            style={{ width: '25px', height: '25px' }}
-                            title="Editar Propriedades"
-                        >
-                            <Edit3 size={20} />
-                        </button>
+                            {/* Botão EDITAR */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (onEdit) onEdit(item.id, item.name);
+                                }}
+                                className="bg-white text-blue-500 border border-blue-200 p-1.5 rounded hover:bg-blue-50 flex items-center justify-center"
+                                style={{ width: '25px', height: '25px' }}
+                                title="Editar Propriedades"
+                            >
+                                <Edit3 size={20} />
+                            </button>
 
-                        {/* Botão DETALHES (Novo, para igualar ao cabo) */}
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if (onOpen) onOpen(item.id);
-                            }}
-                            className="bg-white text-green-600 border border-green-200 p-1.5 rounded hover:bg-green-50 flex items-center justify-center"
-                            style={{ width: '25px', height: '25px' }}
-                            title="Abrir Detalhes"
-                        >
-                            <Info size={20} />
-                        </button>
+                            {/* Botão DETALHES (Novo, para igualar ao cabo) */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (onOpen) onOpen(item.id);
+                                }}
+                                className="bg-white text-green-600 border border-green-200 p-1.5 rounded hover:bg-green-50 flex items-center justify-center"
+                                style={{ width: '25px', height: '25px' }}
+                                title="Abrir Detalhes"
+                            >
+                                <DoorOpen size={20} />
+                            </button>
 
-                        {/* Botão EXCLUIR */}
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if (onDelete) onDelete(item.id);
-                            }}
-                            className="bg-white text-red-500 border border-red-200 p-1.5 rounded hover:bg-red-50 flex items-center justify-center"
-                            style={{ width: '25px', height: '25px' }}
-                            title="Excluir Item"
-                        >
-                            <Trash2 size={20} />
-                        </button>
-                    </div>
-                </div>
-            </Popup>}
+                            {/* Botão EXCLUIR */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (onDelete) onDelete(item.id);
+                                }}
+                                className="bg-white text-red-500 border border-red-200 p-1.5 rounded hover:bg-red-50 flex items-center justify-center"
+                                style={{ width: '25px', height: '25px' }}
+                                title="Excluir Item"
+                            >
+                                <Trash2 size={20} />
+                            </button>
+                        </div>
+                    </DraggableToolbar>
+                </Popup>
+            )}
         </Marker>
     );
 }, (prev, next) => { // Só re-renderiza os ícones caso algum desses parametro mudar
@@ -713,25 +714,15 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
                 eventHandlers={{ click: handleLineClick, dblclick: handleLineDblClick }}
             />
             {/* --- O POPUP AGORA ESTÁ AQUI FORA (IRMÃO DA POLYLINE) --- */}
-            {/*isSelected && */clickPosition && (
+            {isSelected && clickPosition && (
                 <Popup
                     position={clickPosition}
                     closeButton={false}
-                    className="custom-cable-popup"
+                    className="hide-leaflet-popup-tail"
                     offset={[0, -5]}
-                    autoPan={true}
+                    autoPan={false}
                 >
-                    {/* WRAPPER PRINCIPAL 
-                        flex-col: Garante que o Nome fique EM CIMA e os botões EMBAIXO 
-                        min-w: Garante largura mínima para não quebrar o texto
-                    */}
-                    <div
-                        className="flex flex-col items-center justify-center min-w-[120px] p-1"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            L.DomEvent.disableClickPropagation(e.currentTarget);
-                        }}
-                    >
+                    <DraggableToolbar>
                         {/* --- NOME DO CABO (EM CIMA) --- */}
                         <div className="w-full text-center border-b border-gray-200 dark:border-gray-600 pb-1 mb-1">
                             <span className="text-xs font-bold text-gray-700 dark:text-gray-200 block truncate max-w-[180px] mx-auto">
@@ -766,7 +757,7 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
                                 style={{ width: '25px', height: '25px' }}
                                 title="Detalhes"
                             >
-                                <Info size={20} />
+                                <DoorOpen size={20} />
                             </button>
 
                             <button
@@ -787,7 +778,7 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
                                 <Scissors size={20} className="rotate-90" />
                             </button>
                         </div>
-                    </div>
+                    </DraggableToolbar>
                 </Popup>
             )}
 

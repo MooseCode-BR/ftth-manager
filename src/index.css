@@ -162,38 +162,26 @@ button.leaflet-control-custom.locating-active {
 }
 
 
-/* Customização do Popup do Cabo (Toolbar) */
-.custom-cable-popup .leaflet-popup-content-wrapper {
-  background: transparent;
-  /* Fundo transparente pois os botões já têm fundo */
-  box-shadow: none;
-  /* Remove sombra do wrapper padrão */
-  padding: 0;
+/* Customização para esconder o Popup do Leaflet e usar a DraggableToolbar */
+.hide-leaflet-popup-tail .leaflet-popup-content-wrapper {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  padding: 0 !important;
 }
 
-.custom-cable-popup .leaflet-popup-content {
+.hide-leaflet-popup-tail .leaflet-popup-content {
   margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
   width: auto !important;
-  /* Adiciona um fundo leve e sombra aos botões agrupados */
-  background: white;
-  border-radius: 6px;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
-  padding: 2px;
 }
 
-/* Customização da "Cauda" (Tip) */
-.custom-cable-popup .leaflet-popup-tip {
-  background: white;
-  /* Cor da seta */
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
-}
-
-/* Ajuste para Dark Mode (se usar) */
-.dark .custom-cable-popup .leaflet-popup-content,
-.dark .custom-cable-popup .leaflet-popup-tip {
-  background: #1f2937;
-  /* Cinza escuro */
-  border: 1px solid #374151;
+.hide-leaflet-popup-tail .leaflet-popup-tip-container,
+.hide-leaflet-popup-tail .leaflet-popup-tip {
+  display: none !important;
 }
 
 

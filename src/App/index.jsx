@@ -29,7 +29,8 @@ import { Dialog } from '@capacitor/dialog';
 // Biblioteca de ícones SVG modernos e leves utilizados em toda a interface
 import {
     Trash2, Box, Scissors, Activity, User, ArrowRightLeft, Edit3, Save, X, CircleUserRound, ZoomIn, ZoomOut,
-    LogOut, Mail, Search, ShieldAlert, MapPin, Loader2, Lock, Unlock, Info, PackagePlus
+    LogOut, Mail, Search, ShieldAlert, MapPin, Loader2, Lock, Unlock, Info, PackagePlus,
+    DoorOpen
 } from 'lucide-react';
 
 // ============================================================================
@@ -101,6 +102,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage
 // ============================================================================
 import FiberMap from '../FiberMap'; // Componente de mapa com Leaflet
 import GenericModal from '../components/GenericModal'; // Modal genérico para itens simples
+import DraggableToolbar from '../components/DraggableToolbar/DraggableToolbar'; // Toolbar arrastável
 import { useProjectNotifications } from '../hooks/useProjectNotifications';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { ProfileModal } from '../components/ProfileModal';
@@ -192,15 +194,10 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
             {/* Toolbar: não exibe quando o nó é o 1º selecionado no modo DRAW_CABLE */}
             {isSelected && !isCableStart && (
                 <div
-                    className="absolute -top-[76px] left-1/2 -translate-x-1/2 z-[60] animate-in slide-in-from-bottom-2 fade-in duration-200"
-                    onMouseDown={(e) => e.stopPropagation()} // Clicar na toolbar não arrasta o node
+                    className="absolute pointer-events-auto z-[60] animate-in slide-in-from-bottom-2 fade-in duration-200"
+                    style={{ left: '50%', top: '-76px', transform: 'translateX(-50%)' }}
                 >
-                    {/* Seta/Triângulo embaixo do popup */}
-                    <div className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-3 h-3 bg-white dark:bg-gray-800 border-b border-r border-gray-300 dark:border-gray-600 rotate-45 transform z-0"></div>
-
-                    {/* Container Principal do Popup */}
-                    <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-300 dark:border-gray-600 p-1 flex flex-col items-center min-w-[120px] z-10">
-
+                    <DraggableToolbar>
                         {/* 1. Nome no Topo (Header) */}
                         <div className="w-full text-center border-b border-gray-200 dark:border-gray-700 pb-1 mb-1">
                             <span className="text-xs font-bold text-gray-700 dark:text-gray-200 block truncate max-w-[140px] mx-auto px-1">
@@ -240,7 +237,7 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
                                 style={{ width: '26px', height: '26px' }}
                                 title="Detalhes"
                             >
-                                <Info size={14} />
+                                <DoorOpen size={14} />
                             </button>
 
                             {/* EXCLUIR */}
@@ -253,7 +250,7 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
                                 <Trash2 size={14} />
                             </button>
                         </div>
-                    </div>
+                    </DraggableToolbar>
                 </div>
             )}
         </div>
@@ -369,14 +366,8 @@ const CableLine = memo(({ cable, nodeA, nodeB, index, count, itemTypes, onSelect
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
-
         >
-            {/* Setinha do balão */}
-            <div className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-3 h-3 bg-white dark:bg-gray-800 border-b border-r border-gray-300 dark:border-gray-600 rotate-45 transform z-0"></div>
-
-            {/* Container do Popup (Mesmo estilo do CanvasNodes) */}
-            <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-300 dark:border-gray-600 p-1 flex flex-col items-center min-w-[120px] z-10">
-
+            <DraggableToolbar>
                 {/* 1. Nome no Topo */}
                 <div className="w-full text-center border-b border-gray-200 dark:border-gray-700 pb-1 mb-1">
                     <span className="text-xs font-bold text-gray-700 dark:text-gray-200 block truncate max-w-[140px] mx-auto px-1">
@@ -386,20 +377,6 @@ const CableLine = memo(({ cable, nodeA, nodeB, index, count, itemTypes, onSelect
 
                 {/* 2. Botões */}
                 <div className="flex items-center gap-1">
-
-                    {/* TRAVAR/DESTRAVAR */}
-                    {/* <button
-                        onClick={(e) => { e.stopPropagation(); setIsUnlocked(!isUnlocked); }}
-                        className={`p-1.5 rounded flex items-center justify-center transition-colors border ${isUnlocked
-                            ? 'bg-green-500 text-white border-green-600'
-                            : 'bg-white text-gray-500 border-gray-300 hover:bg-gray-100 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'
-                        }`}
-                        title={isUnlocked ? "Bloquear" : "Desbloquear"}
-                        style={{ width: '26px', height: '26px' }}
-                    >
-                        {isUnlocked ? <Unlock size={14} /> : <Lock size={14} />}
-                    </button> */}
-
                     {/* EDITAR */}
                     <button
                         onClick={(e) => { e.stopPropagation(); onEdit(cable.id, cable.name); }}
@@ -417,7 +394,7 @@ const CableLine = memo(({ cable, nodeA, nodeB, index, count, itemTypes, onSelect
                         style={{ width: '26px', height: '26px' }}
                         title="Detalhes"
                     >
-                        <Info size={14} />
+                        <DoorOpen size={14} />
                     </button>
 
                     {/* EXCLUIR */}
@@ -430,7 +407,7 @@ const CableLine = memo(({ cable, nodeA, nodeB, index, count, itemTypes, onSelect
                         <Trash2 size={14} />
                     </button>
                 </div>
-            </div>
+            </DraggableToolbar>
         </div>,
         tooltipLayer
     ) : null;
