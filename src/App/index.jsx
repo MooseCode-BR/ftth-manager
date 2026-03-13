@@ -1597,9 +1597,30 @@ const App = () => {
 
     const deleteItemDB = (id) => { batchDelete([id]); };
 
-    const cleanUpClientSignal = async (conn) => {
+    const cleanUpClientSignal = async (conn, targetOwnerId = projectOwnerId, targetProjectId = activeProjectId) => {
         // Verifica se a conexão existe
         if (!conn) return;
+
+        // Se o projeto e dono não foram passados/resolvidos, tenta descobrir dinamicamente
+        if (!targetProjectId) {
+            targetProjectId = conn._projectId;
+            if (!targetProjectId) {
+                const sourceItem = items.find(i => i.id === conn.fromId);
+                targetProjectId = (sourceItem && sourceItem._projectId) ? sourceItem._projectId : activeProjectId;
+            }
+        }
+
+        if (!targetOwnerId && targetProjectId) {
+            const allProjects = [...myProjects, ...sharedProjects];
+            const targetProj = allProjects.find(p => p.id === targetProjectId);
+            targetOwnerId = targetProj ? targetProj.ownerId : projectOwnerId;
+        }
+
+        // Previne escrita em caminhos faltantes caso tudo falhe
+        if (!targetProjectId || !targetOwnerId) {
+            console.warn("Aviso: Tentativa de limpar sinal sem projeto ou dono definidos.");
+            return;
+        }
 
         const targetItem = items.find(i => i.id === conn.toId);
         const sourceItem = items.find(i => i.id === conn.fromId);
@@ -1630,9 +1651,8 @@ const App = () => {
 
                 const newConfig = { ...currentConfig, local: newLocal };
 
-                // ALTERADO: user.uid -> projectOwnerId
-                // Assim, a limpeza do sinal reflete para toda a equipe
-                await setDoc(doc(db, `artifacts/ftth-production/users/${projectOwnerId}/projects/${activeProjectId}/settings`, 'signals'), { [signalKey]: newConfig }, { merge: true });
+                // Agora usa os paramêmetros resolvidos
+                await setDoc(doc(db, `artifacts/ftth-production/users/${targetOwnerId}/projects/${targetProjectId}/settings`, 'signals'), { [signalKey]: newConfig }, { merge: true });
             }
         }
     };
@@ -1642,19 +1662,28 @@ const App = () => {
         const conn = connections.find(c => c.id === id);
 
         if (conn) {
-            // Define o projeto alvo: Prioridade para a origem da conexão, senão o projeto ativo
-            const targetProjectId = conn._projectId || activeProjectId;
+            // Define o projeto alvo: Prioridade para a conexão, ou o item de origem, senão o ativo
+            let targetProjectId = conn._projectId;
+            if (!targetProjectId) {
+                const sourceItem = items.find(i => i.id === conn.fromId);
+                targetProjectId = (sourceItem && sourceItem._projectId) ? sourceItem._projectId : activeProjectId;
+            }
 
             if (!targetProjectId) {
                 console.error("Erro Crítico: Tentativa de deletar conexão sem projeto definido.");
                 return;
             }
 
-            // 2. Tenta limpar o sinal do cliente (Mantém sua lógica existente)
-            await cleanUpClientSignal(conn);
+            // 2. Descobre quem é o DONO deste projeto
+            const allProjects = [...myProjects, ...sharedProjects];
+            const targetProjectData = allProjects.find(p => p.id === targetProjectId);
+            const targetOwnerId = targetProjectData ? targetProjectData.ownerId : projectOwnerId;
 
-            // 3. Apaga a conexão no caminho NOVO (dentro de projects/{id})
-            await deleteDoc(doc(db, `artifacts/ftth-production/users/${projectOwnerId}/projects/${targetProjectId}/connections`, id));
+            // 3. Tenta limpar o sinal do cliente (passando donos corrigidos)
+            await cleanUpClientSignal(conn, targetOwnerId, targetProjectId);
+
+            // 4. Apaga a conexão no caminho NOVO (dentro de projects/{id})
+            await deleteDoc(doc(db, `artifacts/ftth-production/users/${targetOwnerId}/projects/${targetProjectId}/connections`, id));
         }
     });
 
@@ -2280,9 +2309,13 @@ const App = () => {
         for (const connId of connIdsToDelete) {
             const conn = connections.find(c => c.id === connId);
             if (conn) {
-                try { await cleanUpClientSignal(conn); } catch (e) { console.warn(e); }
-                const targetProjectId = conn._projectId || activeProjectId;
+                let targetProjectId = conn._projectId;
+                if (!targetProjectId) {
+                    const sourceItem = items.find(i => i.id === conn.fromId);
+                    targetProjectId = (sourceItem && sourceItem._projectId) ? sourceItem._projectId : activeProjectId;
+                }
                 const targetOwner = getOwnerIdForProject(targetProjectId);
+                try { await cleanUpClientSignal(conn, targetOwner, targetProjectId); } catch (e) { console.warn(e); }
                 if (targetProjectId && targetOwner) {
                     const ref = doc(db, `artifacts/ftth-production/users/${targetOwner}/projects/${targetProjectId}/connections`, connId);
                     operations.push({ type: 'DELETE', ref });
@@ -2295,7 +2328,13 @@ const App = () => {
         for (const itemId of allItemIdsToDelete) {
             const item = items.find(i => i.id === itemId);
             if (item) {
-                const targetProjectId = item._projectId || activeProjectId;
+                let targetProjectId = item._projectId;
+                if (!targetProjectId && item.parentId) {
+                    const parent = items.find(p => p.id === item.parentId);
+                    if (parent) targetProjectId = parent._projectId;
+                }
+                if (!targetProjectId) targetProjectId = activeProjectId;
+
                 const targetOwner = getOwnerIdForProject(targetProjectId);
                 if (targetProjectId && targetOwner) {
                     const basePath = `artifacts/ftth-production/users/${targetOwner}/projects/${targetProjectId}/settings`;
@@ -2326,7 +2365,13 @@ const App = () => {
         for (const itemId of allItemIdsToDelete) {
             const item = items.find(i => i.id === itemId);
             if (item) {
-                const targetProjectId = item._projectId || activeProjectId;
+                let targetProjectId = item._projectId;
+                if (!targetProjectId && item.parentId) {
+                    const parent = items.find(p => p.id === item.parentId);
+                    if (parent) targetProjectId = parent._projectId;
+                }
+                if (!targetProjectId) targetProjectId = activeProjectId;
+
                 const targetOwner = getOwnerIdForProject(targetProjectId);
                 if (targetProjectId && targetOwner) {
                     const ref = doc(db, `artifacts/ftth-production/users/${targetOwner}/projects/${targetProjectId}/items`, itemId);

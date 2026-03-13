@@ -188,11 +188,8 @@ const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames
                 nodeEl.style.left = `${newPos.x}px`;
                 nodeEl.style.top = `${newPos.y}px`;
             }
-        } else if (dragLine && workbenchRef.current) {
-            const rect = workbenchRef.current.getBoundingClientRect();
-            setDragLine(prev => ({ ...prev, endX: (e.clientX - rect.left - pan.x) / scale, endY: (e.clientY - rect.top - pan.y) / scale }));
         }
-    }, [isDraggingCanvas, draggingNode, dragLine, dragStart, pan, scale]);
+    }, [isDraggingCanvas, draggingNode, dragStart, pan, scale]);
 
     const handleTouchStartCanvas = (e) => {
         if (e.touches && e.touches.length === 2) {
@@ -246,14 +243,6 @@ const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames
                 nodeEl.style.top = `${newPos.y}px`;
             }
         }
-        else if (dragLine && workbenchRef.current) {
-            const rect = workbenchRef.current.getBoundingClientRect();
-            setDragLine(prev => ({
-                ...prev,
-                endX: (pos.x - rect.left - pan.x) / scale,
-                endY: (pos.y - rect.top - pan.y) / scale
-            }));
-        }
     };
 
     const handleWheel = (e) => {
@@ -298,12 +287,6 @@ const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames
     };
 
     const handleMouseUp = useCallback((e) => {
-        if (dragLine && hoveredPort) {
-            attemptConnection(dragLine.portInfo, hoveredPort);
-        } else {
-            setDragLine(null);
-        }
-
         // Salva a posição final do node (apenas uma vez, no mouseUp)
         if (draggingNode) {
             const nodeEl = workbenchRef.current?.querySelector(`[data-node-id="${draggingNode.id}"]`);
@@ -325,62 +308,42 @@ const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames
 
         setIsDraggingCanvas(false);
         setDraggingNode(null);
-        setHoveredPort(null);
-    }, [dragLine, hoveredPort, draggingNode, items, saveItem]);
+    }, [draggingNode, items, saveItem]);
 
     const handleTouchEnd = (e) => {
         handleMouseUp(e);
     };
 
-    const handlePortMouseDown = (e, portInfo) => {
-        e.preventDefault();
+    const handlePortClick = (e, portInfo) => {
+        // Permitimos propagação no onTouchStart mas paramos a continuação do mouseDown se houver (por segurança)
         e.stopPropagation();
         const key = getPortKey(portInfo.item.id, portInfo.portIndex, portInfo.side);
         const conn = findConnection(connections, portInfo.item.id, portInfo.portIndex, portInfo.side);
-        if (conn) {
-            onAlertRequest("Ocupada", "Esta porta já está conectada. Desconecte primeiro.");
-            return;
-        }
 
-        // Se já existe dragLine (modo clique-clique no desktop), tenta conectar
         if (dragLine) {
-            attemptConnection(dragLine.portInfo, portInfo);
-        } else {
-            // Inicia nova linha
-            const pos = portPositions[key];
-            if (pos) {
-                setDragLine({ startKey: key, startX: pos.x, startY: pos.y, endX: pos.x, endY: pos.y, portInfo });
+            if (dragLine.startKey === key) {
+                // Cancelar seleção clicando na mesma porta
+                setDragLine(null);
+            } else {
+                if (conn) {
+                    onAlertRequest("Ocupada", "Esta porta já está conectada. Desconecte primeiro para religar.");
+                    return;
+                }
+                // Tenta conectar à nova porta clicada
+                attemptConnection(dragLine.portInfo, portInfo);
             }
-        }
-    };
-
-    // --- NOVA LÓGICA DE TOQUE PARA MOBILE ---
-    const handlePortTouchStart = (e, portInfo) => {
-        e.stopPropagation(); // Impede que o toque suba para o Canvas e cancele tudo
-
-        const conn = findConnection(connections, portInfo.item.id, portInfo.portIndex, portInfo.side);
-        if (conn) {
-            onAlertRequest("Ocupada", "Esta porta já está conectada.");
-            return;
-        }
-
-        // Se JÁ EXISTE uma linha iniciada, este toque é o DESTINO
-        if (dragLine) {
-            attemptConnection(dragLine.portInfo, portInfo);
-        }
-        // Se NÃO EXISTE linha, este toque é a ORIGEM
-        else {
-            const key = getPortKey(portInfo.item.id, portInfo.portIndex, portInfo.side);
+        } else {
+            if (conn) {
+                // Clicou numa porta conectada sem intenção de conectar outra fibra
+                if (window.confirm("Deseja realmente remover esta conexão?")) {
+                    deleteConnectionDB(conn.id);
+                }
+                return;
+            }
+            // Seleciona a primeira porta
             const pos = portPositions[key];
             if (pos) {
-                setDragLine({
-                    startKey: key,
-                    startX: pos.x,
-                    startY: pos.y,
-                    endX: pos.x,
-                    endY: pos.y,
-                    portInfo
-                });
+                setDragLine({ startKey: key, startX: pos.x, startY: pos.y, portInfo });
             }
         }
     };
@@ -416,6 +379,7 @@ const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames
         const isHovered = hoveredPort && getPortKey(hoveredPort.item.id, hoveredPort.portIndex, hoveredPort.side) === key;
         let bgColor = 'bg-gray-300 dark:bg-gray-600';
         if (portInfo.color) bgColor = portInfo.color.bg; else if (portInfo.isPatchPanel) bgColor = 'bg-yellow-400'; else if (portInfo.isInput) bgColor = 'bg-green-500'; else if (portInfo.isUplink) bgColor = 'bg-blue-500';
+
         return (
             <div className="port-wrapper">
                 <div
@@ -423,33 +387,16 @@ const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames
                     className={`
                         port-circle-base
                         ${isConnected ? 'port-connected' : 'port-idle'}
-                        ${isDragging ? 'port-dragging' : ''}
-                        ${isHovered && dragLine ? 'port-hover-target' : ''}
+                        ${isDragging ? 'port-dragging cursor-crosshair ring-2 ring-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]' : ''}
                         ${bgColor} 
                         ${portInfo.color ? 'text-light' : 'text-dark'}
                     `}
-                    onMouseDown={(e) => !isConnected && handlePortMouseDown(e, portInfo)}
-
-                    // AQUI A MÁGICA: Usamos handlePortTouchStart E impedimos que o TouchEnd limpe a linha
-                    onTouchStart={(e) => !isConnected && handlePortTouchStart(e, portInfo)}
-                    onTouchEnd={(e) => e.stopPropagation()}
-
-                    onMouseEnter={() => dragLine && setHoveredPort(portInfo)}
-                    onMouseLeave={() => setHoveredPort(null)}
+                    onMouseDown={(e) => handlePortClick(e, portInfo)}
+                    onTouchStart={(e) => handlePortClick(e, portInfo)}
+                    onClick={(e) => e.stopPropagation()}
                     title={`${portInfo.label}${isConnected ? ' (Conectado)' : ''}`}
                 >
                     {getPortDisplay(portInfo)}
-                    {isConnected && (
-                        <button
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onTouchStart={(e) => e.stopPropagation()}
-                            onClick={(e) => { e.stopPropagation(); deleteConnectionDB(conn.id); }}
-                            className="btn-delete-connection"
-                            title="Remover conexão"
-                        >
-                            <X size={8} strokeWidth={3} />
-                        </button>
-                    )}
                 </div>
                 <SignalLabel portInfo={portInfo} />
             </div>
@@ -467,61 +414,66 @@ const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames
                             <stop offset="50%" stopColor={line.fromColor} />
                             <stop offset="50%" stopColor={line.toColor} />
                         </linearGradient>
-                    ))}
-                </defs>
+                    ))
+                    }
+                </defs >
 
-                {lines.map(line => {
-                    const isHovered = hoveredLineId === line.id;
-                    return (
-                        <g key={line.id}>
-                            {/* Linha invisível grossa para facilitar o clique */}
-                            <path
-                                d={line.d}
-                                className="connection-path-hitbox"
-                                strokeWidth="20"
-                                onPointerEnter={(e) => { if (e.pointerType === 'mouse') setHoveredLineId(line.id); }}
-                                onPointerLeave={(e) => { if (e.pointerType === 'mouse') setHoveredLineId(null); }}
-                                onClick={(e) => { e.stopPropagation(); setHoveredLineId(prev => prev === line.id ? null : line.id); }}
-                            />
-                            {/* Linha visível */}
-                            <path
-                                d={line.d}
-                                fill="none"
-                                stroke={`url(#grad-${line.id})`}
-                                strokeWidth={isHovered ? "6" : "3"}
-                                className="connection-path-visible"
-                            />
-                        </g>
-                    );
-                })}
+                {
+                    lines.map(line => {
+                        const isHovered = hoveredLineId === line.id;
+                        return (
+                            <g key={line.id}>
+                                {/* Linha invisível grossa para facilitar o clique */}
+                                <path
+                                    d={line.d}
+                                    className="connection-path-hitbox"
+                                    strokeWidth="20"
+                                    onPointerEnter={(e) => { if (e.pointerType === 'mouse') setHoveredLineId(line.id); }}
+                                    onPointerLeave={(e) => { if (e.pointerType === 'mouse') setHoveredLineId(null); }}
+                                    onClick={(e) => { e.stopPropagation(); setHoveredLineId(prev => prev === line.id ? null : line.id); }}
+                                />
+                                {/* Linha visível */}
+                                <path
+                                    d={line.d}
+                                    fill="none"
+                                    stroke={`url(#grad-${line.id})`}
+                                    strokeWidth={isHovered ? "6" : "3"}
+                                    className="connection-path-visible"
+                                />
+                            </g>
+                        );
+                    })
+                }
 
                 {/* Tooltip de Sinais da Linha Ativa */}
-                {activeLine && activeLine.signals && activeLine.signals.length > 0 && (
-                    <g>
-                        {(() => {
-                            const midX = (activeLine.x1 + activeLine.x2) / 2;
-                            const midY = (activeLine.y1 + activeLine.y2) / 2;
-                            const boxHeight = activeLine.signals.length * 20 + 20;
-                            return (
-                                <foreignObject x={midX - 80} y={midY - (boxHeight / 2)} width="160" height={boxHeight} style={{ pointerEvents: 'none', zIndex: 9999 }}>
-                                    <div className="line-tooltip-wrapper">
-                                        <div className="line-tooltip-box">
-                                            {activeLine.signals.map((s, i) => (
-                                                <div key={s.id || i} className="truncate max-w-[140px] text-center">{s.name}</div>
-                                            ))}
+                {
+                    activeLine && activeLine.signals && activeLine.signals.length > 0 && (
+                        <g>
+                            {(() => {
+                                const midX = (activeLine.x1 + activeLine.x2) / 2;
+                                const midY = (activeLine.y1 + activeLine.y2) / 2;
+                                const boxHeight = activeLine.signals.length * 20 + 20;
+                                return (
+                                    <foreignObject x={midX - 80} y={midY - (boxHeight / 2)} width="160" height={boxHeight} style={{ pointerEvents: 'none', zIndex: 9999 }}>
+                                        <div className="line-tooltip-wrapper">
+                                            <div className="line-tooltip-box">
+                                                {activeLine.signals.map((s, i) => (
+                                                    <div key={s.id || i} className="truncate max-w-[140px] text-center">{s.name}</div>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                </foreignObject>
-                            );
-                        })()}
-                    </g>
-                )}
+                                    </foreignObject>
+                                );
+                            })()}
+                        </g>
+                    )
+                }
             </>
         );
     };
 
     return (
-        <div className="relative flex-1 overflow-hidden bg-slate-100 dark:bg-gray-900 cursor-move touch-none" ref={workbenchRef} onMouseDown={handleMouseDownCanvas} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onTouchStart={handleTouchStartCanvas} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onWheel={handleWheel}>
+        <div className="relative flex-1 overflow-hidden bg-slate-100 dark:bg-gray-900 cursor-move touch-none" ref={workbenchRef} onMouseDown={handleMouseDownCanvas} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onTouchStart={handleTouchStartCanvas} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onWheel={handleWheel} onClick={() => { if (dragLine) setDragLine(null) }}>
             <div className="absolute top-4 right-4 z-30 flex flex-col gap-1 bg-white dark:bg-gray-800 p-1 rounded shadow border dark:border-gray-700">
                 <button onClick={() => setScale(s => Math.min(s + 0.1, 3))} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded" title="Zoom In"><ZoomIn size={16} /></button>
                 <button onClick={() => setScale(s => Math.max(s - 0.1, 0.5))} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded" title="Zoom Out"><ZoomOut size={16} /></button>
@@ -539,7 +491,7 @@ const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames
                 </button>
             </div>
             <div className="w-full h-full origin-top-left" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})` }}>
-                <svg className="absolute top-0 left-0 overflow-visible z-30" style={{ width: 1, height: 1, pointerEvents: 'none' }}> {renderLines()} {dragLine && <line x1={dragLine.startX} y1={dragLine.startY} x2={dragLine.endX} y2={dragLine.endY} stroke="#10b981" strokeWidth="3" strokeDasharray="8,4" strokeLinecap="round" />} </svg>
+                <svg className="absolute top-0 left-0 overflow-visible z-30" style={{ width: 1, height: 1, pointerEvents: 'none' }}> {renderLines()} </svg>
                 <div className="relative z-20">
                     {devs.map(d => {
                         const isCollapsed = collapsedCards.has(d.id);

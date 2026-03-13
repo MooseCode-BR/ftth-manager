@@ -32,7 +32,7 @@ export const ITEM_TYPES = {
     CEO: { label: 'CEO (Emenda)', icon: CEOIcon, category: 'NODE', defaultPorts: 0, defaultColor: '#ea580c', width: 160 }, // Orange
     CTO: { label: 'CTO (Terminação)', icon: CTOIcon, category: 'NODE', defaultPorts: 0, defaultColor: '#16a34a', width: 160 }, // Green
     TOWER: { label: 'Torre', icon: RadioTower, category: 'NODE', defaultPorts: 0, defaultColor: '#8888ff', width: 160 }, // Tipo azul
-    POST: { label: 'Poste', icon: PostIcon, category: 'NODE', defaultPorts: 0, defaultColor: '#0654AF', width: 160 },
+    POST: { label: 'Poste', icon: PostIcon, category: 'NODE', defaultPorts: 0, defaultColor: '#0000ff', width: 160 },
     OBJECT: { label: 'Objeto', icon: MapPin, category: 'NODE', defaultPorts: 0, defaultColor: '#587ad8', width: 160 },
     CABLE: { label: 'Cabo Externo', icon: Route, category: 'LINK', defaultPorts: 12, color: 'stroke-slate-800' },
     // CLIENT: { label: 'Cliente Final', icon: User, category: 'NODE', defaultPorts: 1, defaultColor: '#db2777', width: 160 }, // Pink
