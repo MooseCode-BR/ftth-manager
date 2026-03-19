@@ -496,6 +496,8 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
         },
         dblclick(e) {
             L.DomEvent.stopPropagation(e);
+            // Bloqueia duplo clique para itens de projetos restritos
+            if (item._readOnly) return;
             // Duplo clique -> Abre o DetailPanel direto
             if (!isPickingMode && onOpen) {
                 onOpen(item.id);
@@ -506,7 +508,7 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
     return (
         <Marker
             ref={markerRef}
-            draggable={isUnlocked}
+            draggable={isUnlocked && !item._readOnly}
             eventHandlers={eventHandlers}
             position={position}
             icon={icon}
@@ -520,7 +522,7 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
             {/* Não renderiza o Popup quando está no modo de seleção de nós para cabos,
                 pois o Leaflet abre o popup nativamente ao clicar no Marker,
                 interrompendo o fluxo de seleção do 2º nó. */}
-            {!isPickingMode && (
+            {!isPickingMode && !item._readOnly && (
                 <Popup
                     closeButton={false}
                     autoPan={false}
@@ -615,7 +617,8 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
         prev.isPickingSelected === next.isPickingSelected &&
         prev.showLabel === next.showLabel &&
         prev.isPickingMode === next.isPickingMode &&
-        prev.item.type === next.item.type
+        prev.item.type === next.item.type &&
+        prev.item._readOnly === next.item._readOnly
     );
 });
 

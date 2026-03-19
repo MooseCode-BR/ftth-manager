@@ -72,7 +72,7 @@ const ItemModal = ({
     // =========================================================================
 
     const [name, setName] = useState(
-        isCreate ? (isOLT ? '' : (config?.defaultName || '')) : (initialValue || '')
+        isCreate ? (config?.defaultName || '') : (initialValue || '')
     );
 
     const [ports, setPorts] = useState(
@@ -203,8 +203,8 @@ const ItemModal = ({
     // =========================================================================
 
     return (
-        <div className="item-modal-overlay">
-            <div className="item-modal-card">
+        <div className="item-modal-overlay" onClick={onCancel}>
+            <div className="item-modal-card" onClick={(e) => e.stopPropagation()}>
 
                 {renderHeader()}
 

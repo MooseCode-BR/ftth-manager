@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================================================
+    // REGRA GLOBAL: Usuário autenticado
+    // ============================================================================
+
+    // --- DADOS DO USUÁRIO (Projetos e sub-coleções) ---
+    match /artifacts/ftth-production/users/{userId} {
+      // O dono tem acesso total ao seu próprio documento
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Documento de settings do usuário
+      match /settings/{settingId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+        // Convidados FULL_ACCESS podem ler settings
+        allow read: if request.auth != null;
+      }
+
+      // --- PROJETOS ---
+      match /projects/{projectId} {
+        // Dono: acesso total
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+        // Convidados: podem ler (a filtragem é feita na camada de aplicação/Cloud Function)
+        allow read: if request.auth != null;
+
+        // --- ITENS DO PROJETO ---
+        match /items/{itemId} {
+          // Dono: acesso total
+          allow read, write: if request.auth != null && request.auth.uid == userId;
+          // Convidados: podem ler (data scrubbing feito no frontend/Cloud Function)
+          allow read: if request.auth != null;
+          // Escrita por convidados: permitida apenas se não for READ_ONLY_GEOMETRY
+          // Nota: Security Rules não conseguem fazer lookup cross-collection facilmente,
+          // então a validação de escrita é reforçada pela Cloud Function validateWritePermission
+          allow write: if request.auth != null;
+        }
+
+        // --- CONEXÕES DO PROJETO ---
+        match /connections/{connId} {
+          allow read, write: if request.auth != null && request.auth.uid == userId;
+          allow read: if request.auth != null;
+          allow write: if request.auth != null;
+        }
+
+        // --- SETTINGS DO PROJETO ---
+        match /settings/{settingId} {
+          allow read, write: if request.auth != null && request.auth.uid == userId;
+          allow read: if request.auth != null;
+          allow write: if request.auth != null;
+        }
+      }
+    }
+
+    // --- CONVITES DE COMPARTILHAMENTO ---
+    match /ftth_invitations/{inviteId} {
+      // Qualquer usuário autenticado pode ler convites
+      allow read: if request.auth != null;
+      // Qualquer usuário autenticado pode criar convites
+      allow create: if request.auth != null;
+      // Atualizar/deletar: o remetente ou destinatário
+      allow update, delete: if request.auth != null;
+    }
+
+    // --- TRANSFERÊNCIAS ---
+    match /ftth_transfers/{transferId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null;
+    }
+  }
+}

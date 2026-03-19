@@ -48,6 +48,19 @@ export const getSignalInfo = (items, connections, portLabels, signalConfigs, ite
             const backConn = findConnection(connections, itemId, portId, 'BACK');
             if(backConn) sources.push(backConn);
         }
+    }
+    else if(item.type==='POE') {
+        if(side==='LAN') {
+            // Lado LAN reflete o lado POE (passagem interna)
+            return getSignalInfo(items, connections, portLabels, signalConfigs, itemId, portId, 'POE', visited);
+        } else {
+            // Lado POE: Recebe sinal de ambas as conexões (POE e LAN)
+            const poeConn = findConnection(connections, itemId, portId, 'POE');
+            if(poeConn) sources.push(poeConn);
+            
+            const lanConn = findConnection(connections, itemId, portId, 'LAN');
+            if(lanConn) sources.push(lanConn);
+        }
     } 
     else if(item.type==='SPLITTER') { 
         if(portId!==0 && portId!=='0') { 
@@ -158,6 +171,11 @@ export const calculatePower = (items, connections, itemId, portId, side = 'A', v
              if (side === 'FRONT') upstreamConn = findConnection(connections, itemId, portId, 'FRONT'); // DIO Front
              else if (side === 'BACK') return calculatePower(items, connections, itemId, portId, 'FRONT', visited); // DIO Back pede pro Front
              else upstreamConn = findConnection(connections, itemId, portId, side);
+        }
+        else if (item.type === 'POE') {
+             // POE Patch Panel: LAN reflete POE (passagem interna)
+             if (side === 'POE') upstreamConn = findConnection(connections, itemId, portId, 'POE');
+             else if (side === 'LAN') return calculatePower(items, connections, itemId, portId, 'POE', visited);
         }
 
         if (upstreamConn) {

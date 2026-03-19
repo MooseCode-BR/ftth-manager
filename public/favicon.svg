@@ -1,11 +1,29 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M 3 7 A 5 3 0 0 1 21 7" stroke="#000000"/>
-    <line x1="3" y1="7" x2="3" y2="17" stroke="#000000"/>
-    <line x1="21" y1="7" x2="21" y2="17" stroke="#000000"/>
-    <line x1="3" y1="7" x2="21" y2="7" stroke="#000000"/>
-    <line x1="3" y1="12" x2="21" y2="12" stroke="#000000"/>
-    <rect x="2" y="17" width="20" height="2" fill="#000000"/>
-    <rect x="5" y="17" width="3" height="6" rx="1" fill="#000000"/>
-    <rect x="10.5" y="17" width="3" height="6" rx="1" fill="#000000"/>
-    <rect x="16" y="17" width="3" height="6" rx="1" fill="#000000"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="12" fill="#000000" />
+    <g transform="translate(2.4, 2.4) scale(0.8)">
+        <g fill="none" stroke="#FFE135" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            {/* Arco superior */}
+            <path d="M 4 7 A 5 3 0 0 1 20 7" />
+            {/* Linha Vertical Esquerda */}
+            <line x1="4" y1="7" x2="4" y2="17" />
+            {/* Linha Vertical Direita */}
+            <line x1="20" y1="7" x2="20" y2="17" />
+            {/* Linha Horizontal Cima */}
+            <line x1="5" y1="8" x2="19" y2="8" />
+            {/* Linha Horizontal Baixo */}
+            <line x1="5" y1="13" x2="19" y2="13" />
+            {/* Base */}
+            <rect x="2" y="17" width="20" height="2" fill="#FFE135" stroke="none" />
+            {/* Retangulo Esquerda */}
+            <rect x="5" y="17" width="3" height="6" rx="0.5" fill="#FFE135" stroke="none" />
+            {/* Retangulo Meio */}
+            <rect x="10.5" y="17" width="3" height="6" rx="0.5" fill="#FFE135" stroke="none" />
+            {/* Retangulo Direita */}
+            <rect x="16" y="17" width="3" height="6" rx="0.5" fill="#FFE135" stroke="none" />
+            {/* Alça Cima */}
+            <rect x="2.5" y="7" width="1.5" height="1.5" rx="0.2" fill="none" />
+            {/* Alça Baixo */}
+            <rect x="2.5" y="12" width="1.5" height="1.5" rx="0.2" fill="none" />
+        </g>
+    </g>
 </svg>

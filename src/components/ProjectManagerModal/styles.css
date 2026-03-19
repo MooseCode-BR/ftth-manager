@@ -42,7 +42,7 @@
 }
 
 .tab-inbox {
-    @apply border-orange-500 text-orange-600 dark:text-orange-400;
+    @apply border-cyan-500 text-cyan-600 dark:text-cyan-400;
 }
 
 .tab-inactive {
@@ -55,23 +55,7 @@
 
 /* --- Barra de Seleção em Massa --- */
 .bulk-selection-bar {
-    @apply bg-white/30 dark:bg-white/5 border-b border-white/60 dark:border-white/20 backdrop-blur-xl px-4 py-2 flex items-center justify-between text-sm;
-}
-
-.btn-select-all {
-    @apply flex items-center gap-2 text-gray-900 dark:text-gray-100 hover:text-blue-600 mt-3;
-}
-
-.bulk-actions-group {
-    @apply flex gap-2 animate-in slide-in-from-right-5 fade-in;
-}
-
-.btn-bulk-share {
-    @apply flex items-center gap-1 bg-indigo-500/20 text-indigo-800 dark:text-indigo-200 px-3 py-1 rounded-full text-xs font-bold hover:bg-indigo-500/30 transition-colors backdrop-blur-sm;
-}
-
-.btn-bulk-transfer {
-    @apply flex items-center gap-1 bg-orange-500/20 text-orange-800 dark:text-orange-200 px-3 py-1 rounded-full text-xs font-bold hover:bg-orange-500/30 transition-colors backdrop-blur-sm;
+    @apply bg-white/30 dark:bg-white/5 border-b border-white/60 dark:border-white/20 backdrop-blur-xl pl-7 pr-11 py-3 flex items-center justify-between text-sm;
 }
 
 /* --- Área de Conteúdo (Scroll) --- */
@@ -89,11 +73,11 @@
 }
 
 .transfer-card {
-    @apply bg-yellow-500/10 dark:bg-yellow-500/15 p-4 rounded-xl border border-yellow-400/30 dark:border-yellow-500/30 flex flex-col gap-3 relative overflow-hidden backdrop-blur-sm;
+    @apply bg-blue-500/10 dark:bg-blue-500/15 p-4 rounded-xl border border-blue-400/30 dark:border-blue-500/30 flex flex-col gap-3 relative overflow-hidden backdrop-blur-sm;
 }
 
 .transfer-indicator {
-    @apply absolute top-0 left-0 w-1 h-full bg-yellow-400;
+    @apply absolute top-0 left-0 w-1 h-full bg-blue-400;
 }
 
 .transfer-title {
@@ -105,7 +89,7 @@
 }
 
 .btn-accept-transfer {
-    @apply w-full bg-yellow-600 hover:bg-yellow-700 text-white py-2 rounded-lg text-xs font-bold mt-1 transition-colors;
+    @apply w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-xs font-bold mt-1 transition-colors;
 }
 
 .invite-card {
@@ -219,7 +203,7 @@
 }
 
 .accordion-open {
-    @apply bg-indigo-500/20 text-indigo-800 dark:text-indigo-300;
+    @apply bg-blue-500/20 text-blue-800 dark:text-blue-300;
 }
 
 .accordion-closed {
@@ -227,7 +211,7 @@
 }
 
 .actions-group {
-    @apply flex items-center gap-1 shrink-0;
+    @apply flex items-center gap-2 shrink-0;
 }
 
 .btn-visibility {
@@ -375,5 +359,5 @@
 }
 
 .btn-execute-transfer {
-    @apply bg-orange-600 hover:bg-orange-700;
+    @apply bg-blue-600 hover:bg-blue-700;
 }

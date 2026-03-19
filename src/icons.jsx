@@ -13,23 +13,29 @@ export const CEOIcon = ({ size, className }) => (
         className={className}
     >
         {/* Arco superior */}
-        <path d="M 3 7 A 5 3 0 0 1 21 7" />
+        <path d="M 5 6 A 6 3 0 0 1 19 6" />
         {/* Linha Vertical Esquerda */}
-        <line x1="3" y1="7" x2="3" y2="17" />
+        <line x1="5" y1="5.9" x2="5" y2="17" />
         {/* Linha Vertical Direita */}
-        <line x1="21" y1="7" x2="21" y2="17" />
+        <line x1="19" y1="5.9" x2="19" y2="17" />
         {/* Linha Horizontal Cima */}
-        <line x1="3" y1="7" x2="21" y2="7" />
+        <line x1="7" y1="8" x2="17" y2="8" strokeWidth="0.6" />
+        {/* Linha Horizontal Meio */}
+        <line x1="7" y1="11" x2="17" y2="11" strokeWidth="0.6" />
         {/* Linha Horizontal Baixo */}
-        <line x1="3" y1="12" x2="21" y2="12" />
+        <line x1="7" y1="14" x2="17" y2="14" strokeWidth="0.6" />
         {/* Base */}
-        <rect x="2" y="17" width="20" height="2" fill="currentColor" />
+        <rect x="2.5" y="17" width="19" height="2" rx="0.1" fill="currentColor" />
         {/* Retangulo Esquerda */}
-        <rect x="5" y="17" width="3" height="6" rx="1" fill="currentColor" />
+        <rect x="6" y="17" width="2" height="6" rx="0.5" fill="currentColor" />
         {/* Retangulo Meio */}
-        <rect x="10.5" y="17" width="3" height="6" rx="1" fill="currentColor" />
+        <rect x="10" y="17" width="2" height="6" rx="0.5" fill="currentColor" />
         {/* Retangulo Direita */}
-        <rect x="16" y="17" width="3" height="6" rx="1" fill="currentColor" />
+        <rect x="14" y="17" width="4" height="6" rx="0.5" fill="currentColor" />
+        {/* Alça Cima */}
+        <rect x="3" y="8" width="1.5" height="1.5" rx="0.2" fill="none" strokeWidth="0.5" />
+        {/* Alça Baixo */}
+        <rect x="3" y="12" width="1.5" height="1.5" rx="0.2" fill="none" strokeWidth="0.5" />
     </svg>
     // >
     //     <rect x="6" y="12" width="2" height="2" rx="0.5" />

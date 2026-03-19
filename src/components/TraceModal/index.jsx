@@ -22,8 +22,9 @@ const TraceModal = ({ path, onClose }) => {
 
             // Só adiciona a linha de detalhe se ela existir
             const detailLine = step.detail ? `\n      ${step.detail}` : "";
+            const originDest = `\n      [ ${step.originNodeName || '-'} -> ${step.destNodeName || '-'} ]`;
 
-            return `[${step.type}] ${step.deviceName}${detailLine}${marker}${arrow}`;
+            return `[${step.type}] ${step.deviceName}${detailLine}${originDest}${marker}${arrow}`;
         }).join('');
 
         const fullText = header + body;
@@ -82,19 +83,34 @@ const TraceModal = ({ path, onClose }) => {
                                             <div className="selected-badge">PONTO SELECIONADO</div>
                                         )}
 
-                                        <div className="card-header-row">
-                                            {step.icon && (
-                                                <step.icon size={16} className={step.isClicked ? "text-yellow-600 dark:text-yellow-400" : "text-gray-500"} />
-                                            )}
-                                            <span className="device-name">{step.deviceName}</span>
-                                            <span className="type-badge">{step.type}</span>
-                                        </div>
-
-                                        {step.detail && (
-                                            <div className="detail-text">
-                                                {step.detail}
+                                        <div className="trace-row-container">
+                                            {/* ORIGEM */}
+                                            <div className="trace-node-badge origin">
+                                                {step.originNodeName}
                                             </div>
-                                        )}
+
+                                            {/* CENTRO (INFORMAÇÃO EXISTENTE) */}
+                                            <div className="trace-item-center">
+                                                <div className="card-header-row">
+                                                    {step.icon && (
+                                                        <step.icon size={16} className={step.isClicked ? "text-yellow-600 dark:text-yellow-400" : "text-gray-500"} />
+                                                    )}
+                                                    <span className="device-name">{step.deviceName}</span>
+                                                    <span className="type-badge">{step.type}</span>
+                                                </div>
+
+                                                {step.detail && (
+                                                    <div className="detail-text">
+                                                        {step.detail}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* DESTINO */}
+                                            <div className="trace-node-badge dest">
+                                                {step.destNodeName}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             );

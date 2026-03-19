@@ -9,7 +9,9 @@ import { v4 as uuidv4 } from 'uuid'; //Gera uuid unicos
 import {
     Trash2, Network, Scissors, Activity, ArrowRightLeft, Edit3, X, ChevronsLeftRightEllipsis, FileDown,
     Router, Video, ChevronDown, ChevronRight, Layers, Tag, Camera, FileText, GripVertical, Server, Zap, Route,
-    RulerDimensionLine
+    RulerDimensionLine,
+    ToggleLeft,
+    ArrowsUpFromLine
 } from 'lucide-react';
 
 // Imports dos outros arquivos
@@ -218,7 +220,10 @@ const DetailPanel = ({
     };
 
     // --- PORTROW COM CÁLCULO DE POTÊNCIA ---
-    const PortRow = ({ targetItem, portIndex, side, isInput = false, overrideLabel = null, isPatchPanel = false, onOTDR }) => {
+    const PortRow = ({ targetItem, portIndex, basePortIndex, side, isInput = false, overrideLabel = null, isPatchPanel = false, onOTDR }) => {
+        // Usamos o basePortIndex (se fornecido) para identificar a porta original no objeto portConfigs
+        const indexToUse = basePortIndex !== undefined ? basePortIndex : portIndex;
+
         const uKey = `${targetItem.id}-${portIndex}-${side}`;
         const conn = findConnection(connections, targetItem.id, portIndex, side);
         const sig = getSignalInfo(items, connections, portLabels, signalNames, targetItem.id, portIndex, side);
@@ -302,21 +307,64 @@ const DetailPanel = ({
 
                         {/* Accordion Expansível com Ações */}
                         {portActionsExpanded.has(`${targetItem.id}-${portIndex}-${side}`) && (
-                            <div className="flex gap-8 mt-2 pb-2 border-t border-gray-200 dark:border-gray-700 pt-2">
+                            <div className="flex gap-4 mt-2 pb-2 border-t border-gray-200 dark:border-gray-700 pt-2">
+                                {/* Alternar Simplex/Duplex */}
+                                {/* Apenas mostramos se não for um Splitter ou Cabo, pois estes costumam ser sempre simplex */}
+                                {['OLT', 'SWITCH', 'ROUTER'].includes(targetItem.type) && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const isDuplex = targetItem.portConfigs?.[indexToUse] === 'duplex';
+
+                                            // 1. Procurar conexões atreladas a esta porta para removê-las
+                                            const connectionsToDelete = connections.filter(conn => {
+                                                // Verifica se a conexão pertence a este equipamento
+                                                if (conn.fromId !== targetItem.id && conn.toId !== targetItem.id) return false;
+
+                                                // Pega o número da porta que pertence a este equipamento na conexão
+                                                const portInConn = conn.fromId === targetItem.id ? conn.fromPort : conn.toPort;
+
+                                                if (isDuplex) {
+                                                    // Estava Duplex e vai virar Simplex: Remove as portas TX e RX
+                                                    return portInConn === `${indexToUse}-TX` || portInConn === `${indexToUse}-RX`;
+                                                } else {
+                                                    // Estava Simplex e vai virar Duplex: Remove a porta padrão
+                                                    return portInConn === indexToUse;
+                                                }
+                                            });
+
+                                            // 2. Avisar ao usuário (Opcional, mas recomendado para evitar exclusões acidentais)
+                                            if (connectionsToDelete.length > 0) {
+                                                const confirm = window.confirm(`Esta ação irá desconectar ${connectionsToDelete.length} fibra(s) atrelada(s) a esta porta. Deseja continuar?`);
+                                                if (!confirm) return; // Se o usuário cancelar, interrompe a ação
+                                            }
+
+                                            // 3. Excluir as conexões do banco de dados
+                                            connectionsToDelete.forEach(conn => deleteConnectionDB(conn.id));
+
+                                            // 4. Salvar a nova configuração (Simplex ou Duplex)
+                                            const newConfigs = { ...(targetItem.portConfigs || {}) };
+                                            if (isDuplex) {
+                                                delete newConfigs[indexToUse]; // Volta para Simplex
+                                            } else {
+                                                newConfigs[indexToUse] = 'duplex'; // Muda para Duplex
+                                            }
+
+                                            saveItem({ ...targetItem, portConfigs: newConfigs });
+                                        }}
+                                        className="btn-trace-action"
+                                        title="Alternar entre Simplex (1 fibra) e Duplex (2 fibras)"
+                                    >
+                                        <Layers size={12} /> <span className="text-[10px]">{targetItem.portConfigs?.[indexToUse] === 'duplex' ? 'Padrão' : 'Duplex'}</span>
+                                    </button>
+                                )}
+
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onTraceRequest(targetItem.id, portIndex, side); }}
                                     className="btn-trace-action"
                                     title="Rastrear Sinal"
                                 >
                                     <Activity size={12} /> <span className="text-[10px]">Rastrear</span>
-                                </button>
-
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); handleSignalEdit(targetItem.id, portIndex, side); }}
-                                    className="btn-trace-action"
-                                    title="Configurar Sinal"
-                                >
-                                    <Tag size={12} /> <span className="text-[10px]">Sinal</span>
                                 </button>
 
                                 <button
@@ -449,8 +497,19 @@ const DetailPanel = ({
                                                         {collapsedGroups.has(`uplink-${d.id}`) ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
                                                         <span>Uplinks</span>
                                                     </div>
-                                                    {!collapsedGroups.has(`uplink-${d.id}`) && Array.from({ length: d.uplinkCount }).map((_, i) => <PortRow onOTDR={onOTDR} key={`u${i}`} targetItem={d} portIndex={`u-${i}`} side="A" overrideLabel={`Uplink ${i + 1}`} />)}
-                                                </div>
+                                                    {!collapsedGroups.has(`uplink-${d.id}`) && Array.from({ length: d.uplinkCount }).map((_, i) => {
+                                                        const bIdx = `u-${i}`;
+                                                        const isDuplex = d.portConfigs?.[bIdx] === 'duplex';
+                                                        if (isDuplex) {
+                                                            return (
+                                                                <div key={`u${i}`} className="ml-2 pl-2 border-l-2 border-blue-400 my-1">
+                                                                    <PortRow onOTDR={onOTDR} targetItem={d} basePortIndex={bIdx} portIndex={`${bIdx}-TX`} side="A" overrideLabel={`Uplink ${i + 1} (TX)`} />
+                                                                    <PortRow onOTDR={onOTDR} targetItem={d} basePortIndex={bIdx} portIndex={`${bIdx}-RX`} side="A" overrideLabel={`Uplink ${i + 1} (RX)`} />
+                                                                </div>
+                                                            );
+                                                        }
+                                                        return <PortRow onOTDR={onOTDR} key={`u${i}`} targetItem={d} basePortIndex={bIdx} portIndex={bIdx} side="A" overrideLabel={`Uplink ${i + 1}`} />;
+                                                    })}                                                </div>
                                             )}
                                             {d.interfaces?.map((iface, idx) => {
                                                 const ifaceId = `iface-${d.id}-${idx}`;
@@ -467,8 +526,19 @@ const DetailPanel = ({
                                                                 <button onClick={() => removeInterface(d.id, idx)} title="Remover"><Trash2 size={12} /></button>
                                                             </div>
                                                         </div>
-                                                        {!isIfaceCollapsed && Array.from({ length: iface.portCount }).map((_, p) => <PortRow onOTDR={onOTDR} key={p} targetItem={d} portIndex={`i-${idx}-p-${p}`} side="A" overrideLabel={`PON ${p}`} />)}
-                                                    </div>
+                                                        {!isIfaceCollapsed && Array.from({ length: iface.portCount }).map((_, p) => {
+                                                            const bIdx = `i-${idx}-p-${p}`;
+                                                            const isDuplex = d.portConfigs?.[bIdx] === 'duplex';
+                                                            if (isDuplex) {
+                                                                return (
+                                                                    <div key={p} className="ml-2 pl-2 border-l-2 border-blue-400 my-1">
+                                                                        <PortRow onOTDR={onOTDR} targetItem={d} basePortIndex={bIdx} portIndex={`${bIdx}-TX`} side="A" overrideLabel={`PON ${p} (TX)`} />
+                                                                        <PortRow onOTDR={onOTDR} targetItem={d} basePortIndex={bIdx} portIndex={`${bIdx}-RX`} side="A" overrideLabel={`PON ${p} (RX)`} />
+                                                                    </div>
+                                                                );
+                                                            }
+                                                            return <PortRow onOTDR={onOTDR} key={p} targetItem={d} basePortIndex={bIdx} portIndex={bIdx} side="A" overrideLabel={`PON ${p}`} />;
+                                                        })}                                                    </div>
                                                 )
                                             })}
                                             <button onClick={() => addInterface(d.id)} className="btn-dashed-add text-blue-500 dark:text-blue-400">+ Placa</button>
@@ -513,10 +583,38 @@ const DetailPanel = ({
                                             )}
                                             <button onClick={() => addDioCard(d.id)} className="btn-dashed-add text-purple-500 dark:text-purple-400">+ Card DIO</button>
                                         </div>
+                                    ) : d.type === 'POE' ? (
+                                        <div className="dio-split-layout">
+                                            <div className="w-1/2">
+                                                <div className="dio-side-label">POE</div>
+                                                {Array.from({ length: d.ports }).map((_, p) => (
+                                                    <PortRow onOTDR={onOTDR} key={p} targetItem={d} portIndex={p} side="POE" isPatchPanel={true} overrideLabel={`POE ${p + 1}`} />
+                                                ))}
+                                            </div>
+                                            <div className="w-1/2">
+                                                <div className="dio-side-label">LAN</div>
+                                                {Array.from({ length: d.ports }).map((_, p) => (
+                                                    <PortRow onOTDR={onOTDR} key={p} targetItem={d} portIndex={p} side="LAN" isPatchPanel={true} overrideLabel={`LAN ${p + 1}`} />
+                                                ))}
+                                            </div>
+                                        </div>
                                     ) : (
                                         <div>
                                             {d.type === 'SPLITTER' && <PortRow onOTDR={onOTDR} targetItem={d} portIndex={0} side="A" isInput={true} overrideLabel="ENTRADA" />}
-                                            {Array.from({ length: d.type === 'SPLITTER' ? d.ports - 1 : d.ports }).map((_, i) => <PortRow onOTDR={onOTDR} key={i} targetItem={d} portIndex={d.type === 'SPLITTER' ? i + 1 : i} side="A" isInput={false} overrideLabel={d.type === 'SPLITTER' ? `Saída ${i + 1}` : null} />)}
+                                            {Array.from({ length: d.type === 'SPLITTER' ? d.ports - 1 : d.ports }).map((_, i) => {
+                                                const pIndex = d.type === 'SPLITTER' ? i + 1 : i;
+                                                const isDuplex = d.portConfigs?.[pIndex] === 'duplex' && d.type !== 'SPLITTER';
+
+                                                if (isDuplex) {
+                                                    return (
+                                                        <div key={i} className="ml-2 pl-2 border-l-2 border-blue-400 my-1">
+                                                            <PortRow onOTDR={onOTDR} targetItem={d} basePortIndex={pIndex} portIndex={`${pIndex}-TX`} side="A" overrideLabel={`Porta ${pIndex + 1} (TX)`} />
+                                                            <PortRow onOTDR={onOTDR} targetItem={d} basePortIndex={pIndex} portIndex={`${pIndex}-RX`} side="A" overrideLabel={`Porta ${pIndex + 1} (RX)`} />
+                                                        </div>
+                                                    );
+                                                }
+                                                return <PortRow onOTDR={onOTDR} key={i} targetItem={d} basePortIndex={pIndex} portIndex={pIndex} side="A" isInput={false} overrideLabel={d.type === 'SPLITTER' ? `Saída ${pIndex}` : null} />;
+                                            })}
                                         </div>
                                     )}
                                 </div>

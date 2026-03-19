@@ -1,22 +1,21 @@
 /* -------   CollapsibleGroup    ------- */
 /* Container Principal */
 .draggable-item {
-    /* Mantive a classe original caso você use para seleção JS */
     @apply h-fit;
 }
 
 .draggable-card {
-    @apply bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded shadow-sm overflow-hidden h-fit transition-all;
+    @apply bg-white/30 dark:bg-white/10 border border-white/60 dark:border-white/20 rounded-xl shadow-md overflow-hidden h-fit transition-all backdrop-blur-sm;
 }
 
 /* Wrapper do Cabeçalho */
 .card-header-wrapper {
-    @apply flex items-center border-b dark:border-gray-700;
+    @apply flex items-center border-b border-white/40 dark:border-white/20;
 }
 
 /* Alça de Arrastar (Grip) */
 .drag-handle {
-    @apply p-3 cursor-grab hover:bg-black/10 dark:hover:bg-white/10 border-r border-gray-200 dark:border-gray-600 flex items-center justify-center bg-gray-100 dark:bg-gray-800;
+    @apply p-3 cursor-grab hover:bg-white/20 dark:hover:bg-white/10 border-r border-white/30 dark:border-white/10 flex items-center justify-center bg-white/20 dark:bg-white/5;
 }
 
 .handle-icon {
@@ -34,7 +33,6 @@
 
 .text-shadow-sm {
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-    /* Exemplo de classe utilitária caso o tailwind não tenha nativo configurado */
 }
 
 /* Grupo de Ações (Botões) */
@@ -60,7 +58,6 @@
 
 /* Corpo do Card */
 .card-body {
-    /* Adicione padding se necessário, ou deixe o children controlar */
     @apply w-full;
 }
 
@@ -68,7 +65,7 @@
 /* ---------     PortRow      --------- */
 /* --- Linha Principal do Item --- */
 .port-item-row {
-    @apply flex items-center justify-between p-2 border-b border-slate-300 dark:border-gray-700 text-sm hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors cursor-pointer;
+    @apply flex items-center justify-between p-2 border-b border-white/30 dark:border-white/10 text-sm hover:bg-white/30 dark:hover:bg-white/10 transition-colors cursor-pointer;
 }
 
 .row-disabled {
@@ -79,12 +76,6 @@
 .port-info-group {
     @apply flex items-center gap-3 overflow-hidden flex-1;
 }
-
-/* Círculo da Porta */
-/*.port-circle { TENTEI PASSAR PRA CÁ, MAS OS ÍCONES NÃO FICARAM COM CORES DINAMICAS
-    @apply w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 border;
-    /* Nota: A cor da borda (fColor) vem via props (ex: border-green-500) 
-}*/
 
 /* Coluna de Detalhes */
 .port-details-column {
@@ -106,7 +97,6 @@
 
 .power-badge {
     @apply text-[10px] font-mono px-1.5 py-0.5 rounded border;
-    /* Nota: A cor do texto/borda (powerColor) vem via props */
 }
 
 /* Linha Inferior (Meta) */
@@ -115,7 +105,7 @@
 }
 
 .btn-trace-action {
-    @apply text-gray-400 hover:text-blue-500 flex items-center gap-1 transition-colors;
+    @apply text-gray-400 rounded-full hover:text-blue-500 flex items-center gap-1 transition-colors;
 }
 
 .signal-text {
@@ -127,7 +117,7 @@
 }
 
 .sig-empty {
-    @apply text-gray-400 italic border border-gray-400 rounded-full px-2 py-0.5;
+    @apply text-gray-400 italic border border-white/40 dark:border-white/20 rounded-full px-2 py-0.5;
 }
 
 .btn-tag-action {
@@ -138,7 +128,7 @@
 
 /* Badge de Conectado */
 .connected-badge {
-    @apply flex items-center px-2 py-1 rounded border bg-blue-50 text-blue-700 border-blue-200 text-[10px] gap-1 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800 whitespace-nowrap;
+    @apply flex items-center px-2 py-1 rounded-lg border bg-blue-500/10 text-blue-700 border-blue-300/40 text-[10px] gap-1 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-400/30 whitespace-nowrap backdrop-blur-sm;
 }
 
 .btn-disconnect {
@@ -147,7 +137,7 @@
 
 /* Botão de Conectar */
 .btn-connect {
-    @apply px-2 py-1 rounded border text-[10px] transition-colors;
+    @apply px-2 py-1 rounded-lg border text-[10px] transition-colors backdrop-blur-sm;
 }
 
 .btn-connect-active {
@@ -155,13 +145,13 @@
 }
 
 .btn-connect-idle {
-    @apply hover:bg-gray-100 dark:hover:bg-gray-700 dark:border-gray-600 dark:text-gray-300;
+    @apply bg-white/30 dark:bg-white/10 border-white/50 dark:border-white/20 text-gray-700 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-white/20;
 }
 
 /* ----------    renderBody --------- */
 /* Visão de Cabo */
 .cable-layout {
-    @apply overflow-hidden grid grid-cols-1 md:grid-cols-2 h-full divide-y md:divide-y-0 md:divide-x dark:divide-gray-700 bg-slate-50 dark:bg-gray-900;
+    @apply overflow-hidden grid grid-cols-1 md:grid-cols-2 h-full divide-y md:divide-y-0 md:divide-x divide-white/30 dark:divide-white/10 bg-white/10 dark:bg-black/20;
 }
 
 .cable-column {
@@ -169,16 +159,16 @@
 }
 
 .cable-header-sticky {
-    @apply p-2 text-center text-xs font-bold bg-gray-100 dark:bg-gray-700 dark:text-gray-300 sticky top-0 z-10;
+    @apply p-2 text-center text-xs font-bold bg-white/30 dark:bg-white/10 backdrop-blur-sm dark:text-gray-300 sticky top-0 z-10 border-b border-white/30 dark:border-white/10;
 }
 
 /* Visão de Nó (POP/CTO) */
 .node-view-root {
-    @apply flex flex-col flex-1 bg-slate-50 dark:bg-gray-900 overflow-hidden;
+    @apply flex flex-col flex-1 bg-white/10 dark:bg-black/20 overflow-hidden;
 }
 
 .node-toolbar {
-    @apply p-4 bg-white dark:bg-gray-800 border-b dark:border-gray-700 shadow-sm shrink-0;
+    @apply p-4 bg-white/30 dark:bg-white/10 backdrop-blur-sm border-b border-white/40 dark:border-white/20 shadow-sm shrink-0;
 }
 
 .toolbar-grid {
@@ -191,7 +181,7 @@
 
 /* Botão de Adicionar Dispositivo */
 .btn-add-device {
-    @apply flex-1 min-w-[60px] py-2 bg-slate-50 dark:bg-gray-700 border dark:border-gray-600 rounded text-[10px] font-bold hover:bg-blue-50 dark:hover:bg-gray-600 flex flex-col items-center text-gray-700 dark:text-gray-300 transition-colors;
+    @apply flex-1 min-w-[60px] py-2 bg-white/30 dark:bg-white/10 border border-white/50 dark:border-white/20 rounded-xl text-[10px] font-bold hover:bg-blue-500/10 hover:text-blue-600 dark:hover:text-blue-400 dark:hover:bg-blue-500/15 flex flex-col items-center text-gray-700 dark:text-gray-300 transition-colors backdrop-blur-sm;
 }
 
 /* Grid de Dispositivos */
@@ -209,20 +199,20 @@
 
 /* Subseções dos Cards (OLT/DIO) */
 .device-subsection {
-    @apply mb-2 border dark:border-gray-700 rounded overflow-hidden;
+    @apply mb-2 border border-white/40 dark:border-white/20 rounded-xl overflow-hidden backdrop-blur-sm;
 }
 
 /* Headers de Seção */
 .header-blue {
-    @apply bg-blue-100 dark:bg-blue-900/40 px-2 py-1 text-[10px] font-bold text-blue-800 uppercase flex justify-start items-center cursor-pointer;
+    @apply bg-blue-500/10 dark:bg-blue-500/15 px-2 py-1 text-[10px] font-bold text-blue-800 dark:text-blue-300 uppercase flex justify-start items-center cursor-pointer border-b border-blue-400/20;
 }
 
 .header-gray {
-    @apply px-2 py-1 bg-gray-50 dark:bg-gray-700 flex justify-between cursor-pointer;
+    @apply px-2 py-1 bg-white/20 dark:bg-white/5 flex justify-between cursor-pointer border-b border-white/30 dark:border-white/10;
 }
 
 .header-purple {
-    @apply px-2 py-1 bg-purple-50 dark:bg-purple-900/30 flex justify-between items-center cursor-pointer;
+    @apply px-2 py-1 bg-purple-500/10 dark:bg-purple-500/15 flex justify-between items-center cursor-pointer border-b border-purple-400/20;
 }
 
 /* Textos Específicos */
@@ -236,21 +226,21 @@
 
 /* Botão Tracejado (Adicionar Placa/Card) */
 .btn-dashed-add {
-    @apply w-full text-xs border border-dashed dark:border-gray-600 rounded p-1;
+    @apply w-full text-xs border border-dashed border-white/50 dark:border-white/20 rounded-lg p-1 hover:bg-white/20 dark:hover:bg-white/10 transition-colors;
 }
 
 /* Layout DIO Dividido */
 .dio-split-layout {
-    @apply flex divide-x dark:divide-gray-700;
+    @apply flex divide-x divide-white/30 dark:divide-white/10;
 }
 
 .dio-side-label {
-    @apply text-[8px] text-center bg-gray-100 dark:bg-gray-700 text-gray-500;
+    @apply text-[8px] text-center bg-white/20 dark:bg-white/10 text-gray-500;
 }
 
 /* --- Seção de Cabos Conectados --- */
 .cables-container {
-    @apply mt-6 pt-4 border-t dark:border-gray-700;
+    @apply mt-6 pt-4 border-t border-white/30 dark:border-white/10;
 }
 
 .cables-title {
@@ -268,7 +258,7 @@
 /* --------- DETAILPANEL --------- */
 /* Container do Cabeçalho */
 .detail-header-container {
-    @apply p-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex flex-col gap-3 shadow-sm z-10 shrink-0;
+    @apply p-4 border-b border-white/40 dark:border-white/20 bg-white/40 dark:bg-white/10 backdrop-blur-xl flex flex-col gap-3 shadow-sm z-10 shrink-0;
 }
 
 /* Linha Superior (Título e Ações) */
@@ -300,31 +290,31 @@
 
 /* Botão Genérico Base (Estrutura) */
 .btn-action-base {
-    @apply flex items-center gap-1 px-3 py-1.5 border rounded text-xs font-bold transition-colors shadow-sm;
+    @apply flex items-center gap-1 px-3 py-1.5 border border-white/50 dark:border-white/20 rounded-lg text-xs font-bold transition-colors shadow-sm backdrop-blur-sm bg-white/30 dark:bg-white/10;
 }
 
 /* Botão Seccionar */
 .btn-action-split {
-    @apply flex items-center gap-1 px-3 py-1.5 bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800 rounded text-xs font-bold hover:bg-orange-100 dark:hover:bg-orange-900/40 transition-colors shadow-sm;
+    @apply flex items-center gap-1 px-3 py-1.5 bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-400/30 dark:border-orange-400/30 rounded-lg text-xs font-bold hover:bg-orange-500/20 dark:hover:bg-orange-500/25 transition-colors shadow-sm backdrop-blur-sm;
 }
 
 /* Estados do Botão de Notas */
 .btn-notes-active {
-    @apply bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800 hover:bg-yellow-100;
+    @apply bg-yellow-500/10 dark:bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 border-yellow-400/30 dark:border-yellow-400/30 hover:bg-yellow-500/20;
 }
 
 .btn-notes-idle {
-    @apply bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600;
+    @apply bg-white/30 dark:bg-white/10 text-gray-600 dark:text-gray-300 border-white/50 dark:border-white/20 hover:bg-white/50 dark:hover:bg-white/20;
 }
 
 /* Botão Fotos */
 .btn-action-photos {
-    @apply flex items-center gap-1 px-3 py-1.5 bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-gray-600 rounded text-xs font-bold hover:bg-blue-50 dark:hover:bg-gray-600 transition-colors shadow-sm;
+    @apply flex items-center gap-1 px-3 py-1.5 bg-white/30 dark:bg-white/10 text-blue-600 dark:text-blue-400 border border-blue-400/30 dark:border-white/20 rounded-lg text-xs font-bold hover:bg-blue-500/10 dark:hover:bg-white/20 transition-colors shadow-sm backdrop-blur-sm;
 }
 
 /* Botões Ícones Simples (Delete/Close) */
 .btn-action-delete {
-    @apply p-2 hover:bg-red-50 dark:hover:bg-red-900 text-red-500 rounded;
+    @apply p-2 hover:bg-red-500/10 dark:hover:bg-red-500/15 text-red-500 rounded-lg;
 }
 
 .btn-action-close {
@@ -333,20 +323,20 @@
 
 /* Wrapper das Abas */
 .nav-tabs-wrapper {
-    @apply flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1;
+    @apply flex bg-white/20 dark:bg-white/5 rounded-xl p-1 border border-white/30 dark:border-white/10 backdrop-blur-sm;
 }
 
 /* Botões das Abas */
 .nav-tab-btn {
-    @apply flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all flex items-center justify-center gap-2;
+    @apply flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2;
 }
 
 .nav-tab-report-active {
-    @apply bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm;
+    @apply bg-white/50 dark:bg-white/20 text-blue-600 dark:text-blue-400 shadow-sm;
 }
 
 .nav-tab-conn-active {
-    @apply bg-white dark:bg-gray-600 text-green-600 dark:text-green-400 shadow-sm;
+    @apply bg-white/50 dark:bg-white/20 text-green-600 dark:text-green-400 shadow-sm;
 }
 
 .nav-tab-idle {
@@ -355,7 +345,7 @@
 
 /* Barra de Alerta (Conexão Pendente) */
 .pending-alert-bar {
-    @apply bg-yellow-50 dark:bg-yellow-900/30 px-4 py-2 text-xs text-yellow-800 dark:text-yellow-200 flex justify-between items-center shrink-0;
+    @apply bg-yellow-500/10 dark:bg-yellow-500/15 border-b border-yellow-400/30 px-4 py-2 text-xs text-yellow-800 dark:text-yellow-200 flex justify-between items-center shrink-0 backdrop-blur-sm;
 }
 
 .btn-cancel-pending {

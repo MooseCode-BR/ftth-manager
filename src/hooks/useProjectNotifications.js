@@ -243,7 +243,7 @@ export const useProjectNotifications = (user) => {
                 name: invite.projectName,
                 ownerId: invite.fromUid,
                 fromEmail: invite.fromEmail,
-                role: 'GUEST',
+                permission: invite.permission || 'FULL_ACCESS',
                 inviteId: invite.id
             }));
             setSharedProjects(sharedList);

@@ -30,6 +30,8 @@ const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames
     const [showTags, setShowTags] = useState(true);
     const [isFullscreen, setIsFullscreen] = useState(false);
 
+    const isDarkMode = document.documentElement.classList.contains('dark');
+
     const toggleFullscreen = useCallback(() => {
         setIsFullscreen(f => {
             const next = !f;
@@ -125,15 +127,47 @@ const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames
         const devs = items.filter(i => i.parentId === item.id);
         devs.forEach(d => {
             if (d.type === 'OLT') {
-                for (let i = 0; i < (d.uplinkCount || 0); i++) ports.push({ item: d, portIndex: `u-${i}`, side: 'A', label: `Uplink ${i + 1}`, isUplink: true });
-                (d.interfaces || []).forEach((iface, idx) => { for (let p = 0; p < iface.portCount; p++) ports.push({ item: d, portIndex: `i-${idx}-p-${p}`, side: 'A', label: `${iface.name} PON ${p + 1}`, interfaceName: iface.name }); });
+                for (let i = 0; i < (d.uplinkCount || 0); i++) {
+                    const bIdx = `u-${i}`;
+                    if (d.portConfigs?.[bIdx] === 'duplex') {
+                        ports.push({ item: d, portIndex: `${bIdx}-TX`, side: 'A', label: `Uplink ${i + 1} TX`, isUplink: true });
+                        ports.push({ item: d, portIndex: `${bIdx}-RX`, side: 'A', label: `Uplink ${i + 1} RX`, isUplink: true });
+                    } else {
+                        ports.push({ item: d, portIndex: bIdx, side: 'A', label: `Uplink ${i + 1}`, isUplink: true });
+                    }
+                }
+                (d.interfaces || []).forEach((iface, idx) => {
+                    for (let p = 0; p < iface.portCount; p++) {
+                        const bIdx = `i-${idx}-p-${p}`;
+                        if (d.portConfigs?.[bIdx] === 'duplex') {
+                            ports.push({ item: d, portIndex: `${bIdx}-TX`, side: 'A', label: `${iface.name} PON ${p} TX` });
+                            ports.push({ item: d, portIndex: `${bIdx}-RX`, side: 'A', label: `${iface.name} PON ${p} RX` });
+                        } else {
+                            ports.push({ item: d, portIndex: bIdx, side: 'A', label: `${iface.name} PON ${p}` });
+                        }
+                    }
+                });
             } else if (d.type === 'DIO') {
                 if (d.cards && d.cards.length > 0) {
                     d.cards.forEach((card, cIdx) => { for (let p = 0; p < card.portCount; p++) { ports.push({ item: d, portIndex: `c-${cIdx}-p-${p}`, side: 'FRONT', label: `C${cIdx + 1}-P${p + 1} F`, isPatchPanel: true, cardId: `dio-${d.id}-card-${cIdx}` }); ports.push({ item: d, portIndex: `c-${cIdx}-p-${p}`, side: 'BACK', label: `C${cIdx + 1}-P${p + 1} T`, cardId: `dio-${d.id}-card-${cIdx}` }); } });
                 } else { for (let i = 0; i < d.ports; i++) { ports.push({ item: d, portIndex: i, side: 'FRONT', label: `Frente ${i + 1}`, isPatchPanel: true }); ports.push({ item: d, portIndex: i, side: 'BACK', label: `Trás ${i + 1}` }); } }
             } else if (d.type === 'SPLITTER') {
                 ports.push({ item: d, portIndex: 0, side: 'A', label: 'ENTRADA', isInput: true }); for (let i = 1; i < d.ports; i++) ports.push({ item: d, portIndex: i, side: 'A', label: `Saída ${i}` });
-            } else { for (let i = 0; i < (d.ports || 1); i++) ports.push({ item: d, portIndex: i, side: 'A', label: `Porta ${i + 1}` }); }
+            } else if (d.type === 'POE') {
+                for (let i = 0; i < (d.ports || 1); i++) {
+                    ports.push({ item: d, portIndex: i, side: 'POE', label: `POE ${i + 1}`, isPatchPanel: true });
+                    ports.push({ item: d, portIndex: i, side: 'LAN', label: `LAN ${i + 1}` });
+                }
+            } else {
+                for (let i = 0; i < (d.ports || 1); i++) {
+                    if (d.portConfigs?.[i] === 'duplex') {
+                        ports.push({ item: d, portIndex: `${i}-TX`, side: 'A', label: `Porta ${i + 1} TX` });
+                        ports.push({ item: d, portIndex: `${i}-RX`, side: 'A', label: `Porta ${i + 1} RX` });
+                    } else {
+                        ports.push({ item: d, portIndex: i, side: 'A', label: `Porta ${i + 1}` });
+                    }
+                }
+            }
         });
         const cabs = items.filter(i => (i.fromNode === item.id || i.toNode === item.id) && i.type === 'CABLE');
         cabs.forEach(c => { const side = c.fromNode === item.id ? 'A' : 'B'; for (let i = 0; i < c.ports; i++) { ports.push({ item: c, portIndex: i, side, label: `${c.name} - Fibra ${i + 1}`, color: ABNT_COLORS[i % 12], isCable: true, cableColor: c.color }); } });
@@ -358,8 +392,24 @@ const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames
 
     const getConnectionLines = () => { const lines = []; connections.forEach(conn => { if (collapsedCards.has(conn.fromId) || collapsedCards.has(conn.toId)) return; const checkCollapse = (itemId, portIndex) => { const portStr = String(portIndex); if (portStr.startsWith('c-')) { const cIdx = portStr.split('-')[1]; if (collapsedCards.has(`dio-${itemId}-card-${cIdx}`)) return true; } if (portStr.startsWith('u-')) { if (collapsedCards.has(`olt-${itemId}-uplinks`)) return true; } if (portStr.includes('-p-') && !portStr.startsWith('c-')) { const ifaceIdx = portStr.split('-')[1]; if (collapsedCards.has(`olt-${itemId}-iface-${ifaceIdx}`)) return true; } return false; }; if (checkCollapse(conn.fromId, conn.fromPort) || checkCollapse(conn.toId, conn.toPort)) return; const fromKey = getPortKey(conn.fromId, conn.fromPort, conn.fromSide); const toKey = getPortKey(conn.toId, conn.toPort, conn.toSide); const fromPos = portPositions[fromKey]; const toPos = portPositions[toKey]; const fromPortInfo = allPorts.find(p => getPortKey(p.item.id, p.portIndex, p.side) === fromKey); const toPortInfo = allPorts.find(p => getPortKey(p.item.id, p.portIndex, p.side) === toKey); if (fromPos && toPos) { const dx = toPos.x - fromPos.x; const dy = toPos.y - fromPos.y; let x1 = fromPos.x; let y1 = fromPos.y; let x2 = toPos.x; let y2 = toPos.y; const angle = Math.atan2(dy, dx); x1 += Math.cos(angle) * 12; y1 += Math.sin(angle) * 12; x2 -= Math.cos(angle) * 12; y2 -= Math.sin(angle) * 12; const midX = (x1 + x2) / 2; const isHovered = hoveredLineId === conn.id; const signalInfo = isHovered ? getSignalInfo(items, connections, portLabels, signalNames, conn.fromId, conn.fromPort, conn.fromSide) : []; lines.push({ id: conn.id, type: conn.type, x1, y1, x2, y2, d: `M ${x1} ${y1} C ${midX} ${y1} ${midX} ${y2} ${x2} ${y2}`, fromColor: fromPortInfo?.color?.hex || '#94a3b8', toColor: toPortInfo?.color?.hex || '#94a3b8', signals: signalInfo }); } }); return lines; };
 
-    const getPortDisplay = (info) => { if (info.item.type === 'SPLITTER') return info.isInput ? 'IN' : info.portIndex; if (info.item.type === 'OLT') { if (String(info.portIndex).startsWith('u-')) return 'U' + (parseInt(info.portIndex.split('-')[1]) + 1); if (String(info.portIndex).includes('-p-')) return parseInt(info.portIndex.split('-p-')[1]); } if (typeof info.portIndex === 'number') return info.portIndex + 1; if (typeof info.portIndex === 'string' && info.portIndex.includes('-p-')) { return parseInt(info.portIndex.split('-p-')[1]) + 1; } return '•'; };
+    const getPortDisplay = (info) => {
+        // Lógica Nova: Se for Duplex, mostramos TX ou RX
+        if (typeof info.portIndex === 'string') {
+            if (info.portIndex.endsWith('-TX')) return 'TX';
+            if (info.portIndex.endsWith('-RX')) return 'RX';
+        }
 
+        if (info.item.type === 'SPLITTER') return info.isInput ? 'IN' : info.portIndex;
+        if (info.item.type === 'OLT') {
+            if (String(info.portIndex).startsWith('u-')) return 'U' + (parseInt(info.portIndex.split('-')[1]) + 1);
+            if (String(info.portIndex).includes('-p-')) return parseInt(info.portIndex.split('-p-')[1]);
+        }
+        if (typeof info.portIndex === 'number') return info.portIndex + 1;
+        if (typeof info.portIndex === 'string' && info.portIndex.includes('-p-')) {
+            return parseInt(info.portIndex.split('-p-')[1]) + 1;
+        }
+        return '•';
+    };
     const SignalLabel = ({ portInfo }) => {
         if (!showTags) return null;
         const isDIO = portInfo.item.type === 'DIO' || portInfo.item.name.includes('DIO');
@@ -473,8 +523,24 @@ const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames
     };
 
     return (
-        <div className="relative flex-1 overflow-hidden bg-slate-100 dark:bg-gray-900 cursor-move touch-none" ref={workbenchRef} onMouseDown={handleMouseDownCanvas} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onTouchStart={handleTouchStartCanvas} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onWheel={handleWheel} onClick={() => { if (dragLine) setDragLine(null) }}>
-            <div className="absolute top-4 right-4 z-30 flex flex-col gap-1 bg-white dark:bg-gray-800 p-1 rounded shadow border dark:border-gray-700">
+        <div
+            className="relative flex-1 overflow-hidden bg-[#ddd] dark:bg-[#222] cursor-move touch-none"
+            ref={workbenchRef}
+            onMouseDown={handleMouseDownCanvas}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            onTouchStart={handleTouchStartCanvas}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onWheel={handleWheel}
+            onClick={() => { if (dragLine) setDragLine(null) }}
+            style={{
+                backgroundImage: isDarkMode ? 'radial-gradient(#333 1px, transparent 1px)' : 'radial-gradient(#bbb 1px, transparent 1px)',
+                backgroundSize: `${20 * scale}px ${20 * scale}px`,
+                backgroundPosition: `${pan.x}px ${pan.y}px`
+            }}
+        >            <div className="absolute top-4 right-4 z-30 flex flex-col gap-1 bg-white dark:bg-gray-800 p-1 rounded shadow border dark:border-gray-700">
                 <button onClick={() => setScale(s => Math.min(s + 0.1, 3))} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded" title="Zoom In"><ZoomIn size={16} /></button>
                 <button onClick={() => setScale(s => Math.max(s - 0.1, 0.5))} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded" title="Zoom Out"><ZoomOut size={16} /></button>
                 <div className="h-px bg-gray-200 dark:bg-gray-700 my-0.5"></div>
@@ -497,12 +563,13 @@ const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames
                         const isCollapsed = collapsedCards.has(d.id);
                         const isDIO = d.type === 'DIO';
                         const isOLT = d.type === 'OLT';
+                        const isPOE = d.type === 'POE';
                         const ports = allPorts.filter(p => p.item.id === d.id);
                         return (
                             <div
                                 key={d.id}
                                 data-node-id={d.id}
-                                className={`absolute bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700 shadow-md ${isDIO || isOLT ? 'w-32' : 'w-20'}`}
+                                className={`absolute bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700 shadow-md ${isDIO || isOLT || isPOE ? 'w-32' : 'w-20'}`}
                                 style={{ left: d.x || 0, top: d.y || 0 }}
                             >
                                 {/* Cabeçalho colorido por tipo de dispositivo */}
@@ -523,10 +590,64 @@ const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames
                                     <div className="p-2 flex flex-col items-center gap-2">
                                         {isDIO && d.cards ? (d.cards.map((card, cIdx) => { const cardId = `dio-${d.id}-card-${cIdx}`; const isCardCollapsed = collapsedCards.has(cardId); return (<div key={cIdx} className="w-full border dark:border-gray-600 rounded mb-1"> <div className="bg-purple-100 dark:bg-purple-900/40 px-1 py-0.5 text-[8px] font-bold text-purple-800 dark:text-purple-200 text-center cursor-pointer flex justify-between items-center" onMouseDown={(e) => e.stopPropagation()} onClick={() => toggleCard(cardId)}> <span>{card.name}</span> {isCardCollapsed ? <ChevronRight size={8} /> : <ChevronDown size={8} />} </div> {!isCardCollapsed && (<div className="p-1 space-y-1"> {Array.from({ length: card.portCount }).map((_, i) => { const pStr = `c-${cIdx}-p-${i}`; const front = ports.find(p => p.side === 'FRONT' && p.portIndex === pStr); const back = ports.find(p => p.side === 'BACK' && p.portIndex === pStr); return (<div key={i} className="flex justify-between gap-2 w-full px-1 items-center"> {front && <PortCircle portInfo={front} />} <div className="flex-1 h-px border-t border-dashed border-gray-300 dark:border-gray-400 opacity-60"></div> {back && <PortCircle portInfo={back} />} </div>) })} </div>)} </div>) })) : isOLT ? (
                                             <div className="w-full flex flex-col gap-2">
-                                                {d.uplinkCount > 0 && (<div className="w-full border dark:border-gray-600 rounded"> <div className="bg-blue-100 dark:bg-blue-900/40 px-1 py-0.5 text-[8px] font-bold text-blue-800 dark:text-blue-200 text-center flex justify-between items-center cursor-pointer" onMouseDown={(e) => e.stopPropagation()} onClick={() => toggleCard(`olt-${d.id}-uplinks`)}> <span>Uplinks</span> {collapsedCards.has(`olt-${d.id}-uplinks`) ? <ChevronRight size={8} /> : <ChevronDown size={8} />} </div> {!collapsedCards.has(`olt-${d.id}-uplinks`) && (<div className="p-1 flex flex-col items-center gap-1"> {Array.from({ length: d.uplinkCount }).map((_, i) => { const pStr = `u-${i}`; const port = ports.find(p => p.portIndex === pStr); return port && <PortCircle key={i} portInfo={port} /> })} </div>)} </div>)}
-                                                {d.interfaces?.map((iface, idx) => { const ifaceId = `olt-${d.id}-iface-${idx}`; const isIfaceCollapsed = collapsedCards.has(ifaceId); return (<div key={idx} className="w-full border dark:border-gray-600 rounded mb-1"> <div className="bg-blue-50 dark:bg-blue-900/20 px-1 py-0.5 text-[8px] font-bold text-gray-600 dark:text-gray-300 text-center cursor-pointer flex justify-between items-center" onMouseDown={(e) => e.stopPropagation()} onClick={() => toggleCard(ifaceId)}> <span>{iface.name}</span> {isIfaceCollapsed ? <ChevronRight size={8} /> : <ChevronDown size={8} />} </div> {!isIfaceCollapsed && (<div className="p-1 flex flex-col items-center gap-1"> {Array.from({ length: iface.portCount }).map((_, p) => { const pStr = `i-${idx}-p-${p}`; const port = ports.find(pt => pt.portIndex === pStr); return port && <PortCircle key={p} portInfo={port} /> })} </div>)} </div>) })}
+                                                {d.uplinkCount > 0 && (<div className="w-full border dark:border-gray-600 rounded"> <div className="bg-blue-100 dark:bg-blue-900/40 px-1 py-0.5 text-[8px] font-bold text-blue-800 dark:text-blue-200 text-center flex justify-between items-center cursor-pointer" onMouseDown={(e) => e.stopPropagation()} onClick={() => toggleCard(`olt-${d.id}-uplinks`)}> <span>Uplinks</span> {collapsedCards.has(`olt-${d.id}-uplinks`) ? <ChevronRight size={8} /> : <ChevronDown size={8} />} </div> {!collapsedCards.has(`olt-${d.id}-uplinks`) && (<div className="p-1 flex flex-col items-center gap-1"> {Array.from({ length: d.uplinkCount }).map((_, i) => {
+                                                    const pStr = `u-${i}`;
+                                                    if (d.portConfigs?.[pStr] === 'duplex') {
+                                                        const txPort = ports.find(p => p.portIndex === `${pStr}-TX`);
+                                                        const rxPort = ports.find(p => p.portIndex === `${pStr}-RX`);
+                                                        return (
+                                                            <div key={i} className="flex flex-col items-center gap-1 border border-blue-300 dark:border-blue-700 rounded p-1 bg-blue-50/50 dark:bg-blue-900/20 w-full mb-1">
+                                                                <span className="text-[8px] font-bold text-gray-500 dark:text-gray-400">U{i + 1}</span>
+                                                                <div className="flex gap-1 justify-center">
+                                                                    {txPort && <PortCircle portInfo={txPort} />}
+                                                                    {rxPort && <PortCircle portInfo={rxPort} />}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    }
+                                                    const port = ports.find(p => p.portIndex === pStr);
+                                                    return port && <PortCircle key={i} portInfo={port} />
+                                                })} </div>)}
+                                                </div>)}
+                                                {d.interfaces?.map((iface, idx) => {
+                                                    const ifaceId = `olt-${d.id}-iface-${idx}`; const isIfaceCollapsed = collapsedCards.has(ifaceId); return (<div key={idx} className="w-full border dark:border-gray-600 rounded mb-1"> <div className="bg-blue-50 dark:bg-blue-900/20 px-1 py-0.5 text-[8px] font-bold text-gray-600 dark:text-gray-300 text-center cursor-pointer flex justify-between items-center" onMouseDown={(e) => e.stopPropagation()} onClick={() => toggleCard(ifaceId)}> <span>{iface.name}</span> {isIfaceCollapsed ? <ChevronRight size={8} /> : <ChevronDown size={8} />} </div> {!isIfaceCollapsed && (<div className="p-1 flex flex-col items-center gap-1"> {Array.from({ length: iface.portCount }).map((_, p) => {
+                                                        const pStr = `i-${idx}-p-${p}`;
+                                                        if (d.portConfigs?.[pStr] === 'duplex') {
+                                                            const txPort = ports.find(pt => pt.portIndex === `${pStr}-TX`);
+                                                            const rxPort = ports.find(pt => pt.portIndex === `${pStr}-RX`);
+                                                            return (
+                                                                <div key={p} className="flex flex-col items-center gap-1 border border-blue-300 dark:border-blue-700 rounded p-1 bg-blue-50/50 dark:bg-blue-900/20 w-full mb-1">
+                                                                    <span className="text-[8px] font-bold text-gray-500 dark:text-gray-400">PON {p}</span>
+                                                                    <div className="flex gap-1 justify-center">
+                                                                        {txPort && <PortCircle portInfo={txPort} />}
+                                                                        {rxPort && <PortCircle portInfo={rxPort} />}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        }
+                                                        const port = ports.find(pt => pt.portIndex === pStr);
+                                                        return port && <PortCircle key={p} portInfo={port} />
+                                                    })} </div>)}
+                                                    </div>)
+                                                })}
                                             </div>
-                                        ) : isDIO ? (Array.from({ length: d.ports }).map((_, i) => { const front = ports.find(p => p.side === 'FRONT' && p.portIndex === i); const back = ports.find(p => p.side === 'BACK' && p.portIndex === i); return (<div key={i} className="flex justify-between gap-2 w-full px-1 items-center"> {front && <PortCircle portInfo={front} />} <div className="flex-1 h-px border-t border-dashed border-gray-300 dark:border-gray-600 mx-1 opacity-50"></div> {back && <PortCircle portInfo={back} />} </div>) })) : (ports.map((p, i) => <PortCircle key={i} portInfo={p} />))}
+                                        ) : isDIO ? (Array.from({ length: d.ports }).map((_, i) => { const front = ports.find(p => p.side === 'FRONT' && p.portIndex === i); const back = ports.find(p => p.side === 'BACK' && p.portIndex === i); return (<div key={i} className="flex justify-between gap-2 w-full px-1 items-center"> {front && <PortCircle portInfo={front} />} <div className="flex-1 h-px border-t border-dashed border-gray-300 dark:border-gray-600 mx-1 opacity-50"></div> {back && <PortCircle portInfo={back} />} </div>) })) : isPOE ? (Array.from({ length: d.ports || 1 }).map((_, i) => { const poe = ports.find(p => p.side === 'POE' && p.portIndex === i); const lan = ports.find(p => p.side === 'LAN' && p.portIndex === i); return (<div key={i} className="flex justify-between gap-2 w-full px-1 items-center"> {poe && <PortCircle portInfo={poe} />} <div className="flex-1 h-px border-t border-dashed border-gray-300 dark:border-gray-600 mx-1 opacity-50"></div> {lan && <PortCircle portInfo={lan} />} </div>) })) : (Array.from({ length: d.ports || 1 }).map((_, i) => {
+                                            if (d.portConfigs?.[i] === 'duplex') {
+                                                const txPort = ports.find(p => p.portIndex === `${i}-TX`);
+                                                const rxPort = ports.find(p => p.portIndex === `${i}-RX`);
+                                                return (
+                                                    <div key={i} className="flex flex-col items-center gap-1 border border-blue-300 dark:border-blue-700 rounded p-1 bg-blue-50/50 dark:bg-blue-900/20 w-full mb-1">
+                                                        <span className="text-[8px] font-bold text-gray-500 dark:text-gray-400">P{i + 1}</span>
+                                                        <div className="flex gap-1 justify-center w-full px-1">
+                                                            {txPort && <PortCircle portInfo={txPort} />}
+                                                            {rxPort && <PortCircle portInfo={rxPort} />}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }
+                                            const port = ports.find(p => p.portIndex === i);
+                                            return port && <PortCircle key={i} portInfo={port} />;
+                                        }))}
                                     </div>
                                 )}
                             </div>

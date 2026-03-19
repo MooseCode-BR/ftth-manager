@@ -80,5 +80,5 @@ export const ATTENUATION = {
 };
 
 export const VERSAO = {
-    NUMERO_VERSAO: "FTTH Manager v0.3.4 Beta"
+    NUMERO_VERSAO: "FTTH Manager v0.4.0 Beta"
 }

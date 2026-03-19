@@ -29,7 +29,7 @@ import { Dialog } from '@capacitor/dialog';
 // Biblioteca de ícones SVG modernos e leves utilizados em toda a interface
 import {
     Trash2, Box, Scissors, Activity, User, ArrowRightLeft, Edit3, Save, X, CircleUserRound, ZoomIn, ZoomOut,
-    LogOut, Mail, Search, ShieldAlert, MapPin, Loader2, Lock, Unlock, Info, PackagePlus,
+    LogOut, Mail, Search, ShieldAlert, MapPin, MapPinned, Loader2, Lock, Unlock, Info, PackagePlus,
     DoorOpen
 } from 'lucide-react';
 
@@ -117,7 +117,7 @@ import { ProfileModal } from '../components/ProfileModal';
 // COMPONENTES MEMOIZADOS (PERFORMANCE) ========================================================================
 // 1. Nó do Canvas (Caixas, Clientes, etc)
 // Só re-renderiza se a posição, cor, nome ou seleção mudarem.
-const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, onStart, onEnd, onDoubleClick, onEdit, onDelete, onSelect, onOpen }) => {
+const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, onStart, onEnd, onDoubleClick, onEdit, onDelete, onSelect, onOpen, onFlyToMap }) => {
 
     // Estado local de bloqueio
     const [isUnlocked, setIsUnlocked] = useState(false);
@@ -150,7 +150,7 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
             onMouseUp={(e) => onEnd(e, node)}
             onTouchStart={handleNodeClick}
             onTouchEnd={(e) => onEnd(e, node)}
-            onDoubleClick={(e) => onDoubleClick(e, node)}
+            onDoubleClick={(e) => { if (!node._readOnly) onDoubleClick(e, node); }}
             style={{
                 left: node.x,
                 top: node.y,
@@ -191,8 +191,8 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
             {/* --- TOOLBAR (MENU DE AÇÕES) --- 
                 Renderiza acima do node, estilo "Popup" igual ao do mapa
             */}
-            {/* Toolbar: não exibe quando o nó é o 1º selecionado no modo DRAW_CABLE */}
-            {isSelected && !isCableStart && (
+            {/* Toolbar: não exibe para itens restritos nem quando é o 1º nó do DRAW_CABLE */}
+            {isSelected && !isCableStart && !node._readOnly && (
                 <div
                     className="absolute pointer-events-auto z-[60] animate-in slide-in-from-bottom-2 fade-in duration-200"
                     style={{ left: '50%', top: '-76px', transform: 'translateX(-50%)' }}
@@ -248,6 +248,16 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
                                 title="Excluir"
                             >
                                 <Trash2 size={14} />
+                            </button>
+
+                            {/* MAPA (Voar para o nó) */}
+                            <button
+                                onClick={(e) => { e.stopPropagation(); if (onFlyToMap) onFlyToMap(node); }}
+                                className="bg-transparent text-blue-600 dark:text-blue-400 border border-transparent p-1.5 rounded-full hover:bg-blue-100/50 dark:hover:bg-blue-900/40 flex items-center justify-center transition-colors shadow-none"
+                                style={{ width: '28px', height: '28px' }}
+                                title="Ver no Mapa"
+                            >
+                                <MapPinned size={14} />
                             </button>
                         </div>
                     </DraggableToolbar>
@@ -789,20 +799,45 @@ const App = () => {
         const allAvailableProjects = [...myProjects, ...sharedProjects];
 
         // A. Carregar dados ESPECÍFICOS DE CADA PROJETO (Itens, Conexões, Sinais, Labels)
+        // Campos permitidos para projetos com permissão READ_ONLY_GEOMETRY
+        const GEOMETRY_ONLY_FIELDS = ['id', 'color', 'lat', 'lng', 'name', 'lastEditor', 'tagIds', 'type', 'fromNode', 'toNode', 'waypoints', 'parentId', 'fiberCount'];
+
         visibleProjectIds.forEach(pid => {
             const projMeta = allAvailableProjects.find(p => p.id === pid);
             if (!projMeta) return;
 
             const targetOwnerId = projMeta.ownerId;
             const basePath = `artifacts/ftth-production/users/${targetOwnerId}/projects/${pid}`;
+            const isRestricted = projMeta.permission === 'READ_ONLY_GEOMETRY';
 
             const createListener = (colName, cacheKey) => {
                 return onSnapshot(collection(db, `${basePath}/${colName}`), (snap) => {
-                    const dataList = snap.docs.map(d => ({
+                    let dataList = snap.docs.map(d => ({
                         id: d.id,
                         ...d.data(),
                         _projectId: pid
                     }));
+
+                    // DATA SCRUBBING: Para projetos restritos, mostra APENAS CTOs com campos de geometria
+                    if (isRestricted && cacheKey === 'items') {
+                        dataList = dataList
+                            .filter(item => item.type === 'CTO') // SOMENTE CTOs
+                            .map(item => {
+                                const filtered = { _projectId: pid, _readOnly: true };
+                                GEOMETRY_ONLY_FIELDS.forEach(field => {
+                                    if (item[field] !== undefined) {
+                                        filtered[field] = item[field];
+                                    }
+                                });
+                                return filtered;
+                            });
+                    }
+
+                    // Para projetos restritos, conexões não devem ser carregadas (filtradas abaixo)
+                    // Mas caso passem, marca como somente leitura
+                    if (isRestricted && cacheKey === 'connections') {
+                        dataList = []; // Não carregar conexões para projetos restritos
+                    }
 
                     setProjectDataCache(prev => ({
                         ...prev,
@@ -812,10 +847,13 @@ const App = () => {
             };
 
             unsubscribers.push(createListener('items', 'items'));
-            unsubscribers.push(createListener('connections', 'connections'));
-            // Mantemos 'settings' aqui APENAS para coisas locais (Sinais e PortLabels)
-            // Tags, Cores e Standards serão carregados no useEffect abaixo (Global)
-            unsubscribers.push(createListener('settings', 'settings'));
+            // Para projetos restritos, NÃO carregamos conexões nem settings
+            if (!isRestricted) {
+                unsubscribers.push(createListener('connections', 'connections'));
+            }
+            if (!isRestricted) {
+                unsubscribers.push(createListener('settings', 'settings'));
+            }
         });
 
         return () => {
@@ -1514,6 +1552,14 @@ const App = () => {
     const saveItem = (item) => dbAction(async () => {
         let finalProjectId = null;
 
+        // 0. GUARD: Verifica permissão de escrita
+        const existingCheck = items.find(i => i.id === item.id);
+        const checkProjId = existingCheck?._projectId || item._projectId || activeProjectId;
+        if (checkProjId && isProjectReadOnly(checkProjId)) {
+            openAlert("Acesso Restrito", "Você tem permissão somente de visualização neste projeto. Não é possível salvar alterações.");
+            return;
+        }
+
         // 1. VERIFICAÇÃO INTELIGENTE DE PROJETO
         const existingItem = items.find(i => i.id === item.id);
 
@@ -1580,6 +1626,12 @@ const App = () => {
         // Se achou a origem, usa o projeto dela. Se não, tenta o ativo.
         const targetProjectId = (sourceItem && sourceItem._projectId) ? sourceItem._projectId : activeProjectId;
 
+        // GUARD: Verifica permissão de escrita
+        if (targetProjectId && isProjectReadOnly(targetProjectId)) {
+            openAlert("Acesso Restrito", "Você tem permissão somente de visualização neste projeto. Não é possível criar conexões.");
+            return;
+        }
+
         if (!targetProjectId) {
             console.error("Erro: Não foi possível identificar o projeto para esta conexão.");
             return;
@@ -1595,7 +1647,16 @@ const App = () => {
     });
 
 
-    const deleteItemDB = (id) => { batchDelete([id]); };
+    const deleteItemDB = (id) => {
+        // GUARD: Verifica permissão de escrita
+        const itemToDelete = items.find(i => i.id === id);
+        const projId = itemToDelete?._projectId || activeProjectId;
+        if (projId && isProjectReadOnly(projId)) {
+            openAlert("Acesso Restrito", "Você tem permissão somente de visualização neste projeto. Não é possível excluir itens.");
+            return;
+        }
+        batchDelete([id]);
+    };
 
     const cleanUpClientSignal = async (conn, targetOwnerId = projectOwnerId, targetProjectId = activeProjectId) => {
         // Verifica se a conexão existe
@@ -1669,6 +1730,12 @@ const App = () => {
                 targetProjectId = (sourceItem && sourceItem._projectId) ? sourceItem._projectId : activeProjectId;
             }
 
+            // GUARD: Verifica permissão de escrita
+            if (targetProjectId && isProjectReadOnly(targetProjectId)) {
+                openAlert("Acesso Restrito", "Você tem permissão somente de visualização neste projeto. Não é possível excluir conexões.");
+                return;
+            }
+
             if (!targetProjectId) {
                 console.error("Erro Crítico: Tentativa de deletar conexão sem projeto definido.");
                 return;
@@ -1704,92 +1771,83 @@ const App = () => {
         setVisibleProjectIds(prev => [...new Set([...prev, newId])]);
     };
 
-    const handleDeleteProject = async (id) => {
-        const confirm = window.confirm(
-            "ATENÇÃO: Esta ação é IRREVERSÍVEL.\n\n" +
-            "Isso apagará PERMANENTEMENTE todos os Itens, Conexões e Configurações deste projeto.\n" +
-            "Todos os convidados perderão o acesso imediatamente.\n\n" +
-            "Deseja realmente continuar?"
-        );
-        if (!confirm) return;
+    // --- FUNÇÕES DE DELEÇÃO E RENOMEAR ---
+    const performDeleteProject = async (id) => {
+        const uid = user.uid;
+        const projectPath = `artifacts/ftth-production/users/${uid}/projects/${id}`;
 
-        setLoading(true); // Mostra loading pois pode demorar
+        const subCollections = [
+            'items',
+            'connections',
+            'settings'
+        ];
 
-        try {
-            const uid = user.uid;
-            const projectPath = `artifacts/ftth-production/users/${uid}/projects/${id}`;
+        const deleteCollection = async (colName) => {
+            const colRef = collection(db, `${projectPath}/${colName}`);
+            const snapshot = await getDocs(colRef);
 
-            // Lista de todas as possíveis subcoleções que podem existir dentro do projeto
-            // (Inclui 'items', 'connections', 'settings' e as legadas da migração se houver)
-            const subCollections = [
-                'items',
-                'connections',
-                'settings',
-                // 'tags' removido: tags agora são globais por usuário (users/{uid}/settings/tags)
-                // e não devem ser apagadas ao deletar um projeto específico.
-                'nodeColors',
-                'signals',
-                'portLabels'
-            ];
+            if (snapshot.empty) return;
 
-            // Função auxiliar para deletar uma coleção inteira em lotes
-            const deleteCollection = async (colName) => {
-                const colRef = collection(db, `${projectPath}/${colName}`);
-                const snapshot = await getDocs(colRef);
+            const docs = snapshot.docs;
+            const CHUNK_SIZE = 400;
 
-                if (snapshot.empty) return;
+            for (let i = 0; i < docs.length; i += CHUNK_SIZE) {
+                const batch = writeBatch(db);
+                const chunk = docs.slice(i, i + CHUNK_SIZE);
 
-                const docs = snapshot.docs;
-                const CHUNK_SIZE = 400; // Limite de segurança do Firestore
+                chunk.forEach(doc => batch.delete(doc.ref));
 
-                for (let i = 0; i < docs.length; i += CHUNK_SIZE) {
-                    const batch = writeBatch(db);
-                    const chunk = docs.slice(i, i + CHUNK_SIZE);
-
-                    chunk.forEach(doc => batch.delete(doc.ref));
-
-                    await batch.commit();
-                }
-            };
-
-            // 1. Apagar todas as subcoleções sequencialmente
-            for (const colName of subCollections) {
-                await deleteCollection(colName);
+                await batch.commit();
             }
+        };
 
-            // 2. Apagar o documento do Projeto e os Convites (Agora via Batch final)
-            const finalBatch = writeBatch(db);
-
-            // Deleta o Doc do Projeto
-            const projectRef = doc(db, `artifacts/ftth-production/users/${uid}/projects`, id);
-            finalBatch.delete(projectRef);
-
-            // Deleta Convites
-            const invitesQuery = query(collection(db, 'ftth_invitations'), where('projectId', '==', id));
-            const invitesSnap = await getDocs(invitesQuery);
-            invitesSnap.forEach(inv => {
-                finalBatch.delete(inv.ref);
-            });
-
-            await finalBatch.commit();
-
-            // 3. Limpeza do Estado Local
-            if (activeProjectId === id) {
-                setActiveProjectId(null);
-                setProjectOwnerId(uid); // Volta para mim mesmo
-                setItems([]);
-                setConnections([]);
-            }
-
-            setVisibleProjectIds(prev => prev.filter(p => p !== id));
-            openAlert("Sucesso", "Projeto e todos os seus dados foram excluídos.");
-
-        } catch (error) {
-            console.error("Erro ao deletar projeto:", error);
-            openAlert("Erro", "Falha ao excluir projeto completamente. Verifique o console.");
-        } finally {
-            setLoading(false);
+        for (const colName of subCollections) {
+            await deleteCollection(colName);
         }
+
+        const finalBatch = writeBatch(db);
+        const projectRef = doc(db, `artifacts/ftth-production/users/${uid}/projects`, id);
+        finalBatch.delete(projectRef);
+
+        const invitesQuery = query(collection(db, 'ftth_invitations'), where('projectId', '==', id));
+        const invitesSnap = await getDocs(invitesQuery);
+        invitesSnap.forEach(inv => {
+            finalBatch.delete(inv.ref);
+        });
+
+        await finalBatch.commit();
+
+        if (activeProjectId === id) {
+            setActiveProjectId(null);
+            setProjectOwnerId(uid);
+            setItems([]);
+            setConnections([]);
+        }
+
+        setVisibleProjectIds(prev => prev.filter(p => p !== id));
+    };
+
+    const handleDeleteProject = (id) => {
+        openConfirm(
+            "Excluir Projeto",
+            "ATENÇÃO: Esta ação é IRREVERSÍVEL.\n\nIsso apagará PERMANENTEMENTE todos os dados deste projeto.\n\nDeseja realmente continuar?",
+            async () => {
+                setLoading(true);
+                try {
+                    await performDeleteProject(id);
+                    openAlert("Sucesso", "Projeto excluído.");
+                } catch (error) {
+                    console.error("Erro ao deletar projeto:", error);
+                    if (error.code === 'permission-denied' || (error.message && error.message.includes('Missing or insufficient permissions'))) {
+                        openAlert("Acesso Negado", "Você não tem permissões para excluir este projeto ou ele contém dados protegidos.");
+                    } else {
+                        openAlert("Erro", "Falha ao excluir projeto.");
+                    }
+                } finally {
+                    setLoading(false);
+                }
+            }
+        );
     };
 
     const handleRenameProject = async (id, newName) => {
@@ -1836,8 +1894,14 @@ const App = () => {
         });
     };
 
-    // Função: Enviar Convite
-    const handleShareProject = async (projectId, email) => {
+    // --- HELPER: Verificar se um projeto é somente leitura (Visualizador Restrito) ---
+    const isProjectReadOnly = (projectId) => {
+        const shared = sharedProjects.find(p => p.id === projectId);
+        return shared?.permission === 'READ_ONLY_GEOMETRY';
+    };
+
+    // Função: Enviar Convite (com nível de permissão)
+    const handleShareProject = async (projectId, email, permission = 'FULL_ACCESS') => {
         const project = myProjects.find(p => p.id === projectId);
         if (!project) return;
 
@@ -1845,9 +1909,10 @@ const App = () => {
             await addDoc(collection(db, 'ftth_invitations'), {
                 fromUid: user.uid,
                 fromEmail: user.email,
-                toEmail: email.trim(), // Importante: deve ser exato
+                toEmail: email.trim(),
                 projectId: project.id,
                 projectName: project.name,
+                permission,
                 status: 'pending',
                 createdAt: new Date().toISOString()
             });
@@ -1861,7 +1926,7 @@ const App = () => {
     // --- FUNÇÕES DE OPERAÇÃO EM MASSA (BULK) ---
     // ------------- pode substituir a handleShareProject antiga ou adicionar estas novas ---------
     // 1. Compartilhar Vários Projetos com Vários Emails
-    const handleBulkShare = async (projectIds, emails) => {
+    const handleBulkShare = async (projectIds, emails, permission = 'FULL_ACCESS') => {
         if (projectIds.length === 0 || emails.length === 0) return;
 
         setLoading(true);
@@ -1881,6 +1946,7 @@ const App = () => {
                         toEmail: email.trim(),
                         projectId: project.id,
                         projectName: project.name,
+                        permission,
                         status: 'pending',
                         createdAt: timestamp
                     });
@@ -1901,7 +1967,8 @@ const App = () => {
                 await batch.commit();
             }
 
-            openAlert("Sucesso", `${allOperations.length} convites enviados com sucesso!`);
+            const permLabel = permission === 'READ_ONLY_GEOMETRY' ? '(Somente Visualização)' : '(Acesso Total)';
+            openAlert("Sucesso", `${allOperations.length} convites ${permLabel} enviados com sucesso!`);
 
         } catch (error) {
             console.error("Erro no envio em massa:", error);
@@ -1941,6 +2008,12 @@ const App = () => {
             // Isso evita tentar salvar coisas no banco de outra pessoa sem projeto definido
             setProjectOwnerId(user.uid);
         } else {
+            // GUARD: Bloqueia ativação da caneta em projetos somente visualização
+            if (isProjectReadOnly(project.id)) {
+                openAlert("Acesso Restrito", "Este projeto foi compartilhado somente para visualização. Não é possível ativar o modo de edição.");
+                return;
+            }
+
             // --- ATIVAR (Toggle ON) - Lógica Original ---
 
             // 1. Define o ID ativo
@@ -2003,6 +2076,38 @@ const App = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleBulkDeleteProject = async (ids) => {
+        if (ids.length === 0) return;
+        const confirm = window.confirm(`ATENÇÃO: Esta ação é IRREVERSÍVEL.\n\nIsso apagará PERMANENTEMENTE os ${ids.length} projetos selecionados e seus dados.\n\nDeseja realmente continuar?`);
+        if (!confirm) return;
+
+        setLoading(true);
+        try {
+            for (const id of ids) {
+                await performDeleteProject(id);
+            }
+            openAlert("Sucesso", `${ids.length} projetos excluídos.`);
+        } catch (error) {
+            console.error(error);
+            openAlert("Erro", "Falha ao excluir alguns projetos em massa.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleBulkToggleProjectVisibility = (ids) => {
+        setVisibleProjectIds(prev => {
+            const anyVisible = ids.some(id => prev.includes(id));
+            if (anyVisible) {
+                // Se algum estiver visível, vamos ocultar todos os selecionados
+                return prev.filter(p => !ids.includes(p));
+            } else {
+                // Se nenhum estiver visível, vamos mostrar todos os selecionados
+                return [...new Set([...prev, ...ids])];
+            }
+        });
     };
 
     const handleAcceptTransfer = async (transfer) => {
@@ -3058,7 +3163,15 @@ const App = () => {
         setIsDraggingCanvas(false); setDraggingNode(null);
     };
 
-    const handleNodeDoubleClick = (e, node) => { e.stopPropagation(); if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current); setDetailId(node.id); setSelectedIds(new Set([node.id])); };
+    const handleNodeDoubleClick = (e, node) => {
+        e.stopPropagation();
+        if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current);
+        // GUARD: Bloqueia detail panel para itens de projetos restritos
+        const targetItem = items.find(i => i.id === node.id);
+        if (targetItem?._readOnly) return; // Silenciosamente ignora
+        setDetailId(node.id);
+        setSelectedIds(new Set([node.id]));
+    };
 
     const handleCanvasClick = (e) => {
         const rect = canvasRef.current.getBoundingClientRect();
@@ -3824,13 +3937,42 @@ const App = () => {
                 }
             }
 
+            // --- LÓGICA DE ORIGEM E DESTINO ---
+            let originNodeName = '';
+            let destNodeName = '';
+
+            if (item.type === 'CABLE') {
+                const nodeA = items.find(n => n.id === item.fromNode);
+                const nodeB = items.find(n => n.id === item.toNode);
+
+                if (side === 'A') {
+                    originNodeName = nodeA ? nodeA.name : 'Desconhecido';
+                    destNodeName = nodeB ? nodeB.name : 'Desconhecido';
+                } else {
+                    originNodeName = nodeB ? nodeB.name : 'Desconhecido';
+                    destNodeName = nodeA ? nodeA.name : 'Desconhecido';
+                }
+            } else {
+                let nodeName = item.name;
+                if (item.parentId) {
+                    const parentNode = items.find(n => n.id === item.parentId);
+                    if (parentNode) nodeName = parentNode.name;
+                } else if (item.type === 'POP' || item.type === 'CEO' || item.type === 'CTO') {
+                    nodeName = item.name;
+                }
+                originNodeName = nodeName;
+                destNodeName = nodeName;
+            }
+
             return {
                 id: item.id,
                 deviceName: item.name,
                 type: item.type,
                 icon: ITEM_TYPES[item.type]?.icon || Circle,
                 detail: detail,
-                isClicked: isClicked
+                isClicked: isClicked,
+                originNodeName: originNodeName,
+                destNodeName: destNodeName
             };
         };
 
@@ -4782,6 +4924,14 @@ const App = () => {
                                         onSelect={(id) => {
                                             setSelectedIds(new Set([id]));
                                         }}
+                                        onFlyToMap={(n) => {
+                                            if (n.lat && n.lng) {
+                                                setViewMode('MAP');
+                                                setFlyToCoords([n.lat, n.lng]);
+                                            } else {
+                                                setAlertConfig({ title: 'Aviso', message: 'Este nó não possui localização geográfica definida no mapa.' });
+                                            }
+                                        }}
                                     />
                                 ))}
 
@@ -4816,6 +4966,9 @@ const App = () => {
                             onEdit={renameItem}
                             onDelete={deleteItem}
                             onOpen={(id, coords) => {
+                                // GUARD: Bloqueia abertura do detail panel para itens restritos
+                                const targetItem = items.find(i => i.id === id);
+                                if (targetItem?._readOnly) return;
                                 setDetailId(id);
                                 if (coords && coords.lat != null) {
                                     setLastCableClickCoords(coords);
@@ -5094,6 +5247,11 @@ const App = () => {
             {detailId && (() => {
                 const detailedItem = items.find(i => i.id === detailId);
                 if (!detailedItem) return null;
+                // GUARD: Bloqueia detail panel para itens de projetos restritos
+                if (detailedItem._readOnly) {
+                    setDetailId(null);
+                    return null;
+                }
                 if (detailedItem.type === 'POST' || detailedItem.type === 'OBJECT') {
                     return (
                         <GenericModal
@@ -5214,28 +5372,23 @@ const App = () => {
                     pendingInvites={pendingInvites}
                     outgoingInvites={outgoingInvites}
                     onRevokeShare={handleRevokeShare}
-
                     activeProjectId={activeProjectId}
                     visibleProjectIds={visibleProjectIds}
                     currentUserEmail={user.email}
-
                     onCreateProject={handleCreateProject}
                     onDeleteProject={handleDeleteProject}
                     onRenameProject={handleRenameProject}
-
                     onToggleVisibility={handleToggleProjectVisibility}
-
                     onSetActive={handleSetActiveProject}
-
                     onShareProject={handleShareProject}
                     onBulkShare={handleBulkShare}
                     onBulkTransfer={handleBulkTransfer}
+                    onBulkDelete={handleBulkDeleteProject}
+                    onBulkToggleVisibility={handleBulkToggleProjectVisibility}
                     onRespondInvite={handleRespondInvite}
                     incomingTransfers={incomingTransfers}
                     onAcceptTransfer={handleAcceptTransfer}
-
                     onFocusProject={handleFocusProject}
-
                     onClose={() => setIsProjectManagerOpen(false)}
                 />
             )}

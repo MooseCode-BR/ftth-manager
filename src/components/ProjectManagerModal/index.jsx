@@ -5,7 +5,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
     Folder, Trash2, Eye, EyeOff, Edit3, Check, PenTool, FolderOpen,
     Share2, UserCheck, Inbox, UserMinus, Users, ArrowRightLeft, AlertTriangle,
-    Square, CheckSquare, Plus, ChevronDown, ChevronUp, X, Focus
+    Square, CheckSquare, Plus, ChevronDown, ChevronUp, X, Focus, UserPen, HardHat
 } from 'lucide-react';
 
 const ProjectManagerModal = ({
@@ -24,6 +24,8 @@ const ProjectManagerModal = ({
     onSetActive,
     onBulkShare,
     onBulkTransfer,
+    onBulkDelete,
+    onBulkToggleVisibility,
     onRespondInvite,
     onRevokeShare,
     onAcceptTransfer,
@@ -47,11 +49,23 @@ const ProjectManagerModal = ({
     const [emailInput, setEmailInput] = useState('');
     const [targetEmails, setTargetEmails] = useState([]);
 
+    // --- ESTADO DO NÍVEL DE PERMISSÃO ---
+    const [sharePermission, setSharePermission] = useState('FULL_ACCESS');
+
     // Lista de contatos frequentes
     const recentContacts = useMemo(() => {
         const unique = [...new Set(outgoingInvites.map(i => i.toEmail))];
         return unique.sort();
     }, [outgoingInvites]);
+
+    // Ordenação alfabética dos projetos
+    const sortedMyProjects = useMemo(() => {
+        return [...myProjects].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    }, [myProjects]);
+
+    const sortedSharedProjects = useMemo(() => {
+        return [...sharedProjects].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    }, [sharedProjects]);
 
     // --- FUNÇÕES DE EXPANSÃO ---
     const toggleExpand = (id) => {
@@ -70,10 +84,10 @@ const ProjectManagerModal = ({
     };
 
     const toggleSelectAll = () => {
-        if (selectedIds.size === myProjects.length) {
+        if (selectedIds.size === sortedMyProjects.length) {
             setSelectedIds(new Set());
         } else {
-            setSelectedIds(new Set(myProjects.map(p => p.id)));
+            setSelectedIds(new Set(sortedMyProjects.map(p => p.id)));
         }
     };
 
@@ -103,7 +117,7 @@ const ProjectManagerModal = ({
         const idsArray = Array.from(selectedIds);
 
         if (bulkAction === 'SHARE') {
-            onBulkShare(idsArray, targetEmails);
+            onBulkShare(idsArray, targetEmails, sharePermission);
         } else if (bulkAction === 'TRANSFER') {
             if (targetEmails.length > 1) {
                 alert("Para transferência, selecione apenas 1 e-mail.");
@@ -114,6 +128,7 @@ const ProjectManagerModal = ({
         setBulkAction(null);
         setSelectedIds(new Set());
         setTargetEmails([]);
+        setSharePermission('FULL_ACCESS');
     };
 
     // --- FUNÇÕES CRUD ---
@@ -149,6 +164,10 @@ const ProjectManagerModal = ({
                 e.preventDefault(); // Evita escrever o + na tela se possível
                 setIsCreating(true);
             }
+
+            if (e.key === 'Escape') {
+                onClose();
+            }
         };
 
         window.addEventListener('keydown', handleKeyDown);
@@ -160,8 +179,8 @@ const ProjectManagerModal = ({
     }, []);
 
     return (
-        <div className="projects-overlay">
-            <div className="projects-card">
+        <div className="projects-overlay" onClick={onClose}>
+            <div className="projects-card" onClick={(e) => e.stopPropagation()}>
 
                 {/* Header */}
                 <div className="card-header mb-0">
@@ -191,29 +210,50 @@ const ProjectManagerModal = ({
                 </div>
 
                 {/* --- BARRA DE SELEÇÃO EM MASSA --- */}
-                {activeTab === 'MY_PROJECTS' && myProjects.length > 0 && (
+                {activeTab === 'MY_PROJECTS' && sortedMyProjects.length > 0 && (
                     <div className="bulk-selection-bar">
-                        <button
-                            onClick={toggleSelectAll}
-                            className="btn-select-all"
-                        >
-                            {selectedIds.size === myProjects.length && myProjects.length > 0 ? <CheckSquare size={12} className="text-blue-600" /> : <Square size={12} />}
-                            <span className="text-xs">Selecionar Todos ({selectedIds.size})</span>
-                        </button>
+                        <div className="flex items-center gap-3 flex-1 overflow-hidden">
+                            <button
+                                onClick={toggleSelectAll}
+                                className="btn-checkbox"
+                                title="Selecionar Todos"
+                            >
+                                {selectedIds.size === sortedMyProjects.length && sortedMyProjects.length > 0 ? <CheckSquare size={20} className="text-blue-600" /> : <Square size={20} />}
+                            </button>
+                            <span className="font-bold text-sm text-gray-600 dark:text-gray-400">
+                                Selecionar Todos ({selectedIds.size})
+                            </span>
+                        </div>
 
                         {selectedIds.size > 0 && (
-                            <div className="bulk-actions-group">
+                            <div className="actions-group">
+                                <button
+                                    onClick={() => { onBulkToggleVisibility(Array.from(selectedIds)); setSelectedIds(new Set()); }}
+                                    className="btn-visibility vis-idle"
+                                    title="Alternar Visibilidade"
+                                >
+                                    <Eye size={20} />
+                                </button>
                                 <button
                                     onClick={() => setBulkAction('SHARE')}
-                                    className="btn-bulk-share"
+                                    className="btn-visibility vis-idle"
+                                    title="Compartilhar Selecionados"
                                 >
-                                    <Share2 size={12} /> Compartilhar
+                                    <Share2 size={20} />
                                 </button>
                                 <button
                                     onClick={() => setBulkAction('TRANSFER')}
-                                    className="btn-bulk-transfer"
+                                    className="btn-visibility vis-idle"
+                                    title="Transferir Selecionados"
                                 >
-                                    <ArrowRightLeft size={12} /> Transferir
+                                    <ArrowRightLeft size={20} />
+                                </button>
+                                <button
+                                    onClick={() => { onBulkDelete(Array.from(selectedIds)); setSelectedIds(new Set()); }}
+                                    className="btn-delete-project"
+                                    title="Excluir Selecionados"
+                                >
+                                    <Trash2 size={20} />
                                 </button>
                             </div>
                         )}
@@ -245,7 +285,7 @@ const ProjectManagerModal = ({
                             {pendingInvites.map(invite => (
                                 <div key={invite.id} className="invite-card">
                                     <div className="flex items-start gap-3">
-                                        <Share2 size={20} className="text-orange-500" />
+                                        <Share2 size={20} className="text-blue-500" />
                                         <div>
                                             <p className="invite-title">{invite.projectName}</p>
                                             <p className="invite-desc">De: <b>{invite.fromEmail}</b></p>
@@ -265,10 +305,10 @@ const ProjectManagerModal = ({
                     {/* MEUS PROJETOS */}
                     {activeTab === 'MY_PROJECTS' && (
                         <div className="projects-list">
-                            {myProjects.length === 0 ? (
+                            {sortedMyProjects.length === 0 ? (
                                 <div className="empty-state-msg">Nenhum projeto criado.</div>
                             ) : (
-                                myProjects.map(proj => {
+                                sortedMyProjects.map(proj => {
                                     const isActive = activeProjectId === proj.id;
                                     const isVisible = visibleProjectIds.includes(proj.id);
                                     const isEditing = editingId === proj.id;
@@ -287,6 +327,7 @@ const ProjectManagerModal = ({
                                                     </button>
 
                                                     <div className="flex flex-col flex-1 min-w-0 mr-2">
+                                                        {/* Título do Projeto */}
                                                         {isEditing ? (
                                                             <div className="flex items-center gap-3">
                                                                 <input autoFocus className="input-edit-name" value={editNameValue} onChange={e => setEditNameValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveEdit(proj.id); if (e.key === 'Escape') setEditingId(null); }} />
@@ -299,6 +340,63 @@ const ProjectManagerModal = ({
                                                                 <button onClick={() => startEditing(proj)} className="btn-rename" title="Renomear"><Edit3 size={12} /></button>
                                                             </div>
                                                         )}
+
+                                                        {/* Botões */}
+                                                        <div className="actions-group">
+                                                            {/* --- BOTÃO DE FOCO --- */}
+                                                            <button
+                                                                onClick={() => { onFocusProject(proj.id); setSelectedIds(new Set()); }}
+                                                                className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors"
+                                                                title="Localizar e Focar esse Projeto"
+                                                            >
+                                                                <Focus size={20} />
+                                                            </button>
+
+                                                            {/* BOTÃO DE ATIVAR/DESATIVAR PROJETO */}
+                                                            <button
+                                                                onClick={() => { onSetActive(proj); setSelectedIds(new Set()); }}
+                                                                className={`btn-visibility ${isActive ? 'vis-active' : 'vis-idle'}`}
+                                                                title={isActive ? "Desativar Projeto" : "Ativar Projeto"}
+                                                            >
+                                                                <PenTool size={20} />
+                                                            </button>
+
+                                                            {/* BOTÃO DE VISÍVEL/INVISÍVEL */}
+                                                            <button
+                                                                onClick={() => { onToggleVisibility(proj.id); setSelectedIds(new Set()); }}
+                                                                className={`btn-visibility ${isVisible ? 'vis-active' : 'vis-idle'}`}
+                                                                title={isVisible ? "Ocultar Projeto" : "Ver Projeto"}
+                                                            >
+                                                                {isVisible ? <Eye size={20} /> : <EyeOff size={20} />}
+                                                            </button>
+
+                                                            {/* BOTÃO DE COMPARTILHAR INDIVIDUAL */}
+                                                            <button
+                                                                onClick={() => { setSelectedIds(new Set([proj.id])); setBulkAction('SHARE'); }}
+                                                                className="btn-visibility vis-idle"
+                                                                title="Compartilhar Projeto"
+                                                            >
+                                                                <Share2 size={20} />
+                                                            </button>
+
+                                                            {/* BOTÃO DE TRANSFERIR INDIVIDUAL */}
+                                                            <button
+                                                                onClick={() => { setSelectedIds(new Set([proj.id])); setBulkAction('TRANSFER'); }}
+                                                                className="btn-visibility vis-idle"
+                                                                title="Transferir Projeto"
+                                                            >
+                                                                <ArrowRightLeft size={20} />
+                                                            </button>
+
+                                                            {/* BOTÃO PRA DELETAR PROJETO */}
+                                                            <button
+                                                                onClick={() => { onDeleteProject(proj.id); setSelectedIds(new Set()); }}
+                                                                className="btn-visibility text-red-400 dark:text-red-500 hover:text-red-600 dark:hover:text-red-300 hover:bg-white/30 dark:hover:bg-white/10"
+                                                                title="Deletar Projeto"
+                                                            >
+                                                                <Trash2 size={20} />
+                                                            </button>
+                                                        </div>
 
                                                         {/* Status e Accordion */}
                                                         <div className="status-row">
@@ -320,43 +418,8 @@ const ProjectManagerModal = ({
                                                     </div>
                                                 </div>
 
-                                                <div className="actions-group">
-                                                    {/* --- BOTÃO DE FOCO --- */}
-                                                    <button
-                                                        onClick={() => onFocusProject(proj.id)}
-                                                        className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors"
-                                                        title="Localizar e Focar esse Projeto"
-                                                    >
-                                                        <Focus size={20} />
-                                                    </button>
+                                                {/* Botões */}
 
-                                                    {/* BOTÃO DE ATIVAR/DESATIVAR PROJETO */}
-                                                    <button
-                                                        onClick={() => onSetActive(proj)}
-                                                        className={`btn-visibility ${isActive ? 'vis-active' : 'vis-idle'}`}
-                                                        title={isActive ? "Desativar Projeto" : "Ativar Projeto"}
-                                                    >
-                                                        <PenTool size={20} />
-                                                    </button>
-
-                                                    {/* BOTÃO DE VISÍVEL/INVISÍVEL */}
-                                                    <button
-                                                        onClick={() => onToggleVisibility(proj.id)}
-                                                        className={`btn-visibility ${isVisible ? 'vis-active' : 'vis-idle'}`}
-                                                        title={isVisible ? "Ocultar Projeto" : "Ver Projeto"}
-                                                    >
-                                                        {isVisible ? <Eye size={20} /> : <EyeOff size={20} />}
-                                                    </button>
-
-                                                    {/* BOTÃO PRA DELETAR PROJETO */}
-                                                    <button
-                                                        onClick={() => onDeleteProject(proj.id)}
-                                                        className="btn-delete-project"
-                                                        title="Deletar Projeto"
-                                                    >
-                                                        <Trash2 size={20} />
-                                                    </button>
-                                                </div>
                                             </div>
 
                                             {/* LISTA DE ACESSOS (ACCORDION) */}
@@ -367,9 +430,16 @@ const ProjectManagerModal = ({
                                                         {projectShares.map(share => (
                                                             <div key={share.id} className="share-row">
                                                                 <div className="flex items-center gap-2 overflow-hidden">
-                                                                    <div className={`status-dot ${share.status === 'accepted' ? 'bg-green-500' : 'bg-orange-400'}`} title={share.status === 'accepted' ? 'Aceito' : 'Pendente'}></div>
+                                                                    <div className={`status-dot ${share.status === 'accepted' ? 'bg-green-500' : 'bg-blue-400'}`} title={share.status === 'accepted' ? 'Aceito' : 'Pendente'}></div>
                                                                     <span className={`share-email ${share.status === 'pending' ? 'italic text-gray-400' : 'text-gray-700 dark:text-gray-300'}`}>
                                                                         {share.toEmail}
+                                                                    </span>
+                                                                    {/* Badge de Permissão */}
+                                                                    <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide ${share.permission === 'READ_ONLY_GEOMETRY'
+                                                                        ? 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400'
+                                                                        : 'bg-green-500/20 text-green-600 dark:text-green-400'
+                                                                        }`}>
+                                                                        {share.permission === 'READ_ONLY_GEOMETRY' ? 'Técnico de Ativação' : 'Projetista'}
                                                                     </span>
                                                                 </div>
                                                                 <button
@@ -394,10 +464,10 @@ const ProjectManagerModal = ({
                     {/* ABA COMPARTILHADOS COMIGO */}
                     {activeTab === 'SHARED' && (
                         <div className="projects-list">
-                            {sharedProjects.length === 0 ? (
+                            {sortedSharedProjects.length === 0 ? (
                                 <div className="empty-state-msg">Nenhum projeto compartilhado com você.</div>
                             ) : (
-                                sharedProjects.map(proj => {
+                                sortedSharedProjects.map(proj => {
                                     const isActive = activeProjectId === proj.id;
                                     const isVisible = visibleProjectIds.includes(proj.id);
                                     const isEditing = editingId === proj.id;
@@ -409,9 +479,49 @@ const ProjectManagerModal = ({
                                         <div key={proj.id} className={`project-card ${isSelected ? 'card-selected' : isActive ? 'card-active' : 'card-idle'}`}>
                                             <div className="project-card-header">
                                                 <div className="flex items-center gap-3 overflow-hidden flex-1">
-                                                    <div className="flex flex-col flex-1 min-w-0 mr-2">
+                                                    <div className="flex flex-col flex-1 min-w-0 mr-2 gap-2">
                                                         <div className="title-row-group gap-3">
+                                                            {/* Nome do Projeto */}
                                                             <span className={`font-bold text-sm truncate ${isActive ? 'name-active' : 'name-idle'}`}>{proj.name}</span>
+                                                            {/* Badge de Permissão do Projeto Compartilhado */}
+                                                            <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide ${proj.permission === 'READ_ONLY_GEOMETRY'
+                                                                ? 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400'
+                                                                : 'bg-green-500/20 text-green-600 dark:text-green-400'
+                                                                }`}>
+                                                                {proj.permission === 'READ_ONLY_GEOMETRY' ? 'Técnico de Ativação' : 'Projetista'}
+                                                            </span>
+                                                        </div>
+
+                                                        {/* Botões */}
+                                                        <div className="actions-group">
+                                                            {/* --- BOTÃO DE FOCO --- */}
+                                                            <button
+                                                                onClick={() => { onFocusProject(proj.id); setSelectedIds(new Set()); }}
+                                                                className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors"
+                                                                title="Localizar e Focar esse Projeto"
+                                                            >
+                                                                <Focus size={20} />
+                                                            </button>
+
+                                                            {/* BOTÃO DE ATIVAR/DESATIVAR PROJETO (Oculto para Ativação) */}
+                                                            {proj.permission !== 'READ_ONLY_GEOMETRY' && (
+                                                                <button
+                                                                    onClick={() => { onSetActive(proj); setSelectedIds(new Set()); }}
+                                                                    className={`btn-visibility ${isActive ? 'vis-active' : 'vis-idle'}`}
+                                                                    title={isActive ? "Desativar Projeto" : "Ativar Projeto"}
+                                                                >
+                                                                    <PenTool size={20} />
+                                                                </button>
+                                                            )}
+
+                                                            {/* BOTÃO DE VISÍVEL/INVISÍVEL */}
+                                                            <button
+                                                                onClick={() => { onToggleVisibility(proj.id); setSelectedIds(new Set()); }}
+                                                                className={`btn-visibility ${isVisible ? 'vis-active' : 'vis-idle'}`}
+                                                                title={isVisible ? "Ocultar Projeto" : "Ver Projeto"}
+                                                            >
+                                                                {isVisible ? <Eye size={20} /> : <EyeOff size={20} />}
+                                                            </button>
                                                         </div>
 
                                                         {/* Status e Accordion */}
@@ -428,35 +538,6 @@ const ProjectManagerModal = ({
                                                         </div>
                                                     </div>
                                                 </div>
-
-                                                <div className="actions-group">
-                                                    {/* --- BOTÃO DE FOCO --- */}
-                                                    <button
-                                                        onClick={() => onFocusProject(proj.id)}
-                                                        className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors"
-                                                        title="Localizar e Focar esse Projeto"
-                                                    >
-                                                        <Focus size={20} />
-                                                    </button>
-
-                                                    {/* BOTÃO DE ATIVAR/DESATIVAR PROJETO */}
-                                                    <button
-                                                        onClick={() => onSetActive(proj)}
-                                                        className={`btn-visibility ${isActive ? 'vis-active' : 'vis-idle'}`}
-                                                        title={isActive ? "Desativar Projeto" : "Ativar Projeto"}
-                                                    >
-                                                        <PenTool size={20} />
-                                                    </button>
-
-                                                    {/* BOTÃO DE VISÍVEL/INVISÍVEL */}
-                                                    <button
-                                                        onClick={() => onToggleVisibility(proj.id)}
-                                                        className={`btn-visibility ${isVisible ? 'vis-active' : 'vis-idle'}`}
-                                                        title={isVisible ? "Ocultar Projeto" : "Ver Projeto"}
-                                                    >
-                                                        {isVisible ? <Eye size={20} /> : <EyeOff size={20} />}
-                                                    </button>
-                                                </div>
                                             </div>
 
                                             {/* LISTA DE ACESSOS (ACCORDION) */}
@@ -467,7 +548,7 @@ const ProjectManagerModal = ({
                                                         {projectShares.map(share => (
                                                             <div key={share.id} className="share-row">
                                                                 <div className="flex items-center gap-2 overflow-hidden">
-                                                                    <div className={`status-dot ${share.status === 'accepted' ? 'bg-green-500' : 'bg-orange-400'}`} title={share.status === 'accepted' ? 'Aceito' : 'Pendente'}></div>
+                                                                    <div className={`status-dot ${share.status === 'accepted' ? 'bg-green-500' : 'bg-blue-400'}`} title={share.status === 'accepted' ? 'Aceito' : 'Pendente'}></div>
                                                                     <span className={`share-email ${share.status === 'pending' ? 'italic text-gray-400' : 'text-gray-700 dark:text-gray-300'}`}>
                                                                         {share.toEmail}
                                                                     </span>
@@ -525,7 +606,7 @@ const ProjectManagerModal = ({
                     <div className="bulk-action-overlay">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="bulk-title">
-                                {bulkAction === 'SHARE' ? <Share2 className="text-indigo-600" /> : <ArrowRightLeft className="text-orange-600" />}
+                                {bulkAction === 'SHARE' ? <Share2 className="text-blue-600" /> : <ArrowRightLeft className="text-blue-600" />}
                                 {bulkAction === 'SHARE' ? 'Compartilhar em Massa' : 'Transferir Propriedade'}
                             </h3>
                             <button onClick={() => { setBulkAction(null); setTargetEmails([]); }} className="btn-close-header" title="Fechar"><X size={20} /></button>
@@ -575,6 +656,61 @@ const ProjectManagerModal = ({
                                                     {contact}
                                                 </button>
                                             ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Seletor de Nível de Permissão (Apenas para SHARE) */}
+                                {bulkAction === 'SHARE' && (
+                                    <div className="mt-4">
+                                        <p className="recent-contacts-label">Nível de Permissão</p>
+                                        <div className="flex flex-col gap-2 mt-2">
+                                            <label
+                                                className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer border-2 transition-all ${sharePermission === 'FULL_ACCESS'
+                                                    ? 'border-green-500/50 bg-green-500/10'
+                                                    : 'border-transparent bg-white/5 hover:bg-white/10'
+                                                    }`}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="permission"
+                                                    value="FULL_ACCESS"
+                                                    checked={sharePermission === 'FULL_ACCESS'}
+                                                    onChange={() => setSharePermission('FULL_ACCESS')}
+                                                    className="accent-green-500"
+                                                />
+                                                <div>
+                                                    <span className="font-bold text-sm text-green-600 dark:text-green-400 flex items-center gap-1.5">
+                                                        <UserPen size={14} /> Projetista
+                                                    </span>
+                                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                        Pode ver todos os dados, editar e criar itens.
+                                                    </span>
+                                                </div>
+                                            </label>
+                                            <label
+                                                className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer border-2 transition-all ${sharePermission === 'READ_ONLY_GEOMETRY'
+                                                    ? 'border-yellow-500/50 bg-yellow-500/10'
+                                                    : 'border-transparent bg-white/5 hover:bg-white/10'
+                                                    }`}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="permission"
+                                                    value="READ_ONLY_GEOMETRY"
+                                                    checked={sharePermission === 'READ_ONLY_GEOMETRY'}
+                                                    onChange={() => setSharePermission('READ_ONLY_GEOMETRY')}
+                                                    className="accent-yellow-500"
+                                                />
+                                                <div>
+                                                    <span className="font-bold text-sm text-yellow-600 dark:text-yellow-400 flex items-center gap-1.5">
+                                                        <HardHat size={14} /> Técnico de Ativação
+                                                    </span>
+                                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                        Vê apenas as CTOs
+                                                    </span>
+                                                </div>
+                                            </label>
                                         </div>
                                     </div>
                                 )}

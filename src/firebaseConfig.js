@@ -4,12 +4,12 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage"; // <--- NOVO IMPORT
 
 const firebaseConfig = {
-    apiKey: "AIzaSyDYN2incS0xb5QZO7nrdukw0nXsHl5wwqE",
-    authDomain: "ftth-mgr.firebaseapp.com",
-    projectId: "ftth-mgr",
-    storageBucket: "ftth-mgr.firebasestorage.app",
-    messagingSenderId: "235638910340",
-    appId: "1:235638910340:web:3b60dc54cee7e3983401d1"
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 const app = initializeApp(firebaseConfig);
