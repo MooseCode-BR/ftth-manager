@@ -1,11 +1,11 @@
 /* ===================================================
-   AuthScreen – Glassmorphic Style
-   Mesma identidade visual do Dock, Barra de Busca e ItemModal
+   AuthScreen – Fully Responsive & Animated
    =================================================== */
 
 /* --- Wrapper Principal --- */
 .auth-wrapper {
-    @apply flex items-center justify-center min-h-screen p-4 relative;
+    /* Em desktop (lg), usamos items-stretch para o container esquerdo ocupar toda a altura e empurrar o texto para o meio */
+    @apply flex flex-col lg:flex-row items-center lg:items-stretch justify-center lg:justify-between min-h-screen p-6 lg:p-12 relative overflow-hidden transition-all duration-500 ease-in-out;
     background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%, #e2e8f0 100%);
 }
 
@@ -13,52 +13,82 @@
     background: linear-gradient(135deg, #000000 0%, #1e293b 50%, #000000 100%);
 }
 
-/* --- Card Principal (Glassmorphic) --- */
-.auth-card {
-    @apply w-full max-w-md bg-white/10 dark:bg-black/60 border border-white/60 dark:border-black/60 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden text-black dark:text-white animate-in fade-in zoom-in-95 duration-300;
+/* --- Botão Theme Toggle --- */
+.theme-toggle-btn {
+    @apply absolute top-6 right-6 lg:top-10 lg:right-10 p-3 rounded-full bg-white/30 dark:bg-black/40 border border-white/60 dark:border-white/10 text-gray-800 dark:text-gray-200 backdrop-blur-md shadow-lg hover:scale-110 active:scale-95 transition-all duration-500 z-50 flex items-center justify-center;
 }
 
-/* --- Cabeçalho Visual (Azul) --- */
-.auth-header {
-    @apply bg-white dark:bg-black backdrop-blur-sm p-6 text-center;
+/* --- Container Misto (Logo + Texto) --- */
+.hero-container {
+    /* No telemóvel é row, no Desktop é col. Anima a mudança de eixo! */
+    @apply w-full lg:w-1/2 flex flex-row lg:flex-col items-center lg:items-start justify-start z-10 mb-8 lg:mb-0 transition-all duration-500 ease-in-out;
 }
 
-.logo-container {
-    @apply w-16 h-16 bg-black/10 dark:bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner;
+/* --- Logo Wrapper & Imagem --- */
+.logo-wrapper {
+    @apply shrink-0 transition-all duration-500 ease-in-out;
+}
+
+.logo-container-fixed {
+    /* Tamanho menor no telemóvel para não espremer o texto */
+    @apply w-14 h-14 lg:w-16 lg:h-16 bg-black/10 dark:bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg border border-white/30 dark:border-white/10 transition-all duration-500 ease-in-out;
 }
 
 .logo-img {
-    @apply w-10 h-10 drop-shadow-md;
+    @apply w-10 h-10 lg:w-12 lg:h-12 drop-shadow-md transition-all duration-500 ease-in-out;
+    color: #0ea5e9;
 }
 
-.app-title {
-    @apply text-2xl font-bold text-black dark:text-white tracking-wide;
+/* --- Container dos Textos --- */
+.hero-text-wrapper {
+    /* mt-auto e mb-auto centralizam verticalmente no desktop. ml-4 separa da logo no telemóvel */
+    @apply flex flex-col justify-center ml-4 lg:ml-0 lg:mt-auto lg:mb-auto transition-all duration-500 ease-in-out flex-1 lg:pr-10 xl:pl-8;
 }
 
-.app-subtitle {
-    @apply text-gray-500 dark:text-blue-100 text-sm mt-1;
+.hero-title {
+    /* Texto menor e contido em mobile; enorme em desktop */
+    @apply text-2xl lg:text-5xl xl:text-7xl font-extrabold tracking-wide text-gray-800 dark:text-white leading-none lg:mb-2 drop-shadow-lg transition-all duration-500 ease-in-out;
+}
+
+.hero-subtitle {
+    @apply text-[15px] lg:text-3xl xl:text-4xl font-bold text-[#0ea5e9] tracking-[0.2em] lg:tracking-[0.4em] mb-0.5 lg:mb-6 drop-shadow-md transition-all duration-500 ease-in-out;
+}
+
+.hero-divider {
+    @apply hidden lg:block w-24 h-1.5 bg-[#0ea5e9] rounded-full mb-6 opacity-80 transition-all duration-500 ease-in-out;
+}
+
+.hero-description {
+    /* Fica bem pequenino e limpo no mobile para caber ao lado da logo */
+    @apply text-[12px] sm:text-xs lg:text-xl xl:text-2xl font-normal text-black dark:text-white max-w-md transition-all duration-500 ease-in-out leading-tight;
+}
+
+/* --- Card Principal (Direita) --- */
+.auth-card {
+    /* Adicionei 'self-center' para garantir que ele fica sempre no meio da tela no eixo vertical, mesmo que o container estique */
+    @apply w-full max-w-md self-center bg-white/20 dark:bg-black/40 border border-white/60 dark:border-white/10 backdrop-blur-2xl rounded-2xl shadow-2xl overflow-hidden text-black dark:text-white transition-all duration-500 ease-in-out lg:mr-8 xl:mr-16 z-10;
 }
 
 /* --- Corpo do Formulário --- */
 .auth-body {
-    @apply p-8;
+    @apply p-8 sm:p-10;
 }
 
 .form-title {
-    @apply text-xl font-bold mb-6 text-center;
+    @apply text-2xl font-bold mb-8 text-center text-gray-800 dark:text-white;
 }
 
 .auth-form {
-    @apply space-y-4;
+    @apply space-y-5;
 }
 
 /* --- Inputs --- */
 .input-group {
-    @apply space-y-1;
+    @apply space-y-1.5;
 }
 
 .input-label {
-    @apply text-xs font-bold opacity-60 ml-1;
+    @apply text-[11px] font-bold uppercase tracking-wider opacity-70 ml-1 text-gray-700 dark:text-gray-300;
 }
 
 .input-wrapper {
@@ -66,74 +96,73 @@
 }
 
 .input-icon {
-    @apply absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none;
+    @apply absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 dark:text-gray-400;
 }
 
 .text-input {
-    @apply w-full pr-4 py-2.5 rounded-lg border border-white/60 dark:border-white/20 bg-white/40 dark:bg-white/10 outline-none focus:ring-2 focus:ring-blue-500 transition-all;
+    @apply w-full pr-4 py-3 rounded-xl border bg-white/50 dark:bg-black/50 outline-none transition-all duration-500 text-sm;
 }
 
-/* Estados de validação do input */
 .input-default {
-    @apply border-white/60 dark:border-white/20 focus:ring-2 focus:ring-blue-500;
+    @apply border-white/60 dark:border-white/10 focus:ring-2 focus:ring-[#0ea5e9]/50 focus:border-[#0ea5e9];
 }
 
 .input-error {
-    @apply border-red-500 focus:ring-2 focus:ring-red-500;
+    @apply border-red-500/50 focus:ring-2 focus:ring-red-500/50 focus:border-red-500;
 }
 
 .btn-toggle-password {
-    @apply absolute right-3 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-80 transition-opacity;
+    @apply absolute right-3.5 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-100 transition-opacity text-gray-600 dark:text-gray-300;
 }
 
 .error-msg-tiny {
-    @apply text-[10px] text-red-400 ml-1;
+    @apply text-[11px] text-red-500 font-medium ml-1 mt-1;
 }
 
 /* --- Botões e Links --- */
 .forgot-password-row {
-    @apply flex justify-end;
+    @apply flex justify-end mt-2;
 }
 
 .btn-forgot {
-    @apply text-xs text-blue-500 hover:underline;
+    @apply text-xs font-medium text-[#0ea5e9] hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors;
 }
 
 .btn-submit {
-    @apply w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold py-3 rounded-lg shadow-lg shadow-blue-500/30 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-2;
+    @apply w-full bg-[#0ea5e9] hover:bg-blue-600 active:scale-[0.98] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-[#0ea5e9]/20 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-4;
 }
 
 /* --- Feedback Boxes --- */
 .feedback-box {
-    @apply p-3 rounded-lg border flex items-start gap-2 text-sm animate-in fade-in backdrop-blur-sm;
+    @apply p-3.5 rounded-xl border flex items-start gap-2 text-sm animate-in fade-in backdrop-blur-sm mt-4;
 }
 
 .error-box {
-    @apply bg-red-500/10 border-red-500/30 text-red-400;
+    @apply bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400 font-medium;
 }
 
 .success-box {
-    @apply bg-green-500/10 border-green-500/30 text-green-400 flex items-center;
+    @apply bg-green-500/10 border-green-500/20 text-green-600 dark:text-green-400 flex items-center font-medium;
 }
 
 /* --- Footer Actions --- */
 .auth-footer-actions {
-    @apply mt-6 pt-6 border-t border-white/40 dark:border-white/20 text-center;
+    @apply mt-8 pt-6 border-t border-gray-200 dark:border-white/10 text-center;
 }
 
 .btn-back-login {
-    @apply text-sm opacity-60 hover:opacity-100 font-medium flex items-center justify-center gap-1 mx-auto transition-opacity;
+    @apply text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white font-medium flex items-center justify-center gap-1 mx-auto transition-colors;
 }
 
 .toggle-mode-text {
-    @apply text-sm;
+    @apply text-sm text-gray-600 dark:text-gray-400;
 }
 
 .btn-toggle-mode {
-    @apply ml-1 text-blue-500 font-bold hover:underline;
+    @apply ml-1.5 text-[#0ea5e9] font-bold hover:underline transition-colors;
 }
 
 /* --- Copyright --- */
 .copyright-text {
-    @apply absolute bottom-4 text-xs text-black/30 dark:text-white/30 text-center w-full;
+    @apply absolute bottom-4 text-xs font-medium text-gray-400 dark:text-gray-500 text-center w-full;
 }

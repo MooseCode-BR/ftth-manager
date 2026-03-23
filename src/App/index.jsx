@@ -85,6 +85,7 @@ import StandardsModal from '../components/StandardModal'; // Padrões de cores d
 import TagManagerModal from '../components/TagManagerModal'; // Gerenciamento de tags
 import TraceModal from '../components/TraceModal'; // Rastreamento de sinal óptico
 import DetailPanel from '../itemsProp/DetailPanel'; // Painel lateral de detalhes
+// import LoadingFiber from '../assets/loadingfiber';
 
 // ============================================================================
 // FIREBASE - AUTENTICAÇÃO E BANCO DE DADOS
@@ -538,6 +539,8 @@ const App = () => {
     // useState (ESTADOS)------------------------------------------------------------------------------------------------------------------------------------------
     // --- ESTADOS DE PROJETOS & COLABORAÇÃO ---
     // Hook customizado que gerencia convites, transferências e notificações
+
+    // const [showLoadingFiber, setShowLoadingFiber] = useState(true);
 
     const [myProjects, setMyProjects] = useState([]);      // Projetos que EU criei
 
@@ -5392,6 +5395,8 @@ const App = () => {
                     onClose={() => setIsProjectManagerOpen(false)}
                 />
             )}
+
+            {/* {showLoadingFiber && <LoadingFiber />} */}
 
             {/* Crédito de Versão (Centralizado na Margem Inferior) */}
             <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-1.5 text-[9px] dark:text-gray-800 text-gray-400 font-medium select-none pointer-events-none opacity-100">

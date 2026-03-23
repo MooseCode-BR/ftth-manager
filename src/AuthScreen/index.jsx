@@ -1,10 +1,11 @@
 import './styles.css';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { auth } from '../firebaseConfig';
-import { Mail, Lock, ArrowRight, Loader2, AlertCircle, CheckCircle2, ChevronLeft, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Loader2, AlertCircle, CheckCircle2, ChevronLeft, Eye, EyeOff, Sun, Moon } from 'lucide-react';
 import { VERSAO } from '../constants';
 import { CEOIcon } from '../icons';
+import ThemeToggleButton from '../components/ThemeToggleButton';
 
 const AuthScreen = ({ onLogin }) => {
     // Estados de Controle de Tela
@@ -23,6 +24,41 @@ const AuthScreen = ({ onLogin }) => {
     const [error, setError] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
     const [loading, setLoading] = useState(false);
+
+    // 1. Estado inicial inteligente
+    const [isDarkMode, setIsDarkMode] = useState(() => {
+        // Verificação de segurança para garantir que estamos no navegador (evita erros em SSR como Next.js)
+        if (typeof window !== 'undefined') {
+            const temaSalvo = localStorage.getItem('ftth_theme_preference');
+
+            // Se o utilizador já escolheu antes, usamos a escolha dele
+            if (temaSalvo) {
+                return temaSalvo === 'dark';
+            }
+
+            // Se é a primeira vez, verificamos a preferência do Windows/Mac/Android do utilizador
+            return window.matchMedia('(prefers-color-scheme: dark)').matches;
+        }
+        return false;
+    });
+
+    // 2. Sincronização com o HTML e LocalStorage
+    useEffect(() => {
+        const root = document.documentElement;
+
+        if (isDarkMode) {
+            root.classList.add('dark');
+            localStorage.setItem('ftth_theme_preference', 'dark');
+        } else {
+            root.classList.remove('dark');
+            localStorage.setItem('ftth_theme_preference', 'light');
+        }
+    }, [isDarkMode]); // O array [isDarkMode] diz ao React: "Roda isto sempre que isDarkMode mudar"
+
+    // 3. Função do botão de toggle super simples
+    const toggleTheme = () => {
+        setIsDarkMode(!isDarkMode);
+    };
 
     // Limpa mensagens ao trocar de modo
     const clearFeedback = () => {
@@ -111,17 +147,35 @@ const AuthScreen = ({ onLogin }) => {
 
     return (
         <div className="auth-wrapper">
-            <div className="auth-card">
 
-                {/* Cabeçalho Visual */}
-                <div className="auth-header">
-                    <div className="logo-container">
-                        <CEOIcon size={40} className="logo-img" />
+            {/* --- Botão de Toggle Light/Dark Mode (Lanterna VFL) --- */}
+            <ThemeToggleButton
+                isDarkMode={isDarkMode}
+                toggleTheme={toggleTheme}
+                className="absolute top-4 right-4 lg:top-8 lg:right-8 z-50"
+            />
+
+            {/* --- Área do Cabeçalho / Destaque Animado --- */}
+            <div className="hero-container">
+
+                {/* Logo */}
+                <div className="logo-wrapper">
+                    <div className="logo-container-fixed">
+                        <img src="/favicon.svg" alt="FTTH Manager" className="logo-img" />
                     </div>
-                    <h2 className="app-title">FTTH Manager</h2>
-                    <p className="app-subtitle">Gestão de Redes de Fibra Óptica</p>
                 </div>
 
+                {/* Textos da Aplicação */}
+                <div className="hero-text-wrapper">
+                    <h1 className="hero-title">FTTH MANAGER</h1>
+                    <h2 className="hero-subtitle">CLOUD</h2>
+                    <div className="hero-divider"></div>
+                    <p className="hero-description">Gestão Avançada de Redes de Fibra Óptica</p>
+                </div>
+            </div>
+
+            {/* --- Card de Autenticação (Direita) --- */}
+            <div className="auth-card">
                 <div className="auth-body">
                     <h3 className="form-title">
                         {isResetting ? "Recuperar Senha" : (isLogin ? "Bem-vindo de volta" : "Criar nova conta")}
@@ -158,7 +212,7 @@ const AuthScreen = ({ onLogin }) => {
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
                                             placeholder="••••••••"
-                                            className="text-input pl-10 pr-10" // pr-10 para o ícone do olho
+                                            className="text-input pl-10 pr-10"
                                             required
                                         />
                                         <button
@@ -172,7 +226,7 @@ const AuthScreen = ({ onLogin }) => {
                                     </div>
                                 </div>
 
-                                {/* CONFIRMAR SENHA (Cadastro) */}
+                                {/* CONFIRMAR SENHA */}
                                 {!isLogin && (
                                     <div className="input-group animate-in slide-in-from-top-2">
                                         <label className="input-label">CONFIRMAR SENHA</label>
@@ -183,10 +237,7 @@ const AuthScreen = ({ onLogin }) => {
                                                 value={confirmPassword}
                                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                                 placeholder="Repita a senha"
-                                                className={`text-input pl-10 pr-10 ${confirmPassword && password !== confirmPassword
-                                                    ? 'input-error'
-                                                    : 'input-default'
-                                                    }`}
+                                                className={`text-input pl-10 pr-10 ${confirmPassword && password !== confirmPassword ? 'input-error' : 'input-default'}`}
                                                 required
                                             />
                                         </div>
@@ -263,9 +314,9 @@ const AuthScreen = ({ onLogin }) => {
                 </div>
             </div>
 
+            {/* Copyright */}
             <div className="copyright-text">
                 &copy; 2026 {VERSAO.NUMERO_VERSAO}. Todos os direitos reservados.
-
             </div>
         </div>
     );

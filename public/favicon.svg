@@ -1,29 +1,40 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24">
-    <circle cx="12" cy="12" r="12" fill="#000000" />
-    <g transform="translate(2.4, 2.4) scale(0.8)">
-        <g fill="none" stroke="#FFE135" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            {/* Arco superior */}
-            <path d="M 4 7 A 5 3 0 0 1 20 7" />
-            {/* Linha Vertical Esquerda */}
-            <line x1="4" y1="7" x2="4" y2="17" />
-            {/* Linha Vertical Direita */}
-            <line x1="20" y1="7" x2="20" y2="17" />
-            {/* Linha Horizontal Cima */}
-            <line x1="5" y1="8" x2="19" y2="8" />
-            {/* Linha Horizontal Baixo */}
-            <line x1="5" y1="13" x2="19" y2="13" />
-            {/* Base */}
-            <rect x="2" y="17" width="20" height="2" fill="#FFE135" stroke="none" />
-            {/* Retangulo Esquerda */}
-            <rect x="5" y="17" width="3" height="6" rx="0.5" fill="#FFE135" stroke="none" />
-            {/* Retangulo Meio */}
-            <rect x="10.5" y="17" width="3" height="6" rx="0.5" fill="#FFE135" stroke="none" />
-            {/* Retangulo Direita */}
-            <rect x="16" y="17" width="3" height="6" rx="0.5" fill="#FFE135" stroke="none" />
-            {/* Alça Cima */}
-            <rect x="2.5" y="7" width="1.5" height="1.5" rx="0.2" fill="none" />
-            {/* Alça Baixo */}
-            <rect x="2.5" y="12" width="1.5" height="1.5" rx="0.2" fill="none" />
-        </g>
-    </g>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Creator: CorelDRAW 2026 -->
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="67.7332mm" height="67.7332mm" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd"
+viewBox="0 0 6773.32 6773.32"
+ xmlns:xlink="http://www.w3.org/1999/xlink"
+ xmlns:xodm="http://www.corel.com/coreldraw/odm/2003">
+ <defs>
+  <style type="text/css">
+   <![CDATA[
+    .fil1 {fill:none}
+    .fil0 {fill:#201E1E}
+   ]]>
+  </style>
+ </defs>
+ <g id="Camada_x0020_1">
+  <metadata id="CorelCorpID_0Corel-Layer"/>
+  <g id="_2602053924288">
+   <path class="fil0" d="M2349.5 1060.21c0,-41.02 277.53,-169.73 453.73,-169.73l0 3440 -453.73 0c0,-1080.89 0,-2189.37 0,-3270.27z"/>
+   <path class="fil0" d="M3138.3 467.41c152.2,-10.05 301.42,-12.31 453.73,0.41l0 3862.66 -453.73 0 0 -3863.07z"/>
+   <path class="fil0" d="M3932.63 510.79c157.02,27.18 298.46,66.36 453.63,126.67l0 3693.02 -453.63 0 0 -3819.69z"/>
+   <path class="fil1" d="M2749.9 782.89c-590.76,77.94 -890.03,342.76 -897.72,794.54l0 2716.54"/>
+   <rect class="fil0" x="2082.03" y="3271.17" width="187.78" height="477.53"/>
+   <path class="fil0" d="M1479.06 3271.23l0.01 0 0 477.52 -0.01 0c-129.12,0 -234.75,-105.58 -234.75,-234.73l0 -8.06c0,-129.15 105.63,-234.73 234.75,-234.73z"/>
+   <path class="fil0" d="M1555.28 4330.48c151.26,0 302.44,0 453.7,0l0 -2742.74c0,-227.92 60.34,-707.36 794.25,-802.21l0 -276.79c-1021.1,208.76 -1247.95,752.81 -1247.95,1079l0 2742.74z"/>
+   <path class="fil0" d="M5180.91 4330.48l-453.71 0c0,-1163.68 0,-2353.68 0,-3517.35 226.85,158.36 453.71,399.32 453.71,772.22l0 2745.13z"/>
+   <path class="fil0" d="M1483.08 2049.83l654.93 0 0 477.52 -654.93 0c-131.33,0 -238.77,-107.44 -238.77,-238.7l0 -0.12c0,-131.26 107.44,-238.7 238.77,-238.7z"/>
+   <rect class="fil0" x="2217.87" y="2049.77" width="711.59" height="477.53"/>
+   <rect class="fil0" x="1053.12" y="4406.68" width="4667.06" height="805.62" rx="206.99" ry="200.05"/>
+   <path class="fil0" d="M3932.59 5288.64l453.7 0 0 922.98c0,56.53 -46.1,102.63 -102.51,102.63l-248.68 0c-56.41,0 -102.51,-46.1 -102.51,-102.63l0 -922.98z"/>
+   <path class="fil0" d="M3136.1 5288.64l453.7 0 0 922.98c0,56.53 -46.11,102.63 -102.51,102.63l-248.68 0c-56.41,0 -102.51,-46.1 -102.51,-102.63l0 -922.98z"/>
+   <path class="fil0" d="M2349.56 5288.64l453.7 0 0 922.98c0,56.53 -46.11,102.63 -102.51,102.63l-248.68 0c-56.41,0 -102.51,-46.1 -102.51,-102.63l0 -922.98z"/>
+   <rect class="fil0" x="3009.33" y="2049.77" width="711.59" height="477.53"/>
+   <rect class="fil0" x="3803.67" y="2049.77" width="1377.18" height="477.53"/>
+   <rect class="fil0" x="2876.88" y="3271.17" width="187.78" height="477.53"/>
+   <rect class="fil0" x="3668.14" y="3271.17" width="187.78" height="477.53"/>
+   <rect class="fil0" x="4462.99" y="3271.17" width="187.78" height="477.53"/>
+  </g>
+ </g>
 </svg>
