@@ -40,6 +40,7 @@ const ItemModal = ({
     onConfirm,
     onCancel,
 }) => {
+    const [mountTime] = useState(Date.now());
 
     // =========================================================================
     // Derivar contexto do modo e do tipo
@@ -203,7 +204,9 @@ const ItemModal = ({
     // =========================================================================
 
     return (
-        <div className="item-modal-overlay" onClick={onCancel}>
+        <div className="item-modal-overlay" onClick={() => {
+            if (Date.now() - mountTime > 250) onCancel();
+        }}>
             <div className="item-modal-card" onClick={(e) => e.stopPropagation()}>
 
                 {renderHeader()}

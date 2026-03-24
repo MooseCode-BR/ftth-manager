@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animação Loop - Serviço</title>
+    <style>
+        :root {
+            --bg-body: #f4f4f4;
+            --btn-bg: #222222;
+            --btn-color: #ffffff;
+        }
+
+        body.dark-mode {
+            --bg-body: #1a1a1a;
+            --btn-bg: #f4f4f4;
+            --btn-color: #222222;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: var(--bg-body);
+            font-family: sans-serif;
+            overflow: hidden;
+            transition: background-color 0.4s ease;
+        }
+
+        #canvas-container {
+            position: relative;
+            /* Fundo e bordas removidos para integração total com a página */
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+
+        button {
+            background: var(--btn-bg);
+            color: var(--btn-color);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: 0.3s;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="controls">
+        <button id="btnTheme">🌙 Modo Escuro</button>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="animCanvas" width="800" height="400"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('animCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Configurações Globais
+        const GROUND_Y = 320;
+        const LOOP_DURATION = 14000; // 14 segundos por ciclo completo
+        const LADDER_LENGTH = 130; // Tamanho fixo da escada
+
+        // Controle de Tema
+        let isDarkMode = false;
+        document.getElementById('btnTheme').addEventListener('click', (e) => {
+            isDarkMode = !isDarkMode;
+            document.body.classList.toggle('dark-mode');
+            e.target.innerText = isDarkMode ? '☀️ Modo Claro' : '🌙 Modo Escuro';
+        });
+
+        // Função auxiliar para interpolação linear
+        function lerp(start, end, t) {
+            return start + (end - start) * Math.max(0, Math.min(1, t));
+        }
+
+        // Função de módulo seguro para o parallax infinito
+        const mod = (n, m) => ((n % m) + m) % m;
+
+        // Função para desenhar a roda rotacionando
+        function drawWheel(ctx, x, y, angle, colorMain, colorBg) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+            // Pneu
+            ctx.fillStyle = colorMain;
+            ctx.beginPath();
+            ctx.arc(0, 0, 12, 0, Math.PI * 2);
+            ctx.fill();
+            // Calota
+            ctx.fillStyle = colorBg;
+            ctx.beginPath();
+            ctx.arc(0, 0, 5, 0, Math.PI * 2);
+            ctx.fill();
+            // Marcação para ver o giro
+            ctx.fillStyle = colorMain;
+            ctx.beginPath();
+            ctx.arc(2, 2, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // Função de desenho principal
+        function drawScene(time) {
+            // Cores dinâmicas baseadas no tema
+            const colorMain = isDarkMode ? '#e0e0e0' : '#222222'; // Cor principal (carro, postes, chão)
+            const colorBg = isDarkMode ? '#1a1a1a' : '#f4f4f4';   // Cor de fundo (janelas do carro, etc)
+            const colorBldg = isDarkMode ? '#333333' : '#d0d0d0'; // Prédios
+            const colorBldgWin = isDarkMode ? '#4a4a4a' : '#bcbcbc'; // Janelas dos prédios
+            const colorFiber = isDarkMode ? '#888888' : '#333333'; // Fio da fibra óptica
+
+            // Limpar tela (Canvas transparente para mostrar o fundo do CSS)
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // O tempo decorrido dentro do loop atual
+            let t = time % LOOP_DURATION;
+
+            // --- Variáveis de Animação ---
+            const carParkedX = 350;
+            const carBackX = carParkedX - 115;
+            const carDoorX = carParkedX - 60;
+
+            let manX = 0, manY = GROUND_Y;
+            let showMan = false;
+            let ladderState = 'car'; // 'car', 'man', 'pole'
+            let isWorking = false;
+
+            let worldOffset = 0;
+            let isCarMoving = false;
+
+            // --- LÓGICA DA LINHA DO TEMPO E MOVIMENTO DO MUNDO ---
+            if (t < 2000) {
+                worldOffset = lerp(600, 0, t / 2000);
+                isCarMoving = true;
+                ladderState = 'car';
+            } else if (t < 3000) {
+                showMan = true;
+                let progress = (t - 2000) / 1000;
+                manX = lerp(carDoorX, carBackX, progress);
+                ladderState = 'car';
+            } else if (t < 4500) {
+                showMan = true;
+                let progress = (t - 3000) / 1500;
+                manX = lerp(carBackX, 550 - 40, progress);
+                ladderState = 'man';
+            } else if (t < 5500) {
+                showMan = true;
+                ladderState = 'pole';
+                let progress = (t - 4500) / 1000;
+                manX = lerp(550 - 40, 550 - 15, progress);
+                manY = lerp(GROUND_Y, 235, progress);
+            } else if (t < 8500) {
+                showMan = true;
+                ladderState = 'pole';
+                manX = 550 - 15;
+                manY = 235;
+                isWorking = true;
+            } else if (t < 9500) {
+                showMan = true;
+                ladderState = 'pole';
+                let progress = (t - 8500) / 1000;
+                manX = lerp(550 - 15, 550 - 40, progress);
+                manY = lerp(235, GROUND_Y, progress);
+            } else if (t < 11000) {
+                showMan = true;
+                ladderState = 'man';
+                let progress = (t - 9500) / 1500;
+                manX = lerp(550 - 40, carBackX, progress);
+            } else if (t < 12000) {
+                showMan = true;
+                ladderState = 'car';
+                let progress = (t - 11000) / 1000;
+                manX = lerp(carBackX, carDoorX, progress);
+                if (progress > 0.9) showMan = false;
+            } else {
+                worldOffset = lerp(0, -600, (t - 12000) / 2000);
+                isCarMoving = true;
+                ladderState = 'car';
+            }
+
+            let carBounce = isCarMoving ? Math.sin(t * 0.05) * 1.5 : 0;
+            let wheelAngle = -worldOffset / 15;
+
+            // --- DESENHO DO CENÁRIO (Background) ---
+            ctx.fillStyle = colorMain;
+            ctx.fillRect(0, GROUND_Y, canvas.width, canvas.height - GROUND_Y);
+
+            // Prédios com Parallax
+            let parallaxOffset = mod(worldOffset * 0.3, 360);
+
+            for (let i = -1; i < 4; i++) {
+                let startX = i * 360 + parallaxOffset;
+
+                ctx.fillStyle = colorBldg;
+                ctx.fillRect(startX + 10, GROUND_Y - 140, 70, 140);
+                ctx.fillRect(startX + 100, GROUND_Y - 220, 80, 220);
+                ctx.fillRect(startX + 200, GROUND_Y - 120, 50, 120);
+                ctx.fillRect(startX + 270, GROUND_Y - 180, 60, 180);
+
+                ctx.fillStyle = colorBldgWin;
+                ctx.fillRect(startX + 25, GROUND_Y - 120, 15, 20);
+                ctx.fillRect(startX + 50, GROUND_Y - 120, 15, 20);
+                ctx.fillRect(startX + 120, GROUND_Y - 190, 40, 20);
+                ctx.fillRect(startX + 120, GROUND_Y - 150, 40, 20);
+                ctx.fillRect(startX + 120, GROUND_Y - 110, 40, 20);
+                ctx.fillRect(startX + 285, GROUND_Y - 160, 30, 20);
+                ctx.fillRect(startX + 285, GROUND_Y - 120, 30, 20);
+            }
+
+            // --- DESENHO DOS POSTES E FIOS ---
+            const poleBaseX = 550;
+            const poleSpacing = 1200;
+            const POLE_TOP_Y = 100;
+            const FIBER_Y = 200;
+
+            // Fios de energia
+            ctx.beginPath();
+            ctx.strokeStyle = colorMain;
+            ctx.lineWidth = 1;
+            for (let i = -1; i <= 0; i++) {
+                let px1 = (poleBaseX + worldOffset) + (i * poleSpacing);
+                let px2 = (poleBaseX + worldOffset) + ((i + 1) * poleSpacing);
+
+                ctx.moveTo(px1 - 25, POLE_TOP_Y + 10);
+                ctx.quadraticCurveTo((px1 + px2) / 2, POLE_TOP_Y + 70, px2 - 25, POLE_TOP_Y + 10);
+
+                ctx.moveTo(px1, POLE_TOP_Y + 10);
+                ctx.quadraticCurveTo((px1 + px2) / 2, POLE_TOP_Y + 70, px2, POLE_TOP_Y + 10);
+
+                ctx.moveTo(px1 + 25, POLE_TOP_Y + 10);
+                ctx.quadraticCurveTo((px1 + px2) / 2, POLE_TOP_Y + 70, px2 + 25, POLE_TOP_Y + 10);
+            }
+            ctx.stroke();
+
+            // Fios de Fibra Óptica
+            ctx.beginPath();
+            ctx.strokeStyle = colorFiber;
+            ctx.lineWidth = 2.5;
+            for (let i = -1; i <= 0; i++) {
+                let px1 = (poleBaseX + worldOffset) + (i * poleSpacing);
+                let px2 = (poleBaseX + worldOffset) + ((i + 1) * poleSpacing);
+
+                ctx.moveTo(px1, FIBER_Y);
+                ctx.quadraticCurveTo((px1 + px2) / 2, FIBER_Y + 30, px2, FIBER_Y);
+            }
+            ctx.stroke();
+
+            // Desenhar os postes
+            for (let i = -1; i <= 1; i++) {
+                let px = (poleBaseX + worldOffset) + (i * poleSpacing);
+                ctx.fillStyle = colorMain;
+                ctx.fillRect(px, POLE_TOP_Y, 12, GROUND_Y - POLE_TOP_Y); // Base do poste
+                ctx.fillRect(px - 30, POLE_TOP_Y + 10, 72, 6); // Travesseiro superior (Alta tensão)
+
+                // Caixa de emenda óptica (Fibra)
+                ctx.fillRect(px - 6, FIBER_Y - 12, 24, 24);
+
+                // Desenhar escada apoiada
+                if (ladderState === 'pole' && i === 0) {
+                    ctx.save();
+                    ctx.translate(px - 40, GROUND_Y);
+                    let reachY = Math.sqrt(Math.pow(LADDER_LENGTH, 2) - Math.pow(40, 2));
+                    let angle = Math.atan2(-reachY, 40);
+                    ctx.rotate(angle);
+                    drawLadder(ctx, 0, -5, LADDER_LENGTH, colorMain);
+                    ctx.restore();
+                }
+            }
+
+            // --- DESENHO DO CARRO ---
+            ctx.save();
+            ctx.translate(carParkedX, GROUND_Y + carBounce);
+            ctx.fillStyle = colorMain;
+
+            // Corpo do carro (Silhueta Fiat Uno)
+            ctx.beginPath();
+            ctx.lineJoin = 'round';
+            ctx.moveTo(-115, -10);
+            ctx.lineTo(-15, -10);
+            ctx.lineTo(-8, -16);
+            ctx.lineTo(-8, -26);
+            ctx.lineTo(-25, -35);
+            ctx.lineTo(-48, -65);
+            ctx.lineTo(-105, -65);
+            ctx.closePath();
+            ctx.fill();
+
+            // Janelas
+            ctx.fillStyle = colorBg;
+            ctx.beginPath();
+            ctx.moveTo(-100, -60);
+            ctx.lineTo(-65, -60);
+            ctx.lineTo(-65, -35);
+            ctx.lineTo(-106, -35);
+            ctx.closePath();
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(-60, -60);
+            ctx.lineTo(-46, -60);
+            ctx.lineTo(-29, -35);
+            ctx.lineTo(-60, -35);
+            ctx.closePath();
+            ctx.fill();
+
+            // Rack do teto
+            ctx.fillStyle = colorMain;
+            ctx.fillRect(-95, -70, 40, 5);
+
+            // Rodas girando
+            drawWheel(ctx, -95, -10, wheelAngle, colorMain, colorBg);
+            drawWheel(ctx, -25, -10, wheelAngle, colorMain, colorBg);
+
+            // ESCADA no carro
+            if (ladderState === 'car') {
+                drawLadder(ctx, -120, -78, LADDER_LENGTH, colorMain);
+            }
+            ctx.restore();
+
+            // --- DESENHO DO HOMEM ---
+            if (showMan) {
+                let isMovingLegs = (t > 2000 && t < 3000) || (t > 3000 && t < 4500) || (t > 9500 && t < 11000) || (t > 11000 && t < 12000);
+                let walkOffset = isMovingLegs ? Math.sin(t * 0.015) * 10 : 0;
+
+                ctx.strokeStyle = colorMain;
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                // Corpo Base
+                ctx.beginPath();
+                ctx.moveTo(manX, manY - 35);
+                ctx.lineTo(manX, manY - 15);
+                ctx.stroke();
+
+                // Colete EPI
+                ctx.strokeStyle = '#FF6600';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(manX, manY - 32);
+                ctx.lineTo(manX, manY - 20);
+                ctx.stroke();
+
+                // Faixa Refletiva
+                ctx.strokeStyle = '#FFFFFF';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(manX - 2.5, manY - 26);
+                ctx.lineTo(manX + 2.5, manY - 26);
+                ctx.stroke();
+
+                // Cabeça
+                ctx.beginPath();
+                ctx.arc(manX, manY - 42, 6, 0, Math.PI * 2);
+                ctx.fillStyle = colorMain;
+                ctx.fill();
+
+                // Capacete EPI
+                ctx.fillStyle = '#FFCC00';
+                ctx.beginPath();
+                ctx.arc(manX, manY - 43, 6.5, Math.PI, 0);
+                ctx.fill();
+
+                // Aba do capacete
+                let isFacingRight = (t >= 3000 && t < 9500) || (t >= 11000 && t < 12000);
+                ctx.fillRect(manX + (isFacingRight ? 0 : -7), manY - 44.5, 7, 2.5);
+
+                // Cinto de Segurança
+                if (isWorking) {
+                    ctx.strokeStyle = '#FF6600';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(manX, manY - 25);
+                    ctx.quadraticCurveTo(manX + 10, manY - 20, 550, manY - 25);
+                    ctx.stroke();
+                }
+
+                // Reseta a cor para desenhar pernas e braços
+                ctx.strokeStyle = colorMain;
+                ctx.lineWidth = 4;
+
+                // Pernas
+                ctx.beginPath();
+                ctx.moveTo(manX, manY - 15);
+                ctx.lineTo(manX - walkOffset, manY);
+                ctx.moveTo(manX, manY - 15);
+                ctx.lineTo(manX + walkOffset, manY);
+                ctx.stroke();
+
+                // Braços e Interações
+                if (ladderState === 'man') {
+                    ctx.beginPath();
+                    ctx.moveTo(manX, manY - 30);
+                    ctx.lineTo(manX + 15, manY - 25);
+                    ctx.stroke();
+
+                    ctx.save();
+                    ctx.translate(manX, manY - 20);
+                    ctx.rotate(-Math.PI / 8);
+                    drawLadder(ctx, -50, -10, LADDER_LENGTH, colorMain);
+                    ctx.restore();
+                } else if (ladderState === 'pole' || isWorking) {
+                    if (isWorking) {
+                        let workMove = Math.sin(t * 0.02) * 3;
+                        ctx.beginPath();
+                        ctx.moveTo(manX, manY - 30);
+                        ctx.lineTo(manX + 15 + workMove, manY - 35 + workMove);
+                        ctx.moveTo(manX, manY - 30);
+                        ctx.lineTo(manX + 18 - workMove, manY - 32 - workMove);
+                        ctx.stroke();
+
+                        if (Math.random() > 0.5) {
+                            ctx.fillStyle = '#00ffcc';
+                            ctx.beginPath();
+                            ctx.arc(manX + 18, manY - 36, 1.5, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    } else {
+                        ctx.beginPath();
+                        ctx.moveTo(manX, manY - 30);
+                        ctx.lineTo(manX + 10, manY - 40);
+                        ctx.stroke();
+                    }
+                } else {
+                    ctx.beginPath();
+                    ctx.moveTo(manX, manY - 30);
+                    ctx.lineTo(manX + walkOffset * 0.5, manY - 15);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // Função para desenhar a escada
+        function drawLadder(ctx, x, y, length, colorMain) {
+            ctx.strokeStyle = colorMain;
+            ctx.lineWidth = 3;
+
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + length, y);
+            ctx.moveTo(x, y + 10);
+            ctx.lineTo(x + length, y + 10);
+            ctx.stroke();
+
+            ctx.lineWidth = 2;
+            for (let i = 10; i < length; i += 15) {
+                ctx.beginPath();
+                ctx.moveTo(x + i, y);
+                ctx.lineTo(x + i, y + 10);
+                ctx.stroke();
+            }
+        }
+
+        // Iniciar loop contínuo
+        function loop(currentTime) {
+            drawScene(currentTime);
+            requestAnimationFrame(loop);
+        }
+        requestAnimationFrame(loop);
+
+    </script>
+</body>
+
+</html>

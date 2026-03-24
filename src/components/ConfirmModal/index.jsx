@@ -24,16 +24,23 @@ const ConfirmModal = ({ title, message, onConfirm, onCancel }) => {
             onConfirm();
         }
     };
+    const mountTime = useRef(Date.now());
+
+    const handleOverlayClick = (e) => {
+        if (e.target !== e.currentTarget) return;
+        if (Date.now() - mountTime.current < 250) return;
+        onCancel();
+    };
 
     return (
         <div
             className="confirm-overlay"
-            onClick={onCancel}
+            onClick={handleOverlayClick}
             onKeyDown={handleKeyDown}
             tabIndex={-1}
             ref={overlayRef}
         >
-            <div className="confirm-card" onClick={(e) => e.stopPropagation()}>
+            <div className="confirm-card">
 
                 {/* Título com Ícone de Alerta */}
                 <h3 className="confirm-title">

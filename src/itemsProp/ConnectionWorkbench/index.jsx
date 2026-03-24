@@ -14,7 +14,7 @@ import { findConnection, getSignalInfo } from '../../utils';
 // FIM IMPORTS --------------------------------------------------
 
 // CANVAS (MESA DE FUSAO)--------------------------------------------------
-const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames, saveConnection, deleteConnectionDB, onAlertRequest, saveItem, onFullscreenChange }) => {
+const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames, saveConnection, deleteConnectionDB, onAlertRequest, saveItem, onFullscreenChange, onConfirmRequest }) => {
 
     const [dragLine, setDragLine] = useState(null);
     const [portPositions, setPortPositions] = useState({});
@@ -348,9 +348,17 @@ const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames
         handleMouseUp(e);
     };
 
+    const lastPortClick = useRef(0);
+
     const handlePortClick = (e, portInfo) => {
         // Permitimos propagação no onTouchStart mas paramos a continuação do mouseDown se houver (por segurança)
         e.stopPropagation();
+        
+        // Evita disparo duplo em smartphones (TouchStart seguido de MouseDown sintético)
+        const now = Date.now();
+        if (now - lastPortClick.current < 250) return;
+        lastPortClick.current = now;
+
         const key = getPortKey(portInfo.item.id, portInfo.portIndex, portInfo.side);
         const conn = findConnection(connections, portInfo.item.id, portInfo.portIndex, portInfo.side);
 
@@ -369,15 +377,24 @@ const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames
         } else {
             if (conn) {
                 // Clicou numa porta conectada sem intenção de conectar outra fibra
-                if (window.confirm("Deseja realmente remover esta conexão?")) {
-                    deleteConnectionDB(conn.id);
-                }
-                return;
+                onConfirmRequest(
+                    "Remover Conexão",
+                    "Deseja realmente remover esta conexão?",
+                    () => {
+                        deleteConnectionDB(conn.id);
+                        setDragLine(null); // Limpo a seleção ao confirmar
+                    },
+                    () => setDragLine(null) // Limpo a seleção ao cancelar
+                );
             }
-            // Seleciona a primeira porta
-            const pos = portPositions[key];
-            if (pos) {
-                setDragLine({ startKey: key, startX: pos.x, startY: pos.y, portInfo });
+            // Verifica se a porta JÁ ESTÁ conectada E NÃO ESTÁ em modo de arrasto (dragLine)
+            // Se já estiver conectada, abriu o modal ali em cima. NÃO SELECIONE a porta.
+            if (!conn) {
+                // SÓ SELECIONA a primeira porta se ELA NÃO ESTIVER CONECTADA
+                const pos = portPositions[key];
+                if (pos) {
+                    setDragLine({ startKey: key, startX: pos.x, startY: pos.y, portInfo });
+                }
             }
         }
     };

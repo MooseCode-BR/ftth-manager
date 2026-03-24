@@ -10,7 +10,6 @@ export const generateBackupFile = async (data, visibleProjects) => {
     } = data;
 
     if (!visibleProjects || visibleProjects.length === 0) {
-        alert("Nenhum projeto visível para backup.");
         return;
     }
 

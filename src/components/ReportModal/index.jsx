@@ -6,7 +6,7 @@ import { X, Copy, FileText, Ruler } from 'lucide-react';
 import { ITEM_TYPES } from '../../constants';
 import { calculateCableLength } from '../../utils'; // Certifique-se de ter adicionado esta função no utils.js
 
-const ReportModal = ({ items, connections, onClose }) => {
+const ReportModal = ({ items, connections, onAlertRequest, onClose }) => {
 
     // Processamento dos dados
     const report = useMemo(() => {
@@ -110,7 +110,11 @@ const ReportModal = ({ items, connections, onClose }) => {
         text += `Conectorizações: ${report.connections.connector}\n`;
 
         navigator.clipboard.writeText(text);
-        alert("Relatório copiado para a área de transferência!");
+        if (onAlertRequest) {
+            onAlertRequest("Copiado", "Relatório de materiais copiado para a área de transferência!");
+        } else {
+            alert("Relatório copiado para a área de transferência!");
+        }
     };
 
     return (

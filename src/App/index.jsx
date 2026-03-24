@@ -1194,38 +1194,30 @@ const App = () => {
         if (!file) return;
 
         // Confirmação de Segurança
-        const confirmRestore = window.confirm(
+        openConfirm(
+            "Restaurar Backup",
             "ATENÇÃO: Restaurar um arquivo FTTH irá SUBSTITUIR TODOS os dados atuais do projeto selecionado.\n\n" +
             "Todos os itens e conexões atuais serão apagados e substituídos pelo arquivo selecionado.\n\n" +
-            "Deseja continuar?"
+            "Deseja continuar?",
+            async () => {
+                setIsProcessing(true);
+                setProcessingMessage("Restaurando arquivo, aguarde a conclusão!");
+                try {
+                    await restoreFromBackup(file, projectOwnerId, activeProjectId, (status, percent) => {
+                        console.log(status);
+                    });
+                    openAlert("Sucesso", "Backup restaurado com sucesso! O sistema será recarregado.");
+                    setTimeout(() => window.location.reload(), 2000);
+                } catch (error) {
+                    console.error(error);
+                    openAlert("Erro Crítico", "Falha ao restaurar backup. É necessário que o projeto atual esteja ativo para criações. Caso esteja, verifique o arquivo selecionado.");
+                } finally {
+                    setIsProcessing(false);
+                    setProcessingMessage("");
+                    event.target.value = '';
+                }
+            }
         );
-
-        if (!confirmRestore) {
-            event.target.value = ''; // Limpa input
-            return;
-        }
-
-        setIsProcessing(true);
-        setProcessingMessage("Restaurando arquivo, aguarde a conclusão!");
-        // setLoading(true);
-        try {
-            await restoreFromBackup(file, projectOwnerId, activeProjectId, (status, percent) => {
-                // Aqui você poderia atualizar um estado de progresso se tivesse uma barra
-                console.log(status);
-            });
-            // setProcessingMessage("Sucesso", "Arquivo restaurado com sucesso! O sistema será recarregado.");
-            openAlert("Sucesso", "Backup restaurado com sucesso! O sistema será recarregado.");
-            setTimeout(() => window.location.reload(), 2000); // Recarrega para garantir estado limpo
-
-        } catch (error) {
-            console.error(error);
-            openAlert("Erro Crítico", "Falha ao restaurar backup. É necessário que o projeto atual esteja ativo para criações. Caso esteja, verifique o arquivo selecionado.");
-        } finally {
-            // setLoading(false);
-            setIsProcessing(false);
-            setProcessingMessage("");
-            event.target.value = ''; // Limpa input
-        }
     };
 
     // --- GERENCIAMENTO DE TAGS (Settings) ---
@@ -2030,73 +2022,79 @@ const App = () => {
     };
 
     const handleRevokeShare = async (inviteId) => {
-        const confirm = window.confirm("Deseja revogar o acesso deste usuário?");
-        if (!confirm) return;
-
-        try {
-            await deleteDoc(doc(db, 'ftth_invitations', inviteId));
-            openAlert("Sucesso", "Acesso revogado.");
-        } catch (error) {
-            console.error(error);
-            openAlert("Erro", "Falha ao revogar acesso.");
-        }
+        openConfirm(
+            "Revogar Acesso",
+            "Deseja revogar o acesso deste usuário?",
+            async () => {
+                try {
+                    await deleteDoc(doc(db, 'ftth_invitations', inviteId));
+                    openAlert("Sucesso", "Acesso revogado.");
+                } catch (error) {
+                    console.error(error);
+                    openAlert("Erro", "Falha ao revogar acesso.");
+                }
+            }
+        );
     };
 
     // 2. Transferir Vários Projetos Simultaneamente (Geralmente para 1 pessoa)
     const handleBulkTransfer = async (projectIds, email) => {
         if (projectIds.length === 0 || !email) return;
 
-        const confirm = window.confirm(`ATENÇÃO: Você vai transferir ${projectIds.length} projetos para ${email}.\n\nVocê perderá o acesso a todos eles se o destinatário aceitar.\n\nContinuar?`);
-        if (!confirm) return;
-
-        setLoading(true);
-        try {
-            const batch = writeBatch(db);
-
-            projectIds.forEach(pid => {
-                const project = myProjects.find(p => p.id === pid);
-                if (project) {
-                    const newRef = doc(collection(db, 'ftth_transfers'));
-                    batch.set(newRef, {
-                        fromUid: user.uid,
-                        fromEmail: user.email,
-                        toEmail: email.trim(),
-                        projectId: project.id,
-                        projectName: project.name,
-                        status: 'pending',
-                        createdAt: new Date().toISOString()
+        openConfirm(
+            "Transferir Projetos",
+            `ATENÇÃO: Você vai transferir ${projectIds.length} projetos para ${email}.\n\nVocê perderá o acesso a todos eles se o destinatário aceitar.\n\nContinuar?`,
+            async () => {
+                setLoading(true);
+                try {
+                    const batch = writeBatch(db);
+                    projectIds.forEach(pid => {
+                        const project = myProjects.find(p => p.id === pid);
+                        if (project) {
+                            const newRef = doc(collection(db, 'ftth_transfers'));
+                            batch.set(newRef, {
+                                fromUid: user.uid,
+                                fromEmail: user.email,
+                                toEmail: email.trim(),
+                                projectId: project.id,
+                                projectName: project.name,
+                                status: 'pending',
+                                createdAt: new Date().toISOString()
+                            });
+                        }
                     });
+                    await batch.commit();
+                    openAlert("Sucesso", "Solicitações de transferência enviadas!");
+                } catch (error) {
+                    console.error(error);
+                    openAlert("Erro", "Falha na transferência em massa.");
+                } finally {
+                    setLoading(false);
                 }
-            });
-
-            await batch.commit();
-            openAlert("Sucesso", "Solicitações de transferência enviadas!");
-
-        } catch (error) {
-            console.error(error);
-            openAlert("Erro", "Falha na transferência em massa.");
-        } finally {
-            setLoading(false);
-        }
+            }
+        );
     };
 
     const handleBulkDeleteProject = async (ids) => {
         if (ids.length === 0) return;
-        const confirm = window.confirm(`ATENÇÃO: Esta ação é IRREVERSÍVEL.\n\nIsso apagará PERMANENTEMENTE os ${ids.length} projetos selecionados e seus dados.\n\nDeseja realmente continuar?`);
-        if (!confirm) return;
-
-        setLoading(true);
-        try {
-            for (const id of ids) {
-                await performDeleteProject(id);
+        openConfirm(
+            "Excluir Projetos",
+            `ATENÇÃO: Esta ação é IRREVERSÍVEL.\n\nIsso apagará PERMANENTEMENTE os ${ids.length} projetos selecionados e seus dados.\n\nDeseja realmente continuar?`,
+            async () => {
+                setLoading(true);
+                try {
+                    for (const id of ids) {
+                        await performDeleteProject(id);
+                    }
+                    openAlert("Sucesso", `${ids.length} projetos excluídos.`);
+                } catch (error) {
+                    console.error(error);
+                    openAlert("Erro", "Falha ao excluir alguns projetos em massa.");
+                } finally {
+                    setLoading(false);
+                }
             }
-            openAlert("Sucesso", `${ids.length} projetos excluídos.`);
-        } catch (error) {
-            console.error(error);
-            openAlert("Erro", "Falha ao excluir alguns projetos em massa.");
-        } finally {
-            setLoading(false);
-        }
+        );
     };
 
     const handleBulkToggleProjectVisibility = (ids) => {
@@ -2561,9 +2559,18 @@ const App = () => {
 
     const openInfoModal = (t, l) => setInfoModalConfig({ title: t, lines: l, onClose: () => setInfoModalConfig(null) });
 
-    const openConfirm = (t, m, onC) => setConfirmConfig({ title: t, message: m, onConfirm: () => { onC(); setConfirmConfig(null); } });
+    const openConfirm = (t, m, onC, onCan) => setConfirmConfig({
+        title: t,
+        message: m,
+        onConfirm: () => { if (onC) onC(); setConfirmConfig(null); },
+        onCancel: () => { if (onCan) onCan(); setConfirmConfig(null); }
+    });
 
-    const openAlert = (t, m) => setAlertConfig({ title: t, message: m });
+    const openAlert = (t, m, onCl) => setAlertConfig({
+        title: t,
+        message: m,
+        onClose: () => { if (onCl) onCl(); setAlertConfig(null); }
+    });
 
     // // Configurações de Perfil
     // const ProfileModal = ({ user, onClose, onUpdateName, onUpdatePassword, onDeleteAccount, onLogout }) => { // <--- Adicione onLogout aqui
@@ -2781,14 +2788,14 @@ const App = () => {
         try {
             await updatePassword(auth.currentUser, newPass);
 
-            // O código vai PARAR aqui e esperar o usuário clicar em "OK"
-            await Dialog.alert({
-                title: 'Sucesso',
-                message: 'Senha alterada! Você será desconectado automaticamente, realize login novamente.',
-            });
-            setIsProfileOpen(false);
-            // Só executa o logout DEPOIS que a janela for fechada
-            handleLogout();
+            openAlert(
+                'Sucesso',
+                'Senha alterada! Você será desconectado automaticamente, realize login novamente.',
+                () => {
+                    setIsProfileOpen(false);
+                    handleLogout();
+                }
+            );
         } catch (error) {
             console.error(error);
             if (error.code === 'auth/requires-recent-login') {
@@ -2803,75 +2810,78 @@ const App = () => {
     const handleDeleteAccountFull = async () => {
         if (!auth.currentUser) return;
 
-        const confirmFinal = window.confirm("ATENÇÃO: Isso apagará TODOS os seus dados e sua conta permanentemente. Deseja continuar?");
-        if (!confirmFinal) return;
+        openConfirm(
+            "Excluir Conta",
+            "ATENÇÃO: Isso apagará TODOS os seus dados e sua conta permanentemente. Deseja continuar?",
+            async () => {
+                setIsLoading(true); // Bloqueia a tela
 
-        setIsLoading(true); // Bloqueia a tela
+                try {
+                    const uid = auth.currentUser.uid;
 
-        try {
-            const uid = auth.currentUser.uid;
-
-            // 1. APAGAR FOTOS DO STORAGE
-            // (O try/catch aqui garante que se a foto não existir, o código continua)
-            const itemsWithPhotos = items.filter(i => i.photos && i.photos.length > 0);
-            for (const item of itemsWithPhotos) {
-                for (const photo of item.photos) {
-                    try {
-                        const imageRef = ref(storage, photo.path);
-                        await deleteObject(imageRef);
-                    } catch (err) {
-                        // Apenas avisa no console e segue o baile
-                        console.warn("Ignorando foto não encontrada:", err.message);
+                    // 1. APAGAR FOTOS DO STORAGE
+                    // (O try/catch aqui garante que se a foto não existir, o código continua)
+                    const itemsWithPhotos = items.filter(i => i.photos && i.photos.length > 0);
+                    for (const item of itemsWithPhotos) {
+                        for (const photo of item.photos) {
+                            try {
+                                const imageRef = ref(storage, photo.path);
+                                await deleteObject(imageRef);
+                            } catch (err) {
+                                // Apenas avisa no console e segue o baile
+                                console.warn("Ignorando foto não encontrada:", err.message);
+                            }
+                        }
                     }
+
+                    // 2. APAGAR CONEXÕES (Firestore)
+                    const deleteConnsPromises = connections.map(conn =>
+                        deleteDoc(doc(db, `artifacts/ftth-production/users/${uid}/connections`, conn.id))
+                    );
+                    await Promise.all(deleteConnsPromises);
+
+                    // 3. APAGAR ITENS (Firestore)
+                    const deleteItemsPromises = items.map(item =>
+                        deleteDoc(doc(db, `artifacts/ftth-production/users/${uid}/items`, item.id))
+                    );
+                    await Promise.all(deleteItemsPromises);
+
+                    // 4. LIMPAR TODAS AS CONFIGURAÇÕES (Settings)
+                    const settingsToDelete = [
+                        'tags',
+                        'signals',
+                        'nodeColors',
+                        'portLabels',
+                        'standards',
+                        'mapConfig'
+                    ];
+
+                    const deleteSettingsPromises = settingsToDelete.map(docName =>
+                        deleteDoc(doc(db, `artifacts/ftth-production/users/${uid}/settings`, docName))
+                    );
+                    await Promise.all(deleteSettingsPromises);
+
+                    // 5. FINALMENTE: APAGAR USUÁRIO DO AUTH
+                    await deleteUser(auth.currentUser);
+
+                    openAlert("Conta Excluída", "Conta e todos os dados foram excluídos com sucesso.");
+
+                } catch (error) {
+                    console.error("Erro ao excluir conta:", error);
+
+                    if (error.code === 'auth/requires-recent-login') {
+                        openAlert("Segurança", "Para excluir a conta, faça Logout e Login novamente e tente imediatamente.");
+                    } else {
+                        openAlert("Erro", "Ocorreu um erro, mas partes dos dados podem ter sido apagadas. Verifique o console.");
+                    }
+                } finally {
+                    // CORREÇÃO: Garante que a tela de carregamento suma SEMPRE
+                    setIsLoading(false);
+                    setResolvingProfile(false); // Garante que não fique preso em 'resolvendo perfil'
+                    setUser(null); // Força a limpeza do estado local para exibir o AuthScreen
                 }
             }
-
-            // 2. APAGAR CONEXÕES (Firestore)
-            const deleteConnsPromises = connections.map(conn =>
-                deleteDoc(doc(db, `artifacts/ftth-production/users/${uid}/connections`, conn.id))
-            );
-            await Promise.all(deleteConnsPromises);
-
-            // 3. APAGAR ITENS (Firestore)
-            const deleteItemsPromises = items.map(item =>
-                deleteDoc(doc(db, `artifacts/ftth-production/users/${uid}/items`, item.id))
-            );
-            await Promise.all(deleteItemsPromises);
-
-            // 4. LIMPAR TODAS AS CONFIGURAÇÕES (Settings)
-            const settingsToDelete = [
-                'tags',
-                'signals',
-                'nodeColors',
-                'portLabels',
-                'standards',
-                'mapConfig'
-            ];
-
-            const deleteSettingsPromises = settingsToDelete.map(docName =>
-                deleteDoc(doc(db, `artifacts/ftth-production/users/${uid}/settings`, docName))
-            );
-            await Promise.all(deleteSettingsPromises);
-
-            // 5. FINALMENTE: APAGAR USUÁRIO DO AUTH
-            await deleteUser(auth.currentUser);
-
-            alert("Conta e todos os dados foram excluídos com sucesso.");
-
-        } catch (error) {
-            console.error("Erro ao excluir conta:", error);
-
-            if (error.code === 'auth/requires-recent-login') {
-                openAlert("Segurança", "Para excluir a conta, faça Logout e Login novamente e tente imediatamente.");
-            } else {
-                openAlert("Erro", "Ocorreu um erro, mas partes dos dados podem ter sido apagadas. Verifique o console.");
-            }
-        } finally {
-            // CORREÇÃO: Garante que a tela de carregamento suma SEMPRE
-            setIsLoading(false);
-            setResolvingProfile(false); // Garante que não fique preso em 'resolvendo perfil'
-            setUser(null); // Força a limpeza do estado local para exibir o AuthScreen
-        }
+        );
     };
 
     const handleAddSlotConfirm = async (name, portCount) => {
@@ -4933,6 +4943,7 @@ const App = () => {
                         <FiberMap
                             items={visibleItems}
                             allItems={items}
+                            onAlertRequest={openAlert}
                             saveItem={saveItem}
                             isDarkMode={isDarkMode}
                             connections={visibleConnections}
@@ -5239,6 +5250,7 @@ const App = () => {
                     return (
                         <GenericModal
                             item={detailedItem}
+                            items={items}
                             onClose={() => setDetailId(null)}
                             onSave={(updatedItem) => saveItem(updatedItem)}
                             onDelete={(id) => {
@@ -5246,6 +5258,8 @@ const App = () => {
                                 setDetailId(null);
                             }}
                             onOpenPhotos={(item) => setPhotoModalData(item)}
+                            onConfirmRequest={openConfirm}
+                            onAlertRequest={openAlert}
                         />
                     );
                 }
@@ -5312,9 +5326,9 @@ const App = () => {
                 />
             }
             {infoModalConfig && <InfoModal {...infoModalConfig} />}
-            {confirmConfig && <ConfirmModal {...confirmConfig} onCancel={() => setConfirmConfig(null)} />}
-            {alertConfig && <AlertModal {...alertConfig} onClose={() => setAlertConfig(null)} />}
-            {reportOpen && (<ReportModal items={items} connections={connections} onClose={() => setReportOpen(false)} />)}
+            {confirmConfig && <ConfirmModal {...confirmConfig} />}
+            {alertConfig && <AlertModal {...alertConfig} />}
+            {reportOpen && (<ReportModal items={items} connections={connections} onAlertRequest={openAlert} onClose={() => setReportOpen(false)} />)}
 
             {/* Wizard Cliente */}
             {clientWizard.step === 'NAME' && <ClientNameModal onConfirm={(name) => { setClientWizard({ step: 'PICK_CTO', data: { name } }); openAlert("Selecione a CTO", "Agora clique na CTO onde o cliente será conectado."); }} onCancel={() => setClientWizard({ step: null, data: {} })} />}
@@ -5372,6 +5386,8 @@ const App = () => {
                     incomingTransfers={incomingTransfers}
                     onAcceptTransfer={handleAcceptTransfer}
                     onFocusProject={handleFocusProject}
+                    onAlertRequest={openAlert}
+                    onConfirmRequest={openConfirm}
                     onClose={() => setIsProjectManagerOpen(false)}
                 />
             )}

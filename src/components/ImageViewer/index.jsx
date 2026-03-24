@@ -1,5 +1,5 @@
 // src/components/ImageViewer.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import LoadingFiber from '../../assets/loadingfiber';
 
@@ -35,6 +35,12 @@ const ImageViewer = ({ photos, initialIndex = 0, onClose }) => {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [onClose, handleNext, handlePrev]);
 
+    const mountTime = useRef(Date.now());
+    const handleOverlayClick = (e) => {
+        if (Date.now() - mountTime.current < 250) return;
+        onClose();
+    };
+
     return (
         <div className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-200">
 
@@ -47,7 +53,7 @@ const ImageViewer = ({ photos, initialIndex = 0, onClose }) => {
             </button>
 
             {/* Botão Download (Opcional, útil já que tiramos o link direto) */}
-            <a
+            {/* <a
                 href={currentPhoto.url}
                 download
                 target="_blank"
@@ -57,10 +63,10 @@ const ImageViewer = ({ photos, initialIndex = 0, onClose }) => {
                 onClick={(e) => e.stopPropagation()} // Evita fechar se clicar aqui
             >
                 <Download size={28} />
-            </a>
+            </a> */}
 
             {/* Área da Imagem Central */}
-            <div className="relative w-full h-full flex items-center justify-center p-4" onClick={onClose}>
+            <div className="relative w-full h-full flex items-center justify-center p-4" onClick={handleOverlayClick}>
                 {/* Loader enquanto carrega a alta resolução */}
                 {isLoading && (
                     <div className="absolute inset-0 flex items-center justify-center">

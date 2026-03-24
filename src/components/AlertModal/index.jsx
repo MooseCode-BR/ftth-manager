@@ -16,16 +16,25 @@ const AlertModal = ({ title, message, onClose }) => {
             onClose();
         }
     };
+    const mountTime = useRef(Date.now());
+
+    const handleOverlayClick = (e) => {
+        // Ignora cliques que não são no próprio overlay (ex: no card interno)
+        if (e.target !== e.currentTarget) return;
+        // Evita que o "ghost click" do TouchStart feche o modal instantaneamente
+        if (Date.now() - mountTime.current < 250) return;
+        onClose();
+    };
 
     return (
         <div
             className="alert-overlay"
-            onClick={onClose}
+            onClick={handleOverlayClick}
             onKeyDown={handleKeyDown}
             tabIndex={-1}
             ref={overlayRef}
         >
-            <div className="alert-card" onClick={(e) => e.stopPropagation()}>
+            <div className="alert-card">
                 <h3 className="alert-title">{title}</h3>
                 <p className="alert-message">{message}</p>
 

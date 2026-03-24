@@ -109,23 +109,29 @@ const DetailPanel = ({
     // ... dentro do componente DetailPanel ...
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
-    const handleDownloadReport = async () => {
-        setIsGeneratingPdf(true);
-        try {
-            // Precisamos passar 'items' (lista completa) para ele achar cabos e filhos
-            // Supondo que 'items' é a prop que contém TUDO (nodes e cabos)
-            await generateNodeReport(item, items);
-        } catch (error) {
-            console.error("Erro ao gerar PDF:", error);
-            alert("Erro ao gerar relatório.");
-        } finally {
-            setIsGeneratingPdf(false);
-        }
+    const handleDownloadReport = () => {
+        onConfirmRequest("Baixar Relatório", "Deseja gerar e baixar o relatório em PDF deste item?", async () => {
+            setIsGeneratingPdf(true);
+            try {
+                // Precisamos passar 'items' (lista completa) para ele achar cabos e filhos
+                // Supondo que 'items' é a prop que contém TUDO (nodes e cabos)
+                await generateNodeReport(item, items);
+            } catch (error) {
+                console.error("Erro ao gerar PDF:", error);
+                if (onAlertRequest) {
+                    onAlertRequest("Erro", "Falha ao gerar o relatório PDF. Tente novamente.");
+                } else {
+                    alert("Erro ao gerar relatório.");
+                }
+            } finally {
+                setIsGeneratingPdf(false);
+            }
+        });
     };
 
     // --- Helpers Internos ---
-    const disconnect = (id) => deleteConnectionDB(id);
-    const handleConnect = (tId, p, s) => { if (pendingConn) { if (pendingConn.id === tId && pendingConn.port === p && pendingConn.side === s) { setPendingConn(null); return; } if (findConnection(connections, pendingConn.id, pendingConn.port, pendingConn.side) || findConnection(connections, tId, p, s)) { onAlertRequest("Ocupada", "Porta já conectada."); setPendingConn(null); return; } const sItem = items.find(i => i.id === pendingConn.id); const tItem = items.find(i => i.id === tId); const type = (sItem.parentId === item.id && tItem.parentId === item.id) ? 'PATCH' : 'FUSION'; saveConnection({ id: Date.now().toString(), type, fromId: pendingConn.id, fromPort: pendingConn.port, fromSide: pendingConn.side, toId: tId, toPort: p, toSide: s }); setPendingConn(null); } else { if (findConnection(connections, tId, p, s)) { onAlertRequest("Ocupada", "Porta já conectada."); return; } setPendingConn({ id: tId, port: p, side: s, name: items.find(i => i.id === tId).name }); } };
+    const disconnect = (id) => onConfirmRequest("Remover Conexão", "Deseja realmente remover esta conexão?", () => deleteConnectionDB(id));
+    const handleConnect = (tId, p, s) => { if (pendingConn) { if (pendingConn.id === tId && pendingConn.port === p && pendingConn.side === s) { setPendingConn(null); return; } if (findConnection(connections, pendingConn.id, pendingConn.port, pendingConn.side) || findConnection(connections, tId, p, s)) { onAlertRequest("Ocupada", "Porta já conectada."); return; } const sItem = items.find(i => i.id === pendingConn.id); const tItem = items.find(i => i.id === tId); const type = (sItem.parentId === item.id && tItem.parentId === item.id) ? 'PATCH' : 'FUSION'; saveConnection({ id: Date.now().toString(), type, fromId: pendingConn.id, fromPort: pendingConn.port, fromSide: pendingConn.side, toId: tId, toPort: p, toSide: s }); setPendingConn(null); } else { if (findConnection(connections, tId, p, s)) { onAlertRequest("Ocupada", "Porta já conectada."); return; } setPendingConn({ id: tId, port: p, side: s, name: items.find(i => i.id === tId).name }); } };
     const updatePortLabel = (k, c) => openRenameModal("Renomear Porta", c, (v) => updateLabelDB({ ...portLabels, [k]: v }));
     const handleSignalEdit = (itemId, portIndex, side) => {
         const uniqueKey = `${itemId}-${portIndex}`; let upstreamSignals = [];
@@ -191,8 +197,8 @@ const DetailPanel = ({
                             {/* Botão Editar */}
                             {onEdit && (
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); onEdit(); }}
-                                    className={customColor ? 'btn-action-colored' : 'btn-edit-default'}
+                                    onClick={(e) => { e.stopPropagation(); if (pendingConn) return; onEdit(); }}
+                                    className={`${customColor ? 'btn-action-colored' : 'btn-edit-default'} ${pendingConn ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     title="Renomear"
                                 >
                                     <Edit3 size={12} />
@@ -201,8 +207,8 @@ const DetailPanel = ({
 
                             {/* Botão Excluir */}
                             <button
-                                onClick={(e) => { e.stopPropagation(); onDelete(itemId); }}
-                                className={customColor ? 'btn-action-colored' : 'btn-delete-default'}
+                                onClick={(e) => { e.stopPropagation(); if (pendingConn) return; onDelete(itemId); }}
+                                className={`${customColor ? 'btn-action-colored' : 'btn-delete-default'} ${pendingConn ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                                 <Trash2 size={12} />
                             </button>
@@ -264,8 +270,8 @@ const DetailPanel = ({
                             <span className="port-label">{disp}</span>
 
                             <button
-                                onClick={(e) => { e.stopPropagation(); updatePortLabel(uKey, disp); }}
-                                className="btn-icon-action"
+                                onClick={(e) => { e.stopPropagation(); if (pendingConn) return; updatePortLabel(uKey, disp); }}
+                                className={`btn-icon-action ${pendingConn ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                                 <Edit3 size={12} />
                             </button>
@@ -280,7 +286,7 @@ const DetailPanel = ({
                         {/* Linha Inferior: Accordion de Ações */}
                         <div className="details-meta-row">
                             {/* Resumo do Sinal (sempre visível) */}
-                            <span onClick={(e) => { e.stopPropagation(); handleSignalEdit(targetItem.id, portIndex, side); }} className={`signal-text ${sig.length > 0 ? 'sig-active' : 'sig-empty'}`}>
+                            <span onClick={(e) => { e.stopPropagation(); if (pendingConn) return; handleSignalEdit(targetItem.id, portIndex, side); }} className={`signal-text ${sig.length > 0 ? 'sig-active' : 'sig-empty'} ${pendingConn ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                 {sig.length > 0 ? sig.map(s => s.name).join(' | ') : "Sem sinal"}
                             </span>
 
@@ -288,13 +294,14 @@ const DetailPanel = ({
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
+                                    if (pendingConn) return;
                                     const key = `${targetItem.id}-${portIndex}-${side}`;
                                     const newSet = new Set(portActionsExpanded);
                                     if (newSet.has(key)) newSet.delete(key);
                                     else newSet.add(key);
                                     setPortActionsExpanded(newSet);
                                 }}
-                                className="text-xs px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 flex items-center gap-1"
+                                className={`text-xs px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 flex items-center gap-1 ${pendingConn ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 title="Mostrar/Ocultar Ações"
                             >
                                 {portActionsExpanded.has(`${targetItem.id}-${portIndex}-${side}`) ? (
@@ -335,21 +342,34 @@ const DetailPanel = ({
 
                                             // 2. Avisar ao usuário (Opcional, mas recomendado para evitar exclusões acidentais)
                                             if (connectionsToDelete.length > 0) {
-                                                const confirm = window.confirm(`Esta ação irá desconectar ${connectionsToDelete.length} fibra(s) atrelada(s) a esta porta. Deseja continuar?`);
-                                                if (!confirm) return; // Se o usuário cancelar, interrompe a ação
+                                                onConfirmRequest(
+                                                    "Aviso de Desconexão",
+                                                    `Esta ação irá desconectar ${connectionsToDelete.length} fibra(s) atrelada(s) a esta porta. Deseja continuar?`,
+                                                    () => {
+                                                        // 3. Excluir as conexões do banco de dados
+                                                        connectionsToDelete.forEach(conn => deleteConnectionDB(conn.id));
+
+                                                        // 4. Salvar a nova configuração (Simplex ou Duplex)
+                                                        const newConfigs = { ...(targetItem.portConfigs || {}) };
+                                                        if (isDuplex) {
+                                                            delete newConfigs[indexToUse]; // Volta para Simplex
+                                                        } else {
+                                                            newConfigs[indexToUse] = 'duplex'; // Muda para Duplex
+                                                        }
+
+                                                        saveItem({ ...targetItem, portConfigs: newConfigs });
+                                                    }
+                                                );
+                                                return;
                                             }
 
-                                            // 3. Excluir as conexões do banco de dados
-                                            connectionsToDelete.forEach(conn => deleteConnectionDB(conn.id));
-
-                                            // 4. Salvar a nova configuração (Simplex ou Duplex)
+                                            // Se não houver conexões, apenas salva
                                             const newConfigs = { ...(targetItem.portConfigs || {}) };
                                             if (isDuplex) {
-                                                delete newConfigs[indexToUse]; // Volta para Simplex
+                                                delete newConfigs[indexToUse];
                                             } else {
-                                                newConfigs[indexToUse] = 'duplex'; // Muda para Duplex
+                                                newConfigs[indexToUse] = 'duplex';
                                             }
-
                                             saveItem({ ...targetItem, portConfigs: newConfigs });
                                         }}
                                         className="btn-trace-action"
@@ -386,7 +406,7 @@ const DetailPanel = ({
                 <div onClick={e => e.stopPropagation()}>
                     {conn ? (
                         // Estado: CONECTADO
-                        <button onClick={() => disconnect(conn.id)} className="connected-badge">
+                        <button onClick={(e) => { e.stopPropagation(); if (pendingConn) return; disconnect(conn.id); }} className={`connected-badge ${pendingConn ? 'opacity-50 cursor-not-allowed' : ''}`}>
                             <span>
                                 {conn.type === 'PATCH' ? 'Cordão' : 'Fusão'}
                             </span>
@@ -641,7 +661,7 @@ const DetailPanel = ({
     };
 
     return (
-        <>
+        <div className="flex flex-col h-full w-full" onClick={() => { if (pendingConn) setPendingConn(null); }}>
             <div
                 className="detail-header-container"
                 style={{
@@ -742,6 +762,7 @@ const DetailPanel = ({
                     setPendingConn={setPendingConn}
                     saveItem={saveItem}
                     onFullscreenChange={handleFullscreenChange}
+                    onConfirmRequest={onConfirmRequest}
                 />
             )}
 
@@ -758,7 +779,7 @@ const DetailPanel = ({
 
             {/* MINI-MODAL DE RENOMEAÇÃO */}
             {renameModal && <RenameModal />}
-        </>
+        </div>
     )
 };
 

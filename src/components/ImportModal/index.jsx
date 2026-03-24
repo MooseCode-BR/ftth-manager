@@ -143,7 +143,7 @@ const ImportModal = ({ colors, itemCount, onClose, onConfirm }) => {
                                                 <input
                                                     type="number"
                                                     min="1"
-                                                    value={fiberMap[color]}
+                                                    value={fiberMap[color] || ''}
                                                     onChange={(e) => handleColorChange(color, e.target.value)}
                                                     className="fiber-input"
                                                     placeholder="12"
@@ -169,7 +169,7 @@ const ImportModal = ({ colors, itemCount, onClose, onConfirm }) => {
                                                 <input
                                                     type="text"
                                                     placeholder="Ex: 144FO"
-                                                    value={rule.keyword}
+                                                    value={rule.keyword || ''}
                                                     onChange={(e) => updateTextRule(rule.id, 'keyword', e.target.value)}
                                                     className="text-rule-input"
                                                 />
@@ -179,7 +179,7 @@ const ImportModal = ({ colors, itemCount, onClose, onConfirm }) => {
                                                 <input
                                                     type="number"
                                                     min="1"
-                                                    value={rule.fibers}
+                                                    value={rule.fibers || ''}
                                                     onChange={(e) => updateTextRule(rule.id, 'fibers', e.target.value)}
                                                     className="fiber-input"
                                                 />

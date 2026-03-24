@@ -6,19 +6,43 @@ import {
     Trash2,
     Image,
     StickyNote,
-    HardDrive
+    HardDrive,
+    FileDown
 } from 'lucide-react';
+import { generateNodeReport } from '../../pdfGenerator';
 
 const GenericModal = ({
     item,
     onClose,
     onSave,
     onDelete,
-    onOpenPhotos
+    onOpenPhotos,
+    onConfirmRequest,
+    onAlertRequest,
+    items
 }) => {
     // Estados locais para edição
     const [name, setName] = useState(item.name || '');
     const [notes, setNotes] = useState(item.notes || '');
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+    const handleDownloadReport = () => {
+        onConfirmRequest("Baixar Relatório", "Deseja gerar e baixar o relatório em PDF deste item?", async () => {
+            setIsGeneratingPdf(true);
+            try {
+                await generateNodeReport(item, items);
+            } catch (error) {
+                console.error("Erro ao gerar PDF:", error);
+                if (onAlertRequest) {
+                    onAlertRequest("Erro", "Falha ao gerar o relatório PDF. Tente novamente.");
+                } else {
+                    alert("Erro ao gerar relatório.");
+                }
+            } finally {
+                setIsGeneratingPdf(false);
+            }
+        });
+    };
 
     // Função para preparar os dados antes de salvar
     const handleSave = () => {
@@ -88,14 +112,32 @@ const GenericModal = ({
                         Galeria de Imagens {item.photos?.length > 0 && `(${item.photos.length})`}
                     </button>
 
+                    {/* Botão Relatório PDF */}
+                    <button
+                        onClick={handleDownloadReport}
+                        disabled={isGeneratingPdf}
+                        className="btn-photos" // Usando o mesmo estilo do botão de fotos ou criar um novo se precisar
+                    >
+                        {isGeneratingPdf ? (
+                            <div className="w-4 h-4 border-2 border-gray-600 dark:border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <FileDown size={18} className="text-blue-500" />
+                        )}
+                        Baixar Relatório PDF
+                    </button>
+
                     <div className="actions-footer-row">
                         {/* Botão Excluir */}
                         <button
                             onClick={() => {
-                                if (window.confirm("Tem certeza que deseja excluir este item?")) {
-                                    onDelete(item.id);
-                                    onClose();
-                                }
+                                onConfirmRequest(
+                                    "Excluir Item",
+                                    "Tem certeza que deseja excluir este item?",
+                                    () => {
+                                        onDelete(item.id);
+                                        onClose();
+                                    }
+                                );
                             }}
                             className="btn-delete"
                         >

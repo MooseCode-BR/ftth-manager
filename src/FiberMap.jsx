@@ -177,7 +177,7 @@ const FlyToHandler = ({ coords }) => {
     return null;
 };
 
-const LocationControl = ({ onLocationFound }) => {
+const LocationControl = ({ onLocationFound, onAlertRequest }) => {
     const map = useMap();
     const [position, setPosition] = useState(null);
 
@@ -210,8 +210,12 @@ const LocationControl = ({ onLocationFound }) => {
         },
         locationerror(e) {
             console.warn("GPS Indisponível:", e.message);
-            stopLocating(); // Parar animação mesmo com erro
-            alert("Não foi possível obter sua localização.");
+            stopLocating();
+            if (onAlertRequest) {
+                onAlertRequest("GPS", "Não foi possível obter sua localização. Verifique as permissões de localização do navegador.");
+            } else {
+                alert("Não foi possível obter sua localização.");
+            }
         }
     });
 
@@ -927,7 +931,7 @@ const RulerTool = ({ isActive, onDistanceChange }) => {
 
 const FiberMap = ({
     items, saveItem, isDarkMode, interactionMode, onMapClick, onNodeClick, isPickingMode, flyToCoords,
-    allItems, onEdit, onDelete, onOpen, onSplit, onClearSearch, onSwitchToCanvas, cableStartNodeId, onLocationFound
+    allItems, onEdit, onDelete, onOpen, onSplit, onClearSearch, onSwitchToCanvas, cableStartNodeId, onLocationFound, onAlertRequest
 }) => {
     const defaultCenter = [0, 0];
     const [selectedId, setSelectedId] = useState(null);
@@ -1057,7 +1061,7 @@ const FiberMap = ({
                 <ZoomControl position="bottomright" />
 
                 {/* 4. LocationControl (TERCEIRO DA LISTA) */}
-                <LocationControl onLocationFound={onLocationFound} />
+                <LocationControl onLocationFound={onLocationFound} onAlertRequest={onAlertRequest} />
 
                 {/* 3. LayersControl (SEGUNDO DA LISTA) */}
                 <LayerTracker setLayer={setActiveBaseLayer} />

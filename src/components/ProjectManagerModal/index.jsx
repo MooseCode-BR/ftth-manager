@@ -1,7 +1,7 @@
 //Gerenciador de Projetos e Colaboração
 
 import './styles.css';
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
     Folder, Trash2, Eye, EyeOff, Edit3, Check, PenTool, FolderOpen,
     Share2, UserCheck, Inbox, UserMinus, Users, ArrowRightLeft, AlertTriangle,
@@ -29,6 +29,8 @@ const ProjectManagerModal = ({
     onRespondInvite,
     onRevokeShare,
     onAcceptTransfer,
+    onConfirmRequest,
+    onAlertRequest,
     onClose
 }) => {
     const [activeTab, setActiveTab] = useState('MY_PROJECTS');
@@ -120,7 +122,11 @@ const ProjectManagerModal = ({
             onBulkShare(idsArray, targetEmails, sharePermission);
         } else if (bulkAction === 'TRANSFER') {
             if (targetEmails.length > 1) {
-                alert("Para transferência, selecione apenas 1 e-mail.");
+                if (onAlertRequest) {
+                    onAlertRequest("Limite", "Para transferência em massa, selecione apenas 1 e-mail de destino.");
+                } else {
+                    alert("Para transferência, selecione apenas 1 e-mail.");
+                }
                 return;
             }
             onBulkTransfer(idsArray, targetEmails[0]);
@@ -178,8 +184,16 @@ const ProjectManagerModal = ({
         };
     }, []);
 
+    const mountTime = useRef(Date.now());
+
+    const handleOverlayClick = (e) => {
+        if (e.target !== e.currentTarget) return;
+        if (Date.now() - mountTime.current < 250) return;
+        onClose();
+    };
+
     return (
-        <div className="projects-overlay" onClick={onClose}>
+        <div className="projects-overlay" onClick={handleOverlayClick}>
             <div className="projects-card" onClick={(e) => e.stopPropagation()}>
 
                 {/* Header */}
