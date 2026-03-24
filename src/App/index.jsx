@@ -30,8 +30,9 @@ import { Dialog } from '@capacitor/dialog';
 import {
     Trash2, Box, Scissors, Activity, User, ArrowRightLeft, Edit3, Save, X, CircleUserRound, ZoomIn, ZoomOut,
     LogOut, Mail, Search, ShieldAlert, MapPin, MapPinned, Loader2, Lock, Unlock, Info, PackagePlus,
-    DoorOpen
+    DoorOpen, AlertTriangle, Play, Pause, ExternalLink
 } from 'lucide-react';
+import LoadingFiber from '../assets/loadingfiber';
 
 // ============================================================================
 // IMPORTS DE ARQUIVOS DO PROJETO
@@ -85,7 +86,7 @@ import StandardsModal from '../components/StandardModal'; // Padrões de cores d
 import TagManagerModal from '../components/TagManagerModal'; // Gerenciamento de tags
 import TraceModal from '../components/TraceModal'; // Rastreamento de sinal óptico
 import DetailPanel from '../itemsProp/DetailPanel'; // Painel lateral de detalhes
-// import LoadingFiber from '../assets/loadingfiber';
+import { LoadScreen } from '../components/LoadScreen';
 
 // ============================================================================
 // FIREBASE - AUTENTICAÇÃO E BANCO DE DADOS
@@ -539,8 +540,6 @@ const App = () => {
     // useState (ESTADOS)------------------------------------------------------------------------------------------------------------------------------------------
     // --- ESTADOS DE PROJETOS & COLABORAÇÃO ---
     // Hook customizado que gerencia convites, transferências e notificações
-
-    // const [showLoadingFiber, setShowLoadingFiber] = useState(true);
 
     const [myProjects, setMyProjects] = useState([]);      // Projetos que EU criei
 
@@ -4736,26 +4735,7 @@ const App = () => {
 
     // --- 1. TELA DE CARREGAMENTO (SPLASH SCREEN) ---
     if (isLoading) {
-        return (
-            <div className="flex flex-col items-center justify-center h-screen w-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-                <div className="flex flex-col items-center animate-pulse">
-                    {/* Logo ou Ícone do App */}
-                    <div className="p-4 mb-6">
-                        <CEOIcon size={64} className="text-gray-800 dark:text-white" />
-                    </div>
-
-                    <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
-                        FTTH Manager
-                    </h1>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">
-                        Carregando Sistema...
-                    </p>
-
-                    {/* Spinner Girando */}
-                    <Loader2 size={32} className="text-blue-600 animate-spin" />
-                </div>
-            </div>
-        );
+        return <LoadScreen />;
     }
     // Se não tiver usuário, mostra Login
     if (!user) {
@@ -5311,8 +5291,8 @@ const App = () => {
             {/* TELA DE CARREGAMENTO GLOBAL */}
             {isProcessing && (
                 <div className="processing-overlay">
-                    <div className="processing-box">
-                        <div className="processing-spinner"></div>
+                    <div className="processing-box flex flex-col items-center justify-center p-6 text-center">
+                        <LoadingFiber size={150} className="mb-4" />
                         <h3 className="processing-title">Processando</h3>
                         <p className="processing-text">{processingMessage}</p>
                     </div>
@@ -5395,8 +5375,6 @@ const App = () => {
                     onClose={() => setIsProjectManagerOpen(false)}
                 />
             )}
-
-            {/* {showLoadingFiber && <LoadingFiber />} */}
 
             {/* Crédito de Versão (Centralizado na Margem Inferior) */}
             <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-1.5 text-[9px] dark:text-gray-800 text-gray-400 font-medium select-none pointer-events-none opacity-100">

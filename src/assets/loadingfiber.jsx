@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
+import bandeja from './bandeja.svg';
+
 // Tabela de Cores ABNT/Telebrás (NBR 14771)
 const ABNT_COLORS = [
     { id: 1, name: 'Verde', hex: '#22c55e', text: 'text-green-500' },
@@ -34,7 +36,7 @@ const FIBER_PATH =
 const PATH_LENGTH = 1750; // Aumentado para cobrir a volta extra completa
 const ANIMATION_SPEED = 36;
 
-export default function LoadingFiber() {
+export default function LoadingFiber({ size = 100, className = "" }) {
     const [fibers, setFibers] = useState([]);
     const [progress, setProgress] = useState(0);
     const [activeFiberIdx, setActiveFiberIdx] = useState(0);
@@ -73,64 +75,58 @@ export default function LoadingFiber() {
     const currentActiveColor = ABNT_COLORS[activeFiberIdx % 12];
 
     return (
-        <div className="min-h-screen bg-slate-900 text-slate-200 flex flex-col md:flex-row items-center justify-center p-8 gap-12 font-sans">
-
-            {/* Container Principal da CEO */}
-            <div className="relative bg-slate-800 p-8 rounded-3xl shadow-2xl border border-slate-700 flex flex-col items-center">
-
-                <svg
-                    viewBox="0 0 400 500"
-                    className="w-[350px] max-w-full h-auto drop-shadow-xl"
-                >
-                    {/* =======================
+        <svg
+            viewBox="0 0 400 500"
+            className={`max-w-full h-auto shadow-2xl ${className}`}
+            style={{ width: size }}
+        >
+            {/* =======================
               BANDEJA ORIGINAL DO USUÁRIO
               Mantendo o seu arquivo intacto usando a tag image
               ======================= */}
-                    <g id="bandeja-base">
-                        <image href="src/assets/bandeja.svg" x="-75" y="0" width="550" height="500" preserveAspectRatio="none" />
-                    </g>
+            <g id="bandeja-base">
+                <image href={bandeja} x="-75" y="0" width="550" height="500" preserveAspectRatio="none" />
+            </g>
 
-                    {/* =======================
+            {/* =======================
               FIBRAS JÁ ACOMODADAS
               ======================= */}
-                    <g id="fibras-acomodadas">
-                        {fibers.map((fiber) => (
-                            <path
-                                key={`fiber-${fiber.id}`}
-                                d={FIBER_PATH}
-                                fill="none"
-                                stroke={fiber.color.hex}
-                                strokeWidth="2.5"
-                                strokeLinecap="round"
-                                style={{
-                                    transform: `translate(${fiber.dx}px, ${fiber.dy}px)`,
-                                    transition: 'opacity 0.3s ease',
-                                    opacity: 0.85
-                                }}
-                            />
-                        ))}
-                    </g>
+            <g id="fibras-acomodadas">
+                {fibers.map((fiber) => (
+                    <path
+                        key={`fiber-${fiber.id}`}
+                        d={FIBER_PATH}
+                        fill="none"
+                        stroke={fiber.color.hex}
+                        strokeWidth="12px"
+                        strokeLinecap="round"
+                        style={{
+                            transform: `translate(${fiber.dx}px, ${fiber.dy}px)`,
+                            transition: 'opacity 0.3s ease',
+                            opacity: 0.85
+                        }}
+                    />
+                ))}
+            </g>
 
-                    {/* =======================
+            {/* =======================
               FIBRA ANIMADA ATUAL
               ======================= */}
-                    <g id="fibra-animada">
-                        <path
-                            d={FIBER_PATH}
-                            fill="none"
-                            stroke={currentActiveColor.hex}
-                            strokeWidth="3.5"
-                            strokeLinecap="round"
-                            strokeDasharray={PATH_LENGTH}
-                            strokeDashoffset={PATH_LENGTH - progress}
-                            style={{
-                                transform: `translate(${Math.sin(activeFiberIdx * 2.1) * 3}px, ${Math.cos(activeFiberIdx * 1.7) * 3}px)`,
-                                filter: 'drop-shadow(0px 0px 4px rgba(255,255,255,0.4))'
-                            }}
-                        />
-                    </g>
-                </svg>
-            </div>
-        </div>
+            <g id="fibra-animada">
+                <path
+                    d={FIBER_PATH}
+                    fill="none"
+                    stroke={currentActiveColor.hex}
+                    strokeWidth="12px"
+                    strokeLinecap="round"
+                    strokeDasharray={PATH_LENGTH}
+                    strokeDashoffset={PATH_LENGTH - progress}
+                    style={{
+                        transform: `translate(${Math.sin(activeFiberIdx * 2.1) * 3}px, ${Math.cos(activeFiberIdx * 1.7) * 3}px)`,
+                        filter: 'drop-shadow(0px 0px 4px rgba(255,255,255,0.4))'
+                    }}
+                />
+            </g>
+        </svg>
     );
 }

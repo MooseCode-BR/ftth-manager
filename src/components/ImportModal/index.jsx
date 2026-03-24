@@ -3,7 +3,7 @@
 import './styles.css';
 import React, { useState, useEffect } from 'react';
 import { Network, Plus, Trash2, Type, Palette, Loader2 } from 'lucide-react'; // Adicionei Loader2
-
+import LoadingFiber from '../../assets/loadingfiber';
 const ImportModal = ({ colors, itemCount, onClose, onConfirm }) => {
     // Aba ativa: 'color' ou 'text'
     const [activeTab, setActiveTab] = useState('color');
@@ -82,10 +82,8 @@ const ImportModal = ({ colors, itemCount, onClose, onConfirm }) => {
                 {/* --- MODO CARREGAMENTO --- */}
                 {isImporting ? (
                     <div className="loading-state">
-                        <div className="relative">
-                            <div className="spinner-ring-pulse"></div>
-                            <div className="spinner-ring-spin"></div>
-                            <Network size={24} className="spinner-icon" />
+                        <div className="flex items-center justify-center p-4">
+                            <LoadingFiber size={200} />
                         </div>
 
                         <div>
@@ -94,11 +92,6 @@ const ImportModal = ({ colors, itemCount, onClose, onConfirm }) => {
                                 Lendo {itemCount} itens do arquivo KML...<br />
                                 Isso pode levar alguns segundos.
                             </p>
-                        </div>
-
-                        {/* Barra de Progresso */}
-                        <div className="progress-track">
-                            <div className="progress-bar"></div>
                         </div>
                     </div>
                 ) : (

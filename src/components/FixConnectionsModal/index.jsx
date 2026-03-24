@@ -4,6 +4,7 @@ import './styles.css';
 import React, { useState, useEffect } from 'react';
 import { Unplug, Link, ArrowRight, CheckCircle, Trash2, Loader2, Network } from 'lucide-react'; // Adicionei Loader2 e Network
 import { findNearbyCandidates } from '../../utils';
+import LoadingFiber from '../../assets/loadingfiber';
 
 const FixConnectionsModal = ({ items, onClose, onConfirm }) => {
     // Lista de problemas detectados
@@ -93,10 +94,8 @@ const FixConnectionsModal = ({ items, onClose, onConfirm }) => {
                 {/* --- MODO SALVANDO/CARREGANDO --- */}
                 {isSaving ? (
                     <div className="loading-state-container">
-                        <div className="relative">
-                            <div className="spinner-ring-bg"></div>
-                            <div className="spinner-ring-fg"></div>
-                            <Network size={24} className="spinner-icon" />
+                        <div className="flex justify-center items-center p-4">
+                            <LoadingFiber size={200} />
                         </div>
 
                         <div>
@@ -105,11 +104,6 @@ const FixConnectionsModal = ({ items, onClose, onConfirm }) => {
                                 Aplicando correções em {issues.length} conexões...<br />
                                 Salvando no banco de dados.
                             </p>
-                        </div>
-
-                        {/* Barra de Progresso */}
-                        <div className="progress-track">
-                            <div className="progress-fill"></div>
                         </div>
                     </div>
                 ) : (

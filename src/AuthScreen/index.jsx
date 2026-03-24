@@ -6,6 +6,7 @@ import { Mail, Lock, Loader2, AlertCircle, CheckCircle2, ChevronLeft, Eye, EyeOf
 import { VERSAO } from '../constants';
 import { CEOIcon } from '../icons';
 import ThemeToggleButton from '../components/ThemeToggleButton';
+import LoadingFiber from '../assets/loadingfiber';
 
 const AuthScreen = ({ onLogin }) => {
     // Estados de Controle de Tela

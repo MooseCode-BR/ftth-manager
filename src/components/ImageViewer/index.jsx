@@ -1,6 +1,7 @@
 // src/components/ImageViewer.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import LoadingFiber from '../../assets/loadingfiber';
 
 const ImageViewer = ({ photos, initialIndex = 0, onClose }) => {
     const [currentIndex, setCurrentIndex] = useState(initialIndex);
@@ -63,7 +64,7 @@ const ImageViewer = ({ photos, initialIndex = 0, onClose }) => {
                 {/* Loader enquanto carrega a alta resolução */}
                 {isLoading && (
                     <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
+                        <LoadingFiber size={150} />
                     </div>
                 )}
 
