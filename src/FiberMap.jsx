@@ -171,7 +171,7 @@ const FlyToHandler = ({ coords }) => {
     const map = useMap();
     useEffect(() => {
         if (coords && coords.length === 2) {
-            map.flyTo(coords, 20);
+            map.flyTo(coords, 20, { duration: 1.5 }); // duration em segundos, padrão varia pela distância, 0.6s é super rápido
         }
     }, [coords, map]);
     return null;
@@ -190,8 +190,8 @@ const LocationControl = ({ onLocationFound, onAlertRequest }) => {
         if (buttonRef.current) {
             buttonRef.current.classList.add('locating-active');
         }
-        // Inicia a busca no Leaflet
-        map.locate({ setView: true, maxZoom: 18 });
+        // Inicia a busca no Leaflet sem mudar a view nativamente
+        map.locate({ setView: false, maxZoom: 18 });
     }, [map]);
 
     // Função que para o visual (sucesso ou erro)
@@ -206,6 +206,7 @@ const LocationControl = ({ onLocationFound, onAlertRequest }) => {
         locationfound(e) {
             setPosition(e.latlng);
             stopLocating(); // Parar animação
+            map.flyTo(e.latlng, 18, { duration: 0.6 }); // Animação rápida pro local
             if (onLocationFound) onLocationFound(e.latlng); // Notifica o App
         },
         locationerror(e) {
@@ -264,13 +265,202 @@ const LocationControl = ({ onLocationFound, onAlertRequest }) => {
         };
     }, [map, startLocating]); // Dependência map
 
+    // SVG e Estilos adaptados do tecnico.html para JSX para criar um ícone personalizado:
+    const technicianIcon = useMemo(() => {
+        const svgString = renderToStaticMarkup(
+            <div style={{ width: '60px', height: '60px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <style>
+                    {`
+                        .waving-arm {
+                            transform-origin: 125px 100px;
+                            animation: wave 0.45s infinite alternate ease-in-out;
+                        }
+                        @keyframes wave {
+                            0% { transform: rotate(-15deg); }
+                            100% { transform: rotate(25deg); }
+                        }
+                        .character {
+                            animation: breathe 1.5s infinite alternate ease-in-out;
+                        }
+                        @keyframes breathe {
+                            0% { transform: translateY(0px); }
+                            100% { transform: translateY(5px); }
+                        }
+                        .eyes {
+                            transform-origin: 125px 73px;
+                            animation: blink 3.5s infinite;
+                        }
+                        @keyframes blink {
+                            0%, 90%, 100% { transform: scaleY(1); }
+                            95% { transform: scaleY(0.1); }
+                        }
+                    `}
+                </style>
+                <svg viewBox="0 0 250 250" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%', overflow: 'visible', filter: 'drop-shadow(0px 8px 8px rgba(0,0,0,0.5))' }}>
+                    {/* Definição do filtro para criar o contorno da silhueta */}
+                    <defs>
+                        <filter id="contorno-preto" x="-20%" y="-20%" width="140%" height="140%">
+                            {/* Expande a forma (alpha) do desenho */}
+                            <feMorphology in="SourceAlpha" operator="dilate" radius="2.5" result="expandido" />
+                            {/* Preenche a forma expandida com preto */}
+                            <feFlood floodColor="#000000" result="cor-preta" />
+                            {/* Aplica a cor preta apenas na área expandida */}
+                            <feComposite in="cor-preta" in2="expandido" operator="in" result="contorno" />
+                            {/* Junta o contorno preto (atrás) com o desenho original (frente) */}
+                            <feMerge>
+                                <feMergeNode in="contorno" />
+                                <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                        </filter>
+                    </defs>
+
+                    {/* Sombra no chão (fora do filtro para não ter contorno) */}
+                    <ellipse cx="125" cy="210" rx="45" ry="6" fill="#e2e8f0" />
+
+                    {/* Grupo principal do personagem animado COM O FILTRO DE CONTORNO APLICADO */}
+                    <g className="character" filter="url(#contorno-preto)">
+                        {/* ================= CORPO ================= */}
+                        {/* Pernas */}
+                        <line x1="125" y1="150" x2="105" y2="205" stroke="#1E293B" strokeWidth="8" strokeLinecap="round" />
+                        <line x1="125" y1="150" x2="145" y2="205" stroke="#1E293B" strokeWidth="8" strokeLinecap="round" />
+
+                        {/* EPI: Perneiras (Tiras nas coxas) */}
+                        <line x1="111" y1="168" x2="123" y2="162" stroke="#FF6B00" strokeWidth="4" strokeLinecap="round" />
+                        <line x1="139" y1="168" x2="127" y2="162" stroke="#FF6B00" strokeWidth="4" strokeLinecap="round" />
+
+                        {/* Tronco */}
+                        <line x1="125" y1="91" x2="125" y2="155" stroke="#1E293B" strokeWidth="8" strokeLinecap="round" />
+
+                        {/* EPI: Suspensórios (Tiras no ombro) e Fita Peitoral */}
+                        <path d="M 125 95 L 118 135" stroke="#FF6B00" strokeWidth="3" />
+                        <path d="M 125 95 L 132 135" stroke="#FF6B00" strokeWidth="3" />
+                        <line x1="119" y1="115" x2="131" y2="115" stroke="#FF6B00" strokeWidth="3" strokeLinecap="round" />
+                        <circle cx="125" cy="115" r="2.5" fill="none" stroke="#1E293B" strokeWidth="1.5" />
+                        {/* Argola frontal */}
+
+                        {/* ================= EPI: CINTURÃO DE SEGURANÇA ================= */}
+                        <rect x="110" y="132" width="30" height="14" rx="4" fill="#FF6B00" />
+                        <rect x="122" y="132" width="6" height="14" rx="1.5" fill="#CC5500" /> {/* Fivela */}
+
+                        {/* Argolas laterais do EPI */}
+                        <circle cx="110" cy="139" r="3" fill="none" stroke="#1E293B" strokeWidth="2" />
+                        <circle cx="140" cy="139" r="3" fill="none" stroke="#1E293B" strokeWidth="2" />
+
+                        {/* EPI: Talabarte (Corda de segurança com mosquetão) */}
+                        <path d="M 140 139 Q 155 155 145 185" fill="none" stroke="#FF6B00" strokeWidth="3"
+                            strokeLinecap="round" />
+                        <rect x="142" y="185" width="6" height="12" rx="3" fill="none" stroke="#1E293B" strokeWidth="2" />
+                        {/* Mosquetão */}
+
+                        {/* ================= ESCADA NO OMBRO (Cor Laranja) ================= */}
+                        <g transform="translate(125, 80) rotate(-20)">
+                            {/* Trilhos laterais */}
+                            <line x1="-80" y1="-14" x2="70" y2="-14" stroke="#FF6B00" strokeWidth="5" strokeLinecap="round" />
+                            <line x1="-80" y1="14" x2="70" y2="14" stroke="#FF6B00" strokeWidth="5" strokeLinecap="round" />
+                            {/* Degraus */}
+                            <line x1="-65" y1="-14" x2="-65" y2="14" stroke="#FF6B00" strokeWidth="4.5" />
+                            <line x1="-40" y1="-14" x2="-40" y2="14" stroke="#FF6B00" strokeWidth="4.5" />
+                            <line x1="-15" y1="-14" x2="-15" y2="14" stroke="#FF6B00" strokeWidth="4.5" />
+                            <line x1="10" y1="-14" x2="10" y2="14" stroke="#FF6B00" strokeWidth="4.5" />
+                            <line x1="35" y1="-14" x2="35" y2="14" stroke="#FF6B00" strokeWidth="4.5" />
+                            <line x1="60" y1="-14" x2="60" y2="14" stroke="#FF6B00" strokeWidth="4.5" />
+                        </g>
+
+                        {/* Braço esquerdo segurando a escada (mão no trilho inferior) */}
+                        <path d="M 125 98 Q 110 115 92 107" fill="none" stroke="#1E293B" strokeWidth="8"
+                            strokeLinecap="round" />
+                        <circle cx="92" cy="107" r="4" fill="#1E293B" />
+
+                        {/* ================= CABEÇA ================= */}
+                        {/* Rosto */}
+                        <circle cx="125" cy="75" r="16" fill="#FFF" stroke="#1E293B" strokeWidth="4" />
+
+                        <g className="eyes">
+                            {/* Olhinhos */}
+                            <circle cx="119" cy="73" r="2.5" fill="#1E293B" />
+                            <circle cx="131" cy="73" r="2.5" fill="#1E293B" />
+                        </g>
+
+                        {/* Sorriso simpático */}
+                        <path d="M 120 79 Q 125 84 130 79" fill="none" stroke="#1E293B" strokeWidth="2.5"
+                            strokeLinecap="round" />
+
+                        {/* ================= CAPACETE (Cor Laranja) ================= */}
+                        {/* Domo do capacete */}
+                        <path d="M 107 72 A 18 18 0 0 1 143 72 Z" fill="#FF6B00" stroke="#1E293B" strokeWidth="3"
+                            strokeLinejoin="round" />
+                        {/* Aba do capacete */}
+                        <path d="M 103 72 Q 125 78 147 72" fill="none" stroke="#FF6B00" strokeWidth="6"
+                            strokeLinecap="round" />
+
+                        {/* Símbolo de Wi-Fi no capacete (Branco) */}
+                        <g stroke="#FFF" strokeWidth="1.8" strokeLinecap="round" fill="none">
+                            <path d="M 116 57 A 9 9 0 0 1 134 57" />
+                            <path d="M 120 61 A 5 5 0 0 1 130 61" />
+                            <circle cx="125" cy="65" r="1.5" fill="#FFF" stroke="none" />
+                        </g>
+
+                        {/* ================= BRAÇO DIREITO (Dando Tchau) ================= */}
+                        <g className="waving-arm">
+                            <path d="M 125 100 Q 155 105 162 65" fill="none" stroke="#1E293B" strokeWidth="8"
+                                strokeLinecap="round" />
+                            {/* Mão direita (bolinha) */}
+                            <circle cx="162" cy="65" r="4" fill="#1E293B" />
+                        </g>
+
+                    </g>
+                </svg>
+            </div>
+        );
+
+        return L.divIcon({
+            className: 'bg-transparent',
+            html: svgString,
+            iconSize: [60, 60],
+            iconAnchor: [30, 50], // Posicionando o eixo da imagem aproximadamente nos pés da animação
+        });
+    }, []);
+
     return position ? (
-        <CircleMarker
-            center={position}
-            pathOptions={{ color: 'white', fillColor: '#2563eb', fillOpacity: 1, weight: 2 }}
-            radius={8}
-        />
+        <Marker 
+            position={position}
+            icon={technicianIcon}
+            zIndexOffset={2000} // Ficar acima do resto
+        >
+            <Popup className="text-center font-bold text-gray-800">
+                Você está aqui!
+            </Popup>
+        </Marker>
     ) : null;
+};
+
+// --- FUNÇÃO AUXILIAR: Reseta Rotação Animada ---
+const smoothResetBearing = (map) => {
+    let current = map.getBearing();
+    // Escolhe o caminho mais curto (ex: 350° vira -10° para não dar a volta inteira)
+    while (current > 180) current -= 360;
+    while (current < -180) current += 360;
+
+    const startBearing = current;
+    const startTime = performance.now();
+    const duration = 500; // 0.5 segundos (500ms)
+
+    const animate = (time) => {
+        const elapsed = time - startTime;
+        let progress = Math.min(elapsed / duration, 1);
+        
+        // Easing out (desacelera no final) pra ficar mais suave: easeOutCubic
+        const ease = 1 - Math.pow(1 - progress, 3);
+        
+        map.setBearing(startBearing * (1 - ease));
+
+        if (progress < 1) {
+            requestAnimationFrame(animate);
+        } else {
+            map.setBearing(0); // Garante 0 exato no fim
+        }
+    };
+    requestAnimationFrame(animate);
 };
 
 const CustomRotateControl = () => {
@@ -383,7 +573,7 @@ const CustomRotateControl = () => {
 
                     // Se foi apenas um clique rápido (sem arrastar), reseta pro Norte
                     if (!isDragging) {
-                        map.setBearing(0);
+                        smoothResetBearing(map);
                     }
                 };
 
@@ -392,7 +582,7 @@ const CustomRotateControl = () => {
                 btn.addEventListener('touchstart', (e) => {
                     L.DomEvent.stopPropagation(e);
                     if (e.cancelable) e.preventDefault(); // Boa prática checar se é cancelável
-                    map.setBearing(0); // Mobile: apenas reseta
+                    smoothResetBearing(map); // Mobile: apenas reseta suavemente
                 }, { passive: false });
 
                 buttonRef.current = btn;
@@ -421,7 +611,7 @@ const RotationHandler = () => {
         const handleKeyDown = (e) => {
             // Se apertar 'r' ou 'R' e não estiver digitando texto
             if (e.key.toLowerCase() === 'r' && !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
-                map.setBearing(0); // Reseta para o Norte (função do plugin leaflet-rotate)
+                smoothResetBearing(map); // Reseta para o Norte com animação suave
             }
         };
 
@@ -931,7 +1121,7 @@ const RulerTool = ({ isActive, onDistanceChange }) => {
 
 const FiberMap = ({
     items, saveItem, isDarkMode, interactionMode, onMapClick, onNodeClick, isPickingMode, flyToCoords,
-    allItems, onEdit, onDelete, onOpen, onSplit, onClearSearch, onSwitchToCanvas, cableStartNodeId, onLocationFound, onAlertRequest
+    allItems, onEdit, onDelete, onOpen, onSplit, onClearSearch, cableStartNodeId, onLocationFound, onAlertRequest
 }) => {
     const defaultCenter = [0, 0];
     const [selectedId, setSelectedId] = useState(null);
@@ -1020,7 +1210,7 @@ const FiberMap = ({
 
             <MapContainer
                 center={defaultCenter}
-                zoom={5}
+                zoom={1}
                 zoomSnap={0} // 1. O segredo da fluidez: 0 permite qualquer valor decimal (ex: 5.12)
                 zoomDelta={1} // 2. Define quanto o zoom pula ao clicar nos botões + e - ou duplo clique
                 wheelPxPerZoomLevel={30} // 3. Ajusta a sensibilidade do scroll do mouse (quanto menor, mais rápido o zoom)
