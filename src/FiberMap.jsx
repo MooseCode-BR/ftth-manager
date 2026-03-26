@@ -299,13 +299,13 @@ const LocationControl = ({ onLocationFound, onAlertRequest }) => {
                 <svg viewBox="0 0 250 250" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%', overflow: 'visible', filter: 'drop-shadow(0px 8px 8px rgba(0,0,0,0.5))' }}>
                     {/* Definição do filtro para criar o contorno da silhueta */}
                     <defs>
-                        <filter id="contorno-preto" x="-20%" y="-20%" width="140%" height="140%">
+                        <filter id="contorno-branco" x="-20%" y="-20%" width="140%" height="140%">
                             {/* Expande a forma (alpha) do desenho */}
-                            <feMorphology in="SourceAlpha" operator="dilate" radius="2.5" result="expandido" />
+                            <feMorphology in="SourceAlpha" operator="dilate" radius="2" result="expandido" />
                             {/* Preenche a forma expandida com preto */}
-                            <feFlood floodColor="#000000" result="cor-preta" />
+                            <feFlood floodColor="#ffffff" result="cor-branca" />
                             {/* Aplica a cor preta apenas na área expandida */}
-                            <feComposite in="cor-preta" in2="expandido" operator="in" result="contorno" />
+                            <feComposite in="cor-branca" in2="expandido" operator="in" result="contorno" />
                             {/* Junta o contorno preto (atrás) com o desenho original (frente) */}
                             <feMerge>
                                 <feMergeNode in="contorno" />
@@ -315,27 +315,50 @@ const LocationControl = ({ onLocationFound, onAlertRequest }) => {
                     </defs>
 
                     {/* Sombra no chão (fora do filtro para não ter contorno) */}
-                    <ellipse cx="125" cy="210" rx="45" ry="6" fill="#e2e8f0" />
+                    <ellipse cx="125" cy="210" rx="55" ry="6" fill="#444444" />
 
                     {/* Grupo principal do personagem animado COM O FILTRO DE CONTORNO APLICADO */}
-                    <g className="character" filter="url(#contorno-preto)">
+                    <g className="character" filter="url(#contorno-branco)">
                         {/* ================= CORPO ================= */}
                         {/* Pernas */}
-                        <line x1="125" y1="150" x2="105" y2="205" stroke="#1E293B" strokeWidth="8" strokeLinecap="round" />
-                        <line x1="125" y1="150" x2="145" y2="205" stroke="#1E293B" strokeWidth="8" strokeLinecap="round" />
-
-                        {/* EPI: Perneiras (Tiras nas coxas) */}
-                        <line x1="111" y1="168" x2="123" y2="162" stroke="#FF6B00" strokeWidth="4" strokeLinecap="round" />
-                        <line x1="139" y1="168" x2="127" y2="162" stroke="#FF6B00" strokeWidth="4" strokeLinecap="round" />
+                        <line x1="125" y1="150" x2="105" y2="205" stroke="#000000" strokeWidth="11" strokeLinecap="round" />
+                        <line x1="125" y1="150" x2="145" y2="205" stroke="#000000" strokeWidth="11" strokeLinecap="round" />
 
                         {/* Tronco */}
-                        <line x1="125" y1="91" x2="125" y2="155" stroke="#1E293B" strokeWidth="8" strokeLinecap="round" />
+                        <line x1="125" y1="91" x2="125" y2="155" stroke="#000000" strokeWidth="15" strokeLinecap="round" />
+
+                        {/* Braço esquerdo segurando a escada (mão no trilho inferior) */}
+                        <path d="M 125 98 Q 110 115 92 107" fill="none" stroke="#000000" strokeWidth="8"
+                            strokeLinecap="round" />
+                        <circle cx="92" cy="107" r="4" fill="#000000" />
+
+                        {/* ================= ESCADA NO OMBRO (Cor Laranja) ================= */}
+                        <g transform="translate(125, 80) rotate(-20)">
+                            {/* Trilhos laterais */}
+                            <line x1="-80" y1="-14" x2="70" y2="-14" stroke="#FF6B00" strokeWidth="10" strokeLinecap="round" />
+                            <line x1="-80" y1="14" x2="70" y2="14" stroke="#FF6B00" strokeWidth="10" strokeLinecap="round" />
+                            {/* Degraus */}
+                            <line x1="-65" y1="-14" x2="-65" y2="14" stroke="#FF6B00" strokeWidth="5" />
+                            <line x1="-40" y1="-14" x2="-40" y2="14" stroke="#FF6B00" strokeWidth="5" />
+                            <line x1="-15" y1="-14" x2="-15" y2="14" stroke="#FF6B00" strokeWidth="5" />
+                            <line x1="10" y1="-14" x2="10" y2="14" stroke="#FF6B00" strokeWidth="5" />
+                            <line x1="35" y1="-14" x2="35" y2="14" stroke="#FF6B00" strokeWidth="5" />
+                            <line x1="60" y1="-14" x2="60" y2="14" stroke="#FF6B00" strokeWidth="5" />
+                        </g>
+
+                        {/* ================= BRAÇO DIREITO (Dando Tchau) ================= */}
+                        <g className="waving-arm">
+                            <path d="M 125 100 Q 155 105 162 65" fill="none" stroke="#000000" strokeWidth="8"
+                                strokeLinecap="round" />
+                            {/* Mão direita (bolinha) */}
+                            <circle cx="162" cy="65" r="4" fill="#000000" />
+                        </g>
 
                         {/* EPI: Suspensórios (Tiras no ombro) e Fita Peitoral */}
-                        <path d="M 125 95 L 118 135" stroke="#FF6B00" strokeWidth="3" />
-                        <path d="M 125 95 L 132 135" stroke="#FF6B00" strokeWidth="3" />
-                        <line x1="119" y1="115" x2="131" y2="115" stroke="#FF6B00" strokeWidth="3" strokeLinecap="round" />
-                        <circle cx="125" cy="115" r="2.5" fill="none" stroke="#1E293B" strokeWidth="1.5" />
+                        <path d="M 125 95 L 118 135" stroke="#FF6B00" strokeWidth="4" />
+                        <path d="M 125 95 L 132 135" stroke="#FF6B00" strokeWidth="4" />
+                        <line x1="119" y1="115" x2="131" y2="115" stroke="#FF6B00" strokeWidth="4" strokeLinecap="round" />
+                        <circle cx="125" cy="115" r="2.5" fill="none" stroke="#000000" strokeWidth="1.5" />
                         {/* Argola frontal */}
 
                         {/* ================= EPI: CINTURÃO DE SEGURANÇA ================= */}
@@ -343,70 +366,36 @@ const LocationControl = ({ onLocationFound, onAlertRequest }) => {
                         <rect x="122" y="132" width="6" height="14" rx="1.5" fill="#CC5500" /> {/* Fivela */}
 
                         {/* Argolas laterais do EPI */}
-                        <circle cx="110" cy="139" r="3" fill="none" stroke="#1E293B" strokeWidth="2" />
-                        <circle cx="140" cy="139" r="3" fill="none" stroke="#1E293B" strokeWidth="2" />
+                        <circle cx="110" cy="139" r="3" fill="none" stroke="#000000" strokeWidth="2" />
+                        <circle cx="140" cy="139" r="3" fill="none" stroke="#000000" strokeWidth="2" />
 
                         {/* EPI: Talabarte (Corda de segurança com mosquetão) */}
-                        <path d="M 140 139 Q 155 155 145 185" fill="none" stroke="#FF6B00" strokeWidth="3"
+                        <path d="M 140 139 Q 155 155 145 185" fill="none" stroke="#FF6B00" strokeWidth="5"
                             strokeLinecap="round" />
-                        <rect x="142" y="185" width="6" height="12" rx="3" fill="none" stroke="#1E293B" strokeWidth="2" />
+                        <rect x="142" y="185" width="6" height="12" rx="3" fill="none" stroke="#000000" strokeWidth="3" />
                         {/* Mosquetão */}
 
-                        {/* ================= ESCADA NO OMBRO (Cor Laranja) ================= */}
-                        <g transform="translate(125, 80) rotate(-20)">
-                            {/* Trilhos laterais */}
-                            <line x1="-80" y1="-14" x2="70" y2="-14" stroke="#FF6B00" strokeWidth="5" strokeLinecap="round" />
-                            <line x1="-80" y1="14" x2="70" y2="14" stroke="#FF6B00" strokeWidth="5" strokeLinecap="round" />
-                            {/* Degraus */}
-                            <line x1="-65" y1="-14" x2="-65" y2="14" stroke="#FF6B00" strokeWidth="4.5" />
-                            <line x1="-40" y1="-14" x2="-40" y2="14" stroke="#FF6B00" strokeWidth="4.5" />
-                            <line x1="-15" y1="-14" x2="-15" y2="14" stroke="#FF6B00" strokeWidth="4.5" />
-                            <line x1="10" y1="-14" x2="10" y2="14" stroke="#FF6B00" strokeWidth="4.5" />
-                            <line x1="35" y1="-14" x2="35" y2="14" stroke="#FF6B00" strokeWidth="4.5" />
-                            <line x1="60" y1="-14" x2="60" y2="14" stroke="#FF6B00" strokeWidth="4.5" />
-                        </g>
-
-                        {/* Braço esquerdo segurando a escada (mão no trilho inferior) */}
-                        <path d="M 125 98 Q 110 115 92 107" fill="none" stroke="#1E293B" strokeWidth="8"
-                            strokeLinecap="round" />
-                        <circle cx="92" cy="107" r="4" fill="#1E293B" />
+                        {/* EPI: Perneiras (Tiras nas coxas) */}
+                        <line x1="111" y1="168" x2="123" y2="162" stroke="#FF6B00" strokeWidth="8" strokeLinecap="round" />
+                        <line x1="139" y1="168" x2="127" y2="162" stroke="#FF6B00" strokeWidth="8" strokeLinecap="round" />
 
                         {/* ================= CABEÇA ================= */}
                         {/* Rosto */}
-                        <circle cx="125" cy="75" r="16" fill="#FFF" stroke="#1E293B" strokeWidth="4" />
-
-                        <g className="eyes">
-                            {/* Olhinhos */}
-                            <circle cx="119" cy="73" r="2.5" fill="#1E293B" />
-                            <circle cx="131" cy="73" r="2.5" fill="#1E293B" />
-                        </g>
+                        <circle cx="125" cy="75" r="16" fill="#000" stroke="#000" strokeWidth="2.5" />
 
                         {/* Sorriso simpático */}
-                        <path d="M 120 79 Q 125 84 130 79" fill="none" stroke="#1E293B" strokeWidth="2.5"
+                        <path d="M 120 83 Q 125 88 130 83" fill="none" stroke="#fff" strokeWidth="2.5"
                             strokeLinecap="round" />
 
                         {/* ================= CAPACETE (Cor Laranja) ================= */}
                         {/* Domo do capacete */}
-                        <path d="M 107 72 A 18 18 0 0 1 143 72 Z" fill="#FF6B00" stroke="#1E293B" strokeWidth="3"
+                        <path d="M 107 72 A 18 18 0 0 1 143 72 Z" fill="#FF6B00" stroke="#000000" strokeWidth="3"
                             strokeLinejoin="round" />
                         {/* Aba do capacete */}
-                        <path d="M 103 72 Q 125 78 147 72" fill="none" stroke="#FF6B00" strokeWidth="6"
+                        <path d="M 103 72 Q 125 72 147 72" fill="none" stroke="#000000" strokeWidth="6"
                             strokeLinecap="round" />
 
-                        {/* Símbolo de Wi-Fi no capacete (Branco) */}
-                        <g stroke="#FFF" strokeWidth="1.8" strokeLinecap="round" fill="none">
-                            <path d="M 116 57 A 9 9 0 0 1 134 57" />
-                            <path d="M 120 61 A 5 5 0 0 1 130 61" />
-                            <circle cx="125" cy="65" r="1.5" fill="#FFF" stroke="none" />
-                        </g>
 
-                        {/* ================= BRAÇO DIREITO (Dando Tchau) ================= */}
-                        <g className="waving-arm">
-                            <path d="M 125 100 Q 155 105 162 65" fill="none" stroke="#1E293B" strokeWidth="8"
-                                strokeLinecap="round" />
-                            {/* Mão direita (bolinha) */}
-                            <circle cx="162" cy="65" r="4" fill="#1E293B" />
-                        </g>
 
                     </g>
                 </svg>
@@ -422,7 +411,7 @@ const LocationControl = ({ onLocationFound, onAlertRequest }) => {
     }, []);
 
     return position ? (
-        <Marker 
+        <Marker
             position={position}
             icon={technicianIcon}
             zIndexOffset={2000} // Ficar acima do resto
@@ -448,10 +437,10 @@ const smoothResetBearing = (map) => {
     const animate = (time) => {
         const elapsed = time - startTime;
         let progress = Math.min(elapsed / duration, 1);
-        
+
         // Easing out (desacelera no final) pra ficar mais suave: easeOutCubic
         const ease = 1 - Math.pow(1 - progress, 3);
-        
+
         map.setBearing(startBearing * (1 - ease));
 
         if (progress < 1) {
