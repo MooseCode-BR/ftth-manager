@@ -10,6 +10,7 @@ import {
     FileDown
 } from 'lucide-react';
 import { generateNodeReport } from '../../pdfGenerator';
+import AuditInfo from '../AuditInfo';
 
 const GenericModal = ({
     item,
@@ -61,9 +62,18 @@ const GenericModal = ({
 
                 {/* --- CABEÇALHO --- */}
                 <div className="card-header">
-                    <h3 className="card-title">
-                        Detalhes
-                    </h3>
+                    <div className="flex items-center gap-1">
+                        <h3 className="card-title">
+                            Detalhes
+                        </h3>
+                        <AuditInfo
+                            createdBy={item.createdBy}
+                            createdAt={item.createdAt}
+                            modifiedBy={item.modifiedBy}
+                            modifiedAt={item.modifiedAt}
+                            mode="popover"
+                        />
+                    </div>
                     <button onClick={onClose} className="btn-close">
                         <X size={20} />
                     </button>
@@ -97,6 +107,7 @@ const GenericModal = ({
                             placeholder="Escreva observações sobre este ponto..."
                         />
                     </div>
+
 
                 </div>
 

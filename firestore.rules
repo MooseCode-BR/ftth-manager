@@ -53,6 +53,14 @@ service cloud.firestore {
       }
     }
 
+    // --- PERFIS DE USUÁRIO (para audit trail / lookup de nomes) ---
+    match /artifacts/ftth-production/userProfiles/{userId} {
+      // Qualquer usuário autenticado pode ler perfis (necessário para audit trail)
+      allow read: if request.auth != null;
+      // Apenas o próprio usuário pode escrever/atualizar seu perfil
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
     // --- CONVITES DE COMPARTILHAMENTO ---
     match /ftth_invitations/{inviteId} {
       // Qualquer usuário autenticado pode ler convites

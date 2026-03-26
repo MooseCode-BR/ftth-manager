@@ -2,8 +2,9 @@
 
 import './styles.css';
 import React, { useRef, useState, useEffect } from 'react';
-import { Camera, X, ImageIcon, Trash2, UploadCloud, CheckCircle2, Circle } from 'lucide-react';
+import { Camera, X, ImageIcon, Trash2, UploadCloud, CheckCircle2, Circle, Info } from 'lucide-react';
 import ImageViewer from '../ImageViewer'; // <--- 1. IMPORTANTE: Importe o componente novo
+import AuditInfo from '../AuditInfo';
 
 const PhotoGalleryModal = ({ item, onClose, onUpload, onDelete, onBatchDelete, uploading }) => {
     const fileInputRef = useRef(null);
@@ -169,6 +170,13 @@ const PhotoGalleryModal = ({ item, onClose, onUpload, onDelete, onBatchDelete, u
                                         {/* Overlay de Ações (Hover) */}
                                         {!isSelectionMode && (
                                             <div className="action-overlay">
+                                                {photo.uploadedBy && (
+                                                    <AuditInfo
+                                                        createdBy={photo.uploadedBy}
+                                                        createdAt={photo.date}
+                                                        mode="popover"
+                                                    />
+                                                )}
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); onDelete(item, photo); }}
                                                     className="btn-delete-icon"

@@ -1,0 +1,327 @@
+/* ===== AuditInfo Component Styles ===== */
+
+/* --- Botão (i) --- */
+.audit-info-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.audit-info-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #6b7280;
+    background: transparent;
+}
+
+.audit-info-btn:hover {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+}
+
+:is(.dark) .audit-info-btn {
+    color: #9ca3af;
+}
+
+:is(.dark) .audit-info-btn:hover {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+}
+
+/* --- Popover (Portal) --- */
+.audit-popover-portal {
+    position: absolute;
+    transform: translateX(-50%);
+    z-index: 99999;
+    min-width: 260px;
+    max-width: 320px;
+
+    /* Glassmorphism */
+    background: rgba(255, 255, 255, 0.95);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(209, 213, 219, 0.6);
+    border-radius: 12px;
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.15),
+        0 2px 8px rgba(0, 0, 0, 0.08);
+
+    animation: auditPopoverIn 0.2s ease-out;
+    pointer-events: auto;
+}
+
+:is(.dark) .audit-popover-portal {
+    background: rgba(31, 41, 55, 0.95);
+    border: 1px solid rgba(75, 85, 99, 0.5);
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.4),
+        0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+@keyframes auditPopoverIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-4px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1);
+    }
+}
+
+/* Header do popover */
+.audit-popover-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(209, 213, 219, 0.4);
+}
+
+:is(.dark) .audit-popover-header {
+    border-bottom-color: rgba(75, 85, 99, 0.4);
+}
+
+.audit-popover-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6b7280;
+}
+
+:is(.dark) .audit-popover-title {
+    color: #9ca3af;
+}
+
+.audit-popover-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: #9ca3af;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.audit-popover-close:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+/* --- Conteúdo --- */
+.audit-content {
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.audit-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.audit-row-icon {
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+    margin-top: 1px;
+}
+
+:is(.dark) .audit-row-icon {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+}
+
+.audit-row-icon-edit {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+}
+
+:is(.dark) .audit-row-icon-edit {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+}
+
+.audit-row-data {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.audit-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #9ca3af;
+}
+
+:is(.dark) .audit-label {
+    color: #6b7280;
+}
+
+.audit-value {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.audit-date {
+    font-size: 11px;
+    color: #6b7280;
+}
+
+:is(.dark) .audit-date {
+    color: #9ca3af;
+}
+
+.audit-no-data {
+    font-size: 11px;
+    color: #d1d5db;
+    font-style: italic;
+}
+
+:is(.dark) .audit-no-data {
+    color: #4b5563;
+}
+
+/* --- UserBadge --- */
+.audit-user-badge {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Avatar (foto de perfil) */
+.audit-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1.5px solid rgba(209, 213, 219, 0.5);
+}
+
+:is(.dark) .audit-avatar {
+    border-color: rgba(75, 85, 99, 0.5);
+}
+
+.audit-avatar-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(156, 163, 175, 0.2);
+    color: #9ca3af;
+}
+
+:is(.dark) .audit-avatar-fallback {
+    background: rgba(75, 85, 99, 0.4);
+    color: #6b7280;
+}
+
+.audit-username {
+    font-size: 12px;
+    font-weight: 600;
+    color: #1f2937;
+    cursor: pointer;
+    border-bottom: 1px dotted #d1d5db;
+    transition: color 0.15s;
+}
+
+.audit-username:hover {
+    color: #3b82f6;
+    border-bottom-color: #3b82f6;
+}
+
+:is(.dark) .audit-username {
+    color: #f3f4f6;
+    border-bottom-color: #4b5563;
+}
+
+:is(.dark) .audit-username:hover {
+    color: #60a5fa;
+    border-bottom-color: #60a5fa;
+}
+
+.audit-email-text {
+    font-size: 12px;
+    font-weight: 500;
+    color: #374151;
+    word-break: break-all;
+}
+
+:is(.dark) .audit-email-text {
+    color: #d1d5db;
+}
+
+.audit-email-tooltip {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 6px;
+    z-index: 100000;
+
+    background: rgba(17, 24, 39, 0.92);
+    color: #f9fafb;
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+
+    animation: auditTooltipIn 0.15s ease-out;
+    pointer-events: none;
+}
+
+:is(.dark) .audit-email-tooltip {
+    background: rgba(249, 250, 251, 0.92);
+    color: #111827;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes auditTooltipIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(2px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* --- Inline mode --- */
+.audit-info-inline {
+    border: 1px solid rgba(209, 213, 219, 0.4);
+    border-radius: 10px;
+    background: rgba(249, 250, 251, 0.5);
+    padding: 2px;
+}
+
+:is(.dark) .audit-info-inline {
+    border-color: rgba(75, 85, 99, 0.3);
+    background: rgba(17, 24, 39, 0.3);
+}

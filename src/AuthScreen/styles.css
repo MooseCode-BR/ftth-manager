@@ -164,5 +164,5 @@
 
 /* --- Copyright --- */
 .copyright-text {
-    @apply absolute bottom-4 text-xs font-medium text-gray-400 dark:text-gray-500 text-center w-full;
+    @apply absolute bottom-4 text-xs font-medium text-gray-400 dark:text-gray-500 text-center w-full flex items-center justify-center gap-1;
 }

@@ -1,7 +1,48 @@
 // src/components/ImageViewer.jsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { X, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Download, User } from 'lucide-react';
 import LoadingFiber from '../../assets/loadingfiber';
+import useUserInfo from '../../hooks/useUserInfo';
+
+// Sub-componente para info do uploader na tela cheia
+const PhotoInfoBar = ({ photo }) => {
+    const { userInfo } = useUserInfo(photo.uploadedBy);
+
+    const formatDate = (dateStr) => {
+        if (!dateStr) return '';
+        try {
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('pt-BR', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+        } catch {
+            return dateStr;
+        }
+    };
+
+    const uploaderName = userInfo?.displayName || userInfo?.email || '';
+
+    return (
+        <div className="absolute bottom-6 left-6 flex items-center gap-3 text-white/80 text-xs">
+            {photo.uploadedBy && userInfo && (
+                <span className="flex items-center gap-1.5">
+                    {(userInfo.photoURL && userInfo.photoURL.trim()) ? (
+                        <img src={userInfo.photoURL} alt="" className="w-5 h-5 rounded-full object-cover border border-white/30" referrerPolicy="no-referrer" />
+                    ) : (
+                        <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center border border-white/30">
+                            <User size={12} />
+                        </div>
+                    )}
+                    <span>Enviado por <strong>{uploaderName}</strong></span>
+                </span>
+            )}
+            {photo.date && (
+                <span className="opacity-70">{formatDate(photo.date)}</span>
+            )}
+        </div>
+    );
+};
 
 const ImageViewer = ({ photos, initialIndex = 0, onClose }) => {
     const [currentIndex, setCurrentIndex] = useState(initialIndex);
@@ -87,10 +128,8 @@ const ImageViewer = ({ photos, initialIndex = 0, onClose }) => {
                     {currentIndex + 1} / {photos.length}
                 </div>
 
-                {/* Data/Nome da Foto (se houver) */}
-                <div className="absolute bottom-6 left-6 text-white/80 text-xs">
-                    {new Date(parseInt(currentPhoto.createdAt || Date.now())).toLocaleDateString()}
-                </div>
+                {/* Data / Info do Uploader */}
+                <PhotoInfoBar photo={currentPhoto} />
             </div>
 
             {/* Seta Esquerda (Só mostra se tiver mais de 1 foto) */}

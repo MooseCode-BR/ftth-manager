@@ -23,6 +23,8 @@ import { generateNodeReport } from '../../pdfGenerator';
 import ConnectionWorkbench from '../ConnectionWorkbench';
 import SignalModal from '../../components/SignalModal';
 
+import AuditInfo from '../../components/AuditInfo';
+
 // FIM IMPORTS --------------------------------------------------
 
 // PAINEL DE PROPRIEDADES DOS NÓS --------------------------------------------------
@@ -157,7 +159,7 @@ const DetailPanel = ({
 
     // --- SUB-COMPONENTES ---
 
-    const CollapsibleGroup = ({ title, itemId, icon: Icon, children, extraAction, customColor, onDragStart, onDrop, index, list, className = '', onEdit }) => {
+    const CollapsibleGroup = ({ title, itemId, icon: Icon, children, extraAction, customColor, onDragStart, onDrop, index, list, className = '', onEdit, auditData }) => {
         const isCollapsed = collapsedGroups.has(itemId);
         const bgColor = customColor || (document.documentElement.classList.contains('dark') ? '#1f2937' : '#cbd5e1');
         const textColor = customColor ? 'white' : (document.documentElement.classList.contains('dark') ? '#e5e7eb' : '#1e293b');
@@ -193,6 +195,17 @@ const DetailPanel = ({
 
                         <div className="header-actions">
                             {extraAction}
+
+                            {/* Botão Info (Auditoria) */}
+                            {auditData && (
+                                <AuditInfo
+                                    createdBy={auditData.createdBy}
+                                    createdAt={auditData.createdAt}
+                                    modifiedBy={auditData.modifiedBy}
+                                    modifiedAt={auditData.modifiedAt}
+                                    mode="popover"
+                                />
+                            )}
 
                             {/* Botão Editar */}
                             {onEdit && (
@@ -507,6 +520,7 @@ const DetailPanel = ({
                                 list={devs}
                                 className={d.type === 'DIO' ? 'dio-col-span' : ''}
                                 onEdit={() => renameDevice(d.id, d.name)}
+                                auditData={{ createdBy: d.createdBy, createdAt: d.createdAt, modifiedBy: d.modifiedBy, modifiedAt: d.modifiedAt }}
                             >
                                 <div className="device-inner-padding">
                                     {d.type === 'OLT' ? (
@@ -646,7 +660,7 @@ const DetailPanel = ({
                             <h4 className="cables-title">Cabos Conectados</h4>
                             <div className="cables-grid">
                                 {cabs.map((c, index) => (
-                                    <CollapsibleGroup key={c.id} itemId={c.id} title={`${c.name} (Lado ${c.fromNode === item.id ? 'A' : 'B'})`} icon={Route} extraAction={null} customColor={c.color} onDragStart={(e) => onDragStart(e, c)} onDrop={onDrop} index={index} list={cabs} onEdit={() => renameDevice(c.id, c.name)}>
+                                    <CollapsibleGroup key={c.id} itemId={c.id} title={`${c.name} (Lado ${c.fromNode === item.id ? 'A' : 'B'})`} icon={Route} extraAction={null} customColor={c.color} onDragStart={(e) => onDragStart(e, c)} onDrop={onDrop} index={index} list={cabs} onEdit={() => renameDevice(c.id, c.name)} auditData={{ createdBy: c.createdBy, createdAt: c.createdAt, modifiedBy: c.modifiedBy, modifiedAt: c.modifiedAt }}>
                                         <div className="cable-ports-list">
                                             {Array.from({ length: c.ports }).map((_, i) => <PortRow onOTDR={onOTDR} key={i} targetItem={c} portIndex={i} side={c.fromNode === item.id ? 'A' : 'B'} />)}
                                         </div>
@@ -678,6 +692,7 @@ const DetailPanel = ({
                     <div className="header-title-group group">
                         {React.createElement(ITEM_TYPES[item.type].icon, { size: 20, className: "header-icon-type" })}
                         <h2 className="header-title-text">{item.name}</h2>
+                        <AuditInfo createdBy={item.createdBy} createdAt={item.createdAt} modifiedBy={item.modifiedBy} modifiedAt={item.modifiedAt} />
                         <button onClick={() => onEditRequest(item.id, item.name)} className="btn-edit-title"><Edit3 size={14} /></button>
                     </div>
                     <div className="header-actions-group">

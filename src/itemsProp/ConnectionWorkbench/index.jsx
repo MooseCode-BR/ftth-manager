@@ -11,6 +11,7 @@ import { X, ZoomIn, ZoomOut, ChevronDown, ChevronRight, Tag, Zap, Maximize2, Min
 
 import { ABNT_COLORS, ITEM_TYPES } from '../../constants'; //Importação de Constantes
 import { findConnection, getSignalInfo } from '../../utils';
+import AuditInfo from '../../components/AuditInfo';
 // FIM IMPORTS --------------------------------------------------
 
 // CANVAS (MESA DE FUSAO)--------------------------------------------------
@@ -407,7 +408,7 @@ const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames
 
     const cabs = items.filter(i => (i.fromNode === item.id || i.toNode === item.id) && i.type === 'CABLE');
 
-    const getConnectionLines = () => { const lines = []; connections.forEach(conn => { if (collapsedCards.has(conn.fromId) || collapsedCards.has(conn.toId)) return; const checkCollapse = (itemId, portIndex) => { const portStr = String(portIndex); if (portStr.startsWith('c-')) { const cIdx = portStr.split('-')[1]; if (collapsedCards.has(`dio-${itemId}-card-${cIdx}`)) return true; } if (portStr.startsWith('u-')) { if (collapsedCards.has(`olt-${itemId}-uplinks`)) return true; } if (portStr.includes('-p-') && !portStr.startsWith('c-')) { const ifaceIdx = portStr.split('-')[1]; if (collapsedCards.has(`olt-${itemId}-iface-${ifaceIdx}`)) return true; } return false; }; if (checkCollapse(conn.fromId, conn.fromPort) || checkCollapse(conn.toId, conn.toPort)) return; const fromKey = getPortKey(conn.fromId, conn.fromPort, conn.fromSide); const toKey = getPortKey(conn.toId, conn.toPort, conn.toSide); const fromPos = portPositions[fromKey]; const toPos = portPositions[toKey]; const fromPortInfo = allPorts.find(p => getPortKey(p.item.id, p.portIndex, p.side) === fromKey); const toPortInfo = allPorts.find(p => getPortKey(p.item.id, p.portIndex, p.side) === toKey); if (fromPos && toPos) { const dx = toPos.x - fromPos.x; const dy = toPos.y - fromPos.y; let x1 = fromPos.x; let y1 = fromPos.y; let x2 = toPos.x; let y2 = toPos.y; const angle = Math.atan2(dy, dx); x1 += Math.cos(angle) * 12; y1 += Math.sin(angle) * 12; x2 -= Math.cos(angle) * 12; y2 -= Math.sin(angle) * 12; const midX = (x1 + x2) / 2; const isHovered = hoveredLineId === conn.id; const signalInfo = isHovered ? getSignalInfo(items, connections, portLabels, signalNames, conn.fromId, conn.fromPort, conn.fromSide) : []; lines.push({ id: conn.id, type: conn.type, x1, y1, x2, y2, d: `M ${x1} ${y1} C ${midX} ${y1} ${midX} ${y2} ${x2} ${y2}`, fromColor: fromPortInfo?.color?.hex || '#94a3b8', toColor: toPortInfo?.color?.hex || '#94a3b8', signals: signalInfo }); } }); return lines; };
+    const getConnectionLines = () => { const lines = []; connections.forEach(conn => { if (collapsedCards.has(conn.fromId) || collapsedCards.has(conn.toId)) return; const checkCollapse = (itemId, portIndex) => { const portStr = String(portIndex); if (portStr.startsWith('c-')) { const cIdx = portStr.split('-')[1]; if (collapsedCards.has(`dio-${itemId}-card-${cIdx}`)) return true; } if (portStr.startsWith('u-')) { if (collapsedCards.has(`olt-${itemId}-uplinks`)) return true; } if (portStr.includes('-p-') && !portStr.startsWith('c-')) { const ifaceIdx = portStr.split('-')[1]; if (collapsedCards.has(`olt-${itemId}-iface-${ifaceIdx}`)) return true; } return false; }; if (checkCollapse(conn.fromId, conn.fromPort) || checkCollapse(conn.toId, conn.toPort)) return; const fromKey = getPortKey(conn.fromId, conn.fromPort, conn.fromSide); const toKey = getPortKey(conn.toId, conn.toPort, conn.toSide); const fromPos = portPositions[fromKey]; const toPos = portPositions[toKey]; const fromPortInfo = allPorts.find(p => getPortKey(p.item.id, p.portIndex, p.side) === fromKey); const toPortInfo = allPorts.find(p => getPortKey(p.item.id, p.portIndex, p.side) === toKey); if (fromPos && toPos) { const dx = toPos.x - fromPos.x; const dy = toPos.y - fromPos.y; let x1 = fromPos.x; let y1 = fromPos.y; let x2 = toPos.x; let y2 = toPos.y; const angle = Math.atan2(dy, dx); x1 += Math.cos(angle) * 12; y1 += Math.sin(angle) * 12; x2 -= Math.cos(angle) * 12; y2 -= Math.sin(angle) * 12; const midX = (x1 + x2) / 2; const isHovered = hoveredLineId === conn.id; const signalInfo = isHovered ? getSignalInfo(items, connections, portLabels, signalNames, conn.fromId, conn.fromPort, conn.fromSide) : []; lines.push({ id: conn.id, type: conn.type, x1, y1, x2, y2, d: `M ${x1} ${y1} C ${midX} ${y1} ${midX} ${y2} ${x2} ${y2}`, fromColor: fromPortInfo?.color?.hex || '#94a3b8', toColor: toPortInfo?.color?.hex || '#94a3b8', signals: signalInfo, createdBy: conn.createdBy, createdAt: conn.createdAt, modifiedBy: conn.modifiedBy, modifiedAt: conn.modifiedAt }); } }); return lines; };
 
     const getPortDisplay = (info) => {
         // Lógica Nova: Se for Duplex, mostramos TX ou RX
@@ -514,19 +515,32 @@ const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames
 
                 {/* Tooltip de Sinais da Linha Ativa */}
                 {
-                    activeLine && activeLine.signals && activeLine.signals.length > 0 && (
+                    activeLine && (
                         <g>
                             {(() => {
                                 const midX = (activeLine.x1 + activeLine.x2) / 2;
                                 const midY = (activeLine.y1 + activeLine.y2) / 2;
-                                const boxHeight = activeLine.signals.length * 20 + 20;
+                                const hasSignals = activeLine.signals && activeLine.signals.length > 0;
+                                const hasAudit = activeLine.createdBy || activeLine.createdAt;
+                                const boxHeight = (hasSignals ? activeLine.signals.length * 20 + 20 : 0) + (hasAudit ? 80 : 0) + 10;
                                 return (
-                                    <foreignObject x={midX - 80} y={midY - (boxHeight / 2)} width="160" height={boxHeight} style={{ pointerEvents: 'none', zIndex: 9999 }}>
+                                    <foreignObject x={midX - 100} y={midY - (boxHeight / 2)} width="200" height={boxHeight + 10} style={{ pointerEvents: 'none', zIndex: 9999 }}>
                                         <div className="line-tooltip-wrapper">
                                             <div className="line-tooltip-box">
-                                                {activeLine.signals.map((s, i) => (
-                                                    <div key={s.id || i} className="truncate max-w-[140px] text-center">{s.name}</div>
+                                                {hasSignals && activeLine.signals.map((s, i) => (
+                                                    <div key={s.id || i} className="truncate max-w-[180px] text-center">{s.name}</div>
                                                 ))}
+                                                {hasAudit && (
+                                                    <div style={{ borderTop: hasSignals ? '1px solid rgba(128,128,128,0.3)' : 'none', paddingTop: hasSignals ? 4 : 0, marginTop: hasSignals ? 4 : 0 }}>
+                                                        <AuditInfo
+                                                            createdBy={activeLine.createdBy}
+                                                            createdAt={activeLine.createdAt}
+                                                            modifiedBy={activeLine.modifiedBy}
+                                                            modifiedAt={activeLine.modifiedAt}
+                                                            mode="inline"
+                                                        />
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </foreignObject>

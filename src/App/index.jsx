@@ -98,6 +98,7 @@ import {
     addDoc, where, deleteField
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { syncUserProfile } from '../hooks/useUserInfo';
 
 // ============================================================================
 // COMPONENTES ADICIONAIS
@@ -680,7 +681,10 @@ const App = () => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
             setUser(currentUser); // Atualiza o estado: O React agora sabe que você logou!
 
-            if (!currentUser) {
+            if (currentUser) {
+                // Sincroniza perfil do usuário no Firestore (para lookup dinâmico)
+                syncUserProfile(currentUser);
+            } else {
                 // Se deslogou, limpa tudo
                 setProjectOwnerId(null);
                 setMyProjects([]);
@@ -1588,8 +1592,23 @@ const App = () => {
         const payload = JSON.parse(JSON.stringify(item));
         delete payload._projectId; // Não salvamos isso no documento, pois é inferido pela pasta
 
-        // Atualiza timestamp e editor
-        payload.updatedAt = new Date().toISOString();
+        // --- AUDIT TRAIL (salva apenas uid) ---
+        const now = new Date().toISOString();
+
+        if (existingItem) {
+            // EDIÇÃO: Preserva dados de criação originais, atualiza modificação
+            payload.createdAt = existingItem.createdAt || payload.createdAt || now;
+            payload.createdBy = existingItem.createdBy || payload.createdBy || user.uid;
+            payload.modifiedAt = now;
+            payload.modifiedBy = user.uid;
+        } else {
+            // CRIAÇÃO: Salva dados de criação
+            payload.createdAt = now;
+            payload.createdBy = user.uid;
+        }
+
+        // Mantém campos legados por retrocompatibilidade
+        payload.updatedAt = now;
         payload.lastEditor = user.uid;
 
         // 4. SALVAR NO CAMINHO CERTO
@@ -1636,8 +1655,25 @@ const App = () => {
         const targetProjectData = allProjects.find(p => p.id === targetProjectId);
         const targetOwnerId = targetProjectData ? targetProjectData.ownerId : projectOwnerId;
 
-        // 3. Salva
-        await setDoc(doc(db, `artifacts/ftth-production/users/${targetOwnerId}/projects/${targetProjectId}/connections`, conn.id), conn);
+        // 3. AUDIT TRAIL para conexões (salva apenas uid)
+        const nowConn = new Date().toISOString();
+
+        // Verifica se a conexão já existe (edição vs criação)
+        const existingConn = connections.find(c => c.id === conn.id);
+        const connPayload = { ...conn };
+
+        if (existingConn) {
+            connPayload.createdAt = existingConn.createdAt || nowConn;
+            connPayload.createdBy = existingConn.createdBy || user.uid;
+            connPayload.modifiedAt = nowConn;
+            connPayload.modifiedBy = user.uid;
+        } else {
+            connPayload.createdAt = nowConn;
+            connPayload.createdBy = user.uid;
+        }
+
+        // 4. Salva
+        await setDoc(doc(db, `artifacts/ftth-production/users/${targetOwnerId}/projects/${targetProjectId}/connections`, conn.id), connPayload);
     });
 
 
@@ -2710,6 +2746,8 @@ const App = () => {
         if (!auth.currentUser || !newName.trim()) return;
         try {
             await updateProfile(auth.currentUser, { displayName: newName });
+            // Sincroniza perfil no Firestore
+            await syncUserProfile({ ...auth.currentUser, displayName: newName });
             openAlert("Sucesso", "Nome de perfil atualizado!");
             // Força atualização do estado local do usuário
             setUser({ ...auth.currentUser, displayName: newName });
@@ -2728,6 +2766,8 @@ const App = () => {
             const photoURL = await getDownloadURL(fileRef);
 
             await updateProfile(auth.currentUser, { photoURL });
+            // Sincroniza perfil no Firestore
+            await syncUserProfile({ ...auth.currentUser, photoURL });
 
             setUser({ ...auth.currentUser, photoURL });
             openAlert("Sucesso", "Foto de perfil atualizada!");
@@ -3529,7 +3569,8 @@ const App = () => {
                     url,
                     path, // Guardamos o caminho completo para poder deletar depois
                     date: new Date().toISOString(),
-                    id: Date.now().toString() + Math.random().toString().slice(2, 5)
+                    id: Date.now().toString() + Math.random().toString().slice(2, 5),
+                    uploadedBy: user.uid // Audit: quem enviou a foto
                 });
             }));
 
@@ -5394,7 +5435,7 @@ const App = () => {
 
             {/* Crédito de Versão (Centralizado na Margem Inferior) */}
             <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-1.5 text-[9px] dark:text-gray-800 text-gray-400 font-medium select-none pointer-events-none opacity-100">
-                <CEOIcon size={12} />
+                <img src={VERSAO.LOGO_URL} alt="" className="w-3 h-3" />
                 <span>{VERSAO.NUMERO_VERSAO}</span>
             </div>
         </div>
