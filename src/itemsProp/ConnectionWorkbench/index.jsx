@@ -354,7 +354,7 @@ const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames
     const handlePortClick = (e, portInfo) => {
         // Permitimos propagação no onTouchStart mas paramos a continuação do mouseDown se houver (por segurança)
         e.stopPropagation();
-        
+
         // Evita disparo duplo em smartphones (TouchStart seguido de MouseDown sintético)
         const now = Date.now();
         if (now - lastPortClick.current < 250) return;
@@ -524,8 +524,8 @@ const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames
                                 const hasAudit = activeLine.createdBy || activeLine.createdAt;
                                 const boxHeight = (hasSignals ? activeLine.signals.length * 20 + 20 : 0) + (hasAudit ? 80 : 0) + 10;
                                 return (
-                                    <foreignObject x={midX - 100} y={midY - (boxHeight / 2)} width="200" height={boxHeight + 10} style={{ pointerEvents: 'none', zIndex: 9999 }}>
-                                        <div className="line-tooltip-wrapper">
+                                    <foreignObject x={midX - 100} y={midY - (boxHeight / 2)} width="220" height={boxHeight + 10} style={{ pointerEvents: 'none', zIndex: 9999, overflow: 'visible' }}>
+                                        <div className="line-tooltip-wrapper" style={{ pointerEvents: 'auto' }} onClick={(e) => e.stopPropagation()} onPointerEnter={(e) => { if (e.pointerType === 'mouse') setHoveredLineId(activeLine.id); }}>
                                             <div className="line-tooltip-box">
                                                 {hasSignals && activeLine.signals.map((s, i) => (
                                                     <div key={s.id || i} className="truncate max-w-[180px] text-center">{s.name}</div>
@@ -565,7 +565,7 @@ const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
             onWheel={handleWheel}
-            onClick={() => { if (dragLine) setDragLine(null) }}
+            onClick={() => { if (dragLine) setDragLine(null); if (hoveredLineId) setHoveredLineId(null); }}
             style={{
                 backgroundImage: isDarkMode ? 'radial-gradient(#333 1px, transparent 1px)' : 'radial-gradient(#bbb 1px, transparent 1px)',
                 backgroundSize: `${20 * scale}px ${20 * scale}px`,

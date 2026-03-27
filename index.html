@@ -1,17 +1,67 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-br">
 
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#000000">
+  <link rel="apple-touch-icon" href="/pwa-192x192.png">
   <title>FTTH Manager Cloud</title>
-  <link rel="apple-touch-icon" href="/favicon.svg">
+  <!-- <link rel="apple-touch-icon" href="/favicon.svg"> -->
+  <style>
+    #splash-loader {
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      background: #FFFF00;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 5s;
+      flex-direction: column;
+    }
+
+    #splash-loader img {
+      width: 120px;
+      height: 120px;
+    }
+
+    #splash-loader p {
+      margin-top: 10px;
+      font-size: 20px;
+      font-weight: bold;
+      color: #000;
+    }
+
+    #splash-loader.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+  </style>
 </head>
 
 <body>
+  <!-- Splash amarelo com ícone centralizado -->
+  <div id="splash-loader">
+    <img src="/favicon.svg" alt="FTTH Manager" />
+    <p>FTTH Manager Cloud</p>
+  </div>
+
   <div id="root"></div>
   <script type="module" src="/src/main.jsx"></script>
+  <script>
+    // Remove o splash quando o app React montar
+    window.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => {
+        const splash = document.getElementById('splash-loader');
+        if (splash) {
+          splash.classList.add('fade-out');
+          setTimeout(() => splash.remove(), 500);
+        }
+      }, 800);
+    });
+  </script>
 </body>
 
 </html>

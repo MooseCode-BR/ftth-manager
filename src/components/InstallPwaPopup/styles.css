@@ -1,0 +1,150 @@
+/* src/components/InstallPwaPopup/styles.css */
+
+/* Contêiner principal com o efeito Glassmorphism */
+.pwa-popup-container {
+    position: fixed;
+    top: 20px;
+    /* Descola do topo para parecer flutuante */
+    left: 50%;
+    transform: translateX(-50%);
+    /* Centraliza perfeitamente na tela */
+    width: 90%;
+    max-width: 400px;
+    z-index: 9999;
+
+    /* A MÁGICA DO VIDRO FOSCO AQUI */
+    background: rgba(255, 255, 255, 0.25);
+    /* Fundo branco bem transparente */
+    backdrop-filter: blur(12px);
+    /* Desfoque do que está atrás */
+    -webkit-backdrop-filter: blur(12px);
+    /* Suporte para navegadores Apple */
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    /* Borda leve para dar brilho */
+    border-radius: 16px;
+    /* Cantos bem arredondados */
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    /* Sombra suave para destacar */
+
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    font-family: sans-serif;
+
+    /* Animação suave de entrada */
+    animation: slideDown 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideDown {
+    from {
+        top: -100px;
+        opacity: 0;
+    }
+
+    to {
+        top: 20px;
+        opacity: 1;
+    }
+}
+
+/* Área da logo e texto */
+.pwa-popup-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+/* Estilo da Logo */
+.pwa-logo {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    object-fit: cover;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.pwa-title-container {
+    display: flex;
+    flex-direction: column;
+}
+
+.pwa-title {
+    font-weight: 700;
+    font-size: 16px;
+    color: #1f2937;
+    /* Cinza escuro */
+    margin: 0;
+}
+
+.pwa-description {
+    font-size: 13px;
+    color: #4b5563;
+    /* Cinza médio */
+    margin: 4px 0 0 0;
+    line-height: 1.4;
+}
+
+/* Área dos botões */
+.pwa-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.pwa-btn-install {
+    background-color: #2563eb;
+    /* Azul da sua paleta */
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.pwa-btn-install:hover {
+    background-color: #1d4ed8;
+}
+
+.pwa-btn-cancel {
+    background-color: transparent;
+    color: #4b5563;
+    border: 1px solid #9ca3af;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.pwa-btn-cancel:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Adaptação automática para Tema Escuro (Dark Mode) */
+@media (prefers-color-scheme: dark) {
+    .pwa-popup-container {
+        background: rgba(31, 41, 55, 0.4);
+        /* Fundo escuro transparente */
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .pwa-title {
+        color: #f9fafb;
+    }
+
+    .pwa-description {
+        color: #d1d5db;
+    }
+
+    .pwa-btn-cancel {
+        color: #d1d5db;
+        border-color: #6b7280;
+    }
+
+    .pwa-btn-cancel:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+}

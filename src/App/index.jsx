@@ -87,6 +87,7 @@ import TagManagerModal from '../components/TagManagerModal'; // Gerenciamento de
 import TraceModal from '../components/TraceModal'; // Rastreamento de sinal óptico
 import DetailPanel from '../itemsProp/DetailPanel'; // Painel lateral de detalhes
 import { LoadScreen } from '../components/LoadScreen';
+import InstallPwaPopup from '../components/InstallPwaPopup';
 
 // ============================================================================
 // FIREBASE - AUTENTICAÇÃO E BANCO DE DADOS
@@ -4861,6 +4862,8 @@ const App = () => {
     // const App return
     return (
         <div className={`h-screen w-screen relative overflow-hidden flex flex-col font-sans select-none ${isDarkMode ? 'dark' : ''} bg-white dark:bg-black`}>
+
+            <InstallPwaPopup />
 
             {/* 1. ÁREA PRINCIPAL (MAPA OU CANVAS) - Ocupa toda a tela (z-0) */}
             <div className="flex-1 relative z-0 overflow-hidden">
