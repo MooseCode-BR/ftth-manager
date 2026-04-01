@@ -1827,6 +1827,30 @@ const App = () => {
                 const batch = writeBatch(db);
                 const chunk = docs.slice(i, i + CHUNK_SIZE);
 
+                // --- NOVO: Deletar imagens do Storage se for a coleção de itens ---
+                if (colName === 'items') {
+                    const imagePromises = [];
+                    chunk.forEach(docSnap => {
+                        const data = docSnap.data();
+                        if (data.photos && data.photos.length > 0) {
+                            data.photos.forEach(photo => {
+                                if (photo.path) {
+                                    const imageRef = ref(storage, photo.path);
+                                    imagePromises.push(
+                                        deleteObject(imageRef).catch(err => {
+                                            console.warn(`Aviso: Não foi possível apagar a imagem ${photo.path}`, err.code);
+                                        })
+                                    );
+                                }
+                            });
+                        }
+                    });
+                    if (imagePromises.length > 0) {
+                        await Promise.all(imagePromises);
+                    }
+                }
+                // -------------------------------------------------------------------
+
                 chunk.forEach(doc => batch.delete(doc.ref));
 
                 await batch.commit();
@@ -2827,6 +2851,19 @@ const App = () => {
             openAlert("Atenção", "A senha deve ter pelo menos 8 caracteres.");
             return;
         }
+
+        // SEGURANÇA BÁSICA: Firebase exige login MUITO recente para ações destrutivas (geralmente < 5 minutos)
+        // Se já passou desse tempo, a gente bloqueia ANTES mesmo de mandar a requisição e travar no console.
+        const lastSignInStr = auth.currentUser.metadata.lastSignInTime;
+        if (lastSignInStr) {
+            const lastSignIn = new Date(lastSignInStr).getTime();
+            const diffMinutes = (new Date().getTime() - lastSignIn) / 60000;
+            if (diffMinutes > 5) {
+                openAlert("Segurança", "Para mudar a senha, faça logout e login novamente agora mesmo e volte para tentar.");
+                return;
+            }
+        }
+
         try {
             await updatePassword(auth.currentUser, newPass);
 
@@ -2852,6 +2889,20 @@ const App = () => {
     const handleDeleteAccountFull = async () => {
         if (!auth.currentUser) return;
 
+        // SEGURANÇA BÁSICA: DeleteUser() do Firebase requer que o login tenha ocorrido nos últimos minutos.
+        // Se a gente deixar tentar passar para tentar apagar, corremos o risco de nossa função deletar todos os bancos de dados
+        // mas falhar no deleteUser, deixando a conta viva sem nenhum dado e em um limbo inacessivel.
+        // Então bloqueamos logo de cara:
+        const lastSignInStr = auth.currentUser.metadata.lastSignInTime;
+        if (lastSignInStr) {
+            const lastSignIn = new Date(lastSignInStr).getTime();
+            const diffMinutes = (new Date().getTime() - lastSignIn) / 60000;
+            if (diffMinutes > 5) {
+                openAlert("Segurança", "Para sua segurança, a exclusão da conta só pode ser feita logo após o login. Faça Logout, entre novamente agora mesmo e volte para excluir.");
+                return;
+            }
+        }
+
         openConfirm(
             "Excluir Conta",
             "ATENÇÃO: Isso apagará TODOS os seus dados e sua conta permanentemente. Deseja continuar?",
@@ -2861,34 +2912,18 @@ const App = () => {
                 try {
                     const uid = auth.currentUser.uid;
 
-                    // 1. APAGAR FOTOS DO STORAGE
-                    // (O try/catch aqui garante que se a foto não existir, o código continua)
-                    const itemsWithPhotos = items.filter(i => i.photos && i.photos.length > 0);
-                    for (const item of itemsWithPhotos) {
-                        for (const photo of item.photos) {
-                            try {
-                                const imageRef = ref(storage, photo.path);
-                                await deleteObject(imageRef);
-                            } catch (err) {
-                                // Apenas avisa no console e segue o baile
-                                console.warn("Ignorando foto não encontrada:", err.message);
-                            }
+                    // 1. APAGAR TODOS OS PROJETOS (inclui itens, imagens, conexões e configurações de cada um)
+                    // pegamos do estado local myProjects (todos os projetos onde o usuário é o dono)
+                    for (const proj of myProjects) {
+                        try {
+                            // Utilizamos performDeleteProject que agora também apaga imagens!
+                            await performDeleteProject(proj.id);
+                        } catch (err) {
+                            console.warn("Erro ao apagar projeto durante a exclusão da conta. Ignorando e continuando...", err);
                         }
                     }
 
-                    // 2. APAGAR CONEXÕES (Firestore)
-                    const deleteConnsPromises = connections.map(conn =>
-                        deleteDoc(doc(db, `artifacts/ftth-production/users/${uid}/connections`, conn.id))
-                    );
-                    await Promise.all(deleteConnsPromises);
-
-                    // 3. APAGAR ITENS (Firestore)
-                    const deleteItemsPromises = items.map(item =>
-                        deleteDoc(doc(db, `artifacts/ftth-production/users/${uid}/items`, item.id))
-                    );
-                    await Promise.all(deleteItemsPromises);
-
-                    // 4. LIMPAR TODAS AS CONFIGURAÇÕES (Settings)
+                    // 2. LIMPAR CONFIGURAÇÕES GLOBAIS (Settings)
                     const settingsToDelete = [
                         'tags',
                         'signals',
@@ -2899,11 +2934,15 @@ const App = () => {
                     ];
 
                     const deleteSettingsPromises = settingsToDelete.map(docName =>
-                        deleteDoc(doc(db, `artifacts/ftth-production/users/${uid}/settings`, docName))
+                        deleteDoc(doc(db, `artifacts/ftth-production/users/${uid}/settings`, docName)).catch(() => {})
                     );
                     await Promise.all(deleteSettingsPromises);
 
-                    // 5. FINALMENTE: APAGAR USUÁRIO DO AUTH
+                    // 3. APAGAR PERFIL DE USUÁRIO E ROOT (Tenta apagar pelo menos para não deixar sujeira vazia)
+                    await deleteDoc(doc(db, `artifacts/ftth-production/userProfiles`, uid)).catch(() => {});
+                    await deleteDoc(doc(db, `artifacts/ftth-production/users`, uid)).catch(() => {});
+
+                    // 4. FINALMENTE: APAGAR USUÁRIO DO AUTH
                     await deleteUser(auth.currentUser);
 
                     openAlert("Conta Excluída", "Conta e todos os dados foram excluídos com sucesso.");
@@ -2919,7 +2958,6 @@ const App = () => {
                 } finally {
                     // CORREÇÃO: Garante que a tela de carregamento suma SEMPRE
                     setIsLoading(false);
-                    setResolvingProfile(false); // Garante que não fique preso em 'resolvendo perfil'
                     setUser(null); // Força a limpeza do estado local para exibir o AuthScreen
                 }
             }
