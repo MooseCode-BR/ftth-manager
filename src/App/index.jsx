@@ -5448,3 +5448,5 @@ const App = () => {
 
 
 export default App; // Export do arquivo completo
+
+export default App; // Export do arquivo completo
