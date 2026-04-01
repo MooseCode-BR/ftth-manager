@@ -1210,6 +1210,7 @@ const App = () => {
                 try {
                     await restoreFromBackup(file, projectOwnerId, activeProjectId, (status, percent) => {
                         console.log(status);
+                        setProcessingMessage(status);
                     });
                     openAlert("Sucesso", "Backup restaurado com sucesso! O sistema será recarregado.");
                     setTimeout(() => window.location.reload(), 2000);
@@ -5446,7 +5447,5 @@ const App = () => {
 };
 // FIM CANVAS (PRINCIPAL)--------------------------------------------------
 
-
-export default App; // Export do arquivo completo
 
 export default App; // Export do arquivo completo

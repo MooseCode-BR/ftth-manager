@@ -21,7 +21,7 @@
     "@mapbox/togeojson": "^0.16.2",
     "@vercel/analytics": "^1.6.1",
     "file-saver": "^2.0.5",
-    "firebase": "^12.6.0",
+    "firebase": "^12.11.0",
     "jspdf": "^4.1.0",
     "jspdf-autotable": "^5.0.7",
     "jszip": "^3.10.1",

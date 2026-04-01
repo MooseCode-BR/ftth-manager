@@ -315,9 +315,10 @@ export const restoreFromBackup = async (file, projectOwnerId, targetProjectId, o
                 await dbActionSave(doc(db, `${projectPath}/items`, item.id), cleanItem);
 
                 // Progresso detalhado
-                if (onProgress && i % 5 === 0) {
+                if (onProgress) {
                     const percent = 20 + (i / totalItems) * 50;
                     onProgress(`Restaurando Itens e Imagens... (${i + 1}/${totalItems})`, percent);
+                    await new Promise(resolve => setTimeout(resolve, 0));
                 }
             }
 

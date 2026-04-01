@@ -1,32 +1,37 @@
-import { ATTENUATION } from './constants';
-import tokml from 'tokml';
+import { ATTENUATION } from '../constants';
+//import tokml from 'tokml';
 
-// Busca conexões de cabos em nós
+
+// Busca conexões de cabos em nós ====================//
 export const findConnection = (connections, itemId, portId, side = 'A') => {
     return connections.find(
         c => (c.fromId === itemId && c.fromPort === portId && c.fromSide === side) || (c.toId === itemId && c.toPort === portId && c.toSide === side));
 };
-// Trata as Informações de Sinal (Nome do sinal)
+//===================================================//
+
+
+
+// Trata as Informações de Sinal (Nome do sinal) ===//
 export const getSignalInfo = (items, connections, portLabels, signalConfigs, itemId, portId, side = 'A', visited = new Set()) => {
     const key = `${itemId}-${portId}-${side}`;
     // Evita loops infinitos (ex: A liga em B, B liga em A)
-    if(visited.has(key)) return []; 
+    if (visited.has(key)) return [];
     visited.add(key);
 
-    const item = items.find(i=>i.id===itemId);
-    if(!item) return [];
+    const item = items.find(i => i.id === itemId);
+    if (!item) return [];
 
     const uniqueKey = `${itemId}-${portId}`;
-    const config = signalConfigs[uniqueKey]; 
+    const config = signalConfigs[uniqueKey];
 
     // 1. Recupera sinais criados manualmente nesta porta (Local)
     let localSignals = [];
-    let allowedIds = null; 
+    let allowedIds = null;
 
     if (config) {
         if (typeof config === 'string') {
-            localSignals = [{ id: 'legacy-'+uniqueKey, name: config }];
-        } 
+            localSignals = [{ id: 'legacy-' + uniqueKey, name: config }];
+        }
         else {
             localSignals = config.local || [];
             allowedIds = config.allowed || null;
@@ -36,69 +41,69 @@ export const getSignalInfo = (items, connections, portLabels, signalConfigs, ite
     // 2. Identifica de onde vêm os sinais (Fontes / Upstream)
     let sources = [];
 
-    if(item.type==='DIO') { 
-        if(side==='BACK') {
+    if (item.type === 'DIO') {
+        if (side === 'BACK') {
             // O lado de trás apenas reflete o da frente (passagem direta interna)
-            return getSignalInfo(items, connections, portLabels, signalConfigs, itemId, portId, 'FRONT', visited); 
+            return getSignalInfo(items, connections, portLabels, signalConfigs, itemId, portId, 'FRONT', visited);
         } else {
             // Lado da FRENTE: Recebe sinal da conexão frontal E da conexão traseira (passagem)
             const frontConn = findConnection(connections, itemId, portId, 'FRONT');
-            if(frontConn) sources.push(frontConn);
-            
+            if (frontConn) sources.push(frontConn);
+
             const backConn = findConnection(connections, itemId, portId, 'BACK');
-            if(backConn) sources.push(backConn);
+            if (backConn) sources.push(backConn);
         }
     }
-    else if(item.type==='POE') {
-        if(side==='LAN') {
+    else if (item.type === 'POE') {
+        if (side === 'LAN') {
             // Lado LAN reflete o lado POE (passagem interna)
             return getSignalInfo(items, connections, portLabels, signalConfigs, itemId, portId, 'POE', visited);
         } else {
             // Lado POE: Recebe sinal de ambas as conexões (POE e LAN)
             const poeConn = findConnection(connections, itemId, portId, 'POE');
-            if(poeConn) sources.push(poeConn);
-            
+            if (poeConn) sources.push(poeConn);
+
             const lanConn = findConnection(connections, itemId, portId, 'LAN');
-            if(lanConn) sources.push(lanConn);
+            if (lanConn) sources.push(lanConn);
         }
-    } 
-    else if(item.type==='SPLITTER') { 
-        if(portId!==0 && portId!=='0') { 
+    }
+    else if (item.type === 'SPLITTER') {
+        if (portId !== 0 && portId !== '0') {
             // Saídas (1-8): recebem sinal da entrada (porta 0)
-            const inputConn = findConnection(connections, itemId, 0, 'A'); 
-            if(inputConn) sources.push(inputConn);
-        } 
+            const inputConn = findConnection(connections, itemId, 0, 'A');
+            if (inputConn) sources.push(inputConn);
+        }
         else {
             // Entrada (0): recebe sinal da conexão externa nela mesma
-            const c = findConnection(connections, itemId, portId, 'A'); 
-            if(c) sources.push(c);
+            const c = findConnection(connections, itemId, portId, 'A');
+            if (c) sources.push(c);
         }
-    } 
-    else if(item.type==='CABLE') {
+    }
+    else if (item.type === 'CABLE') {
         // Cabo é bidirecional.
         // O sinal nesta fibra é a soma do que entra por ESTE lado + o que vem do OUTRO lado.
-        
+
         // Fonte 1: Conexão direta neste lado (ex: OLT ligada aqui)
         const c1 = findConnection(connections, itemId, portId, side);
-        if(c1) sources.push(c1);
-        
+        if (c1) sources.push(c1);
+
         // Fonte 2: Conexão do outro lado (passando por dentro da fibra)
         const otherSide = side === 'A' ? 'B' : 'A';
         const c2 = findConnection(connections, itemId, portId, otherSide);
-        if(c2) sources.push(c2);
+        if (c2) sources.push(c2);
     }
     else {
         // Outros equipamentos (OLT, Switch, Cliente): sinal vem da conexão direta na porta
         const c = findConnection(connections, itemId, portId, side);
-        if(c) sources.push(c);
+        if (c) sources.push(c);
     }
 
     // 3. Processa recursivamente todas as fontes encontradas
     let upstreamSignals = [];
     sources.forEach(conn => {
-        const isT = conn.toId === itemId; 
+        const isT = conn.toId === itemId;
         // Pega recursivamente os sinais do item vizinho
-        const s = getSignalInfo(items, connections, portLabels, signalConfigs, isT?conn.fromId:conn.toId, isT?conn.fromPort:conn.toPort, isT?conn.fromSide:conn.toSide, visited); 
+        const s = getSignalInfo(items, connections, portLabels, signalConfigs, isT ? conn.fromId : conn.toId, isT ? conn.fromPort : conn.toPort, isT ? conn.fromSide : conn.toSide, visited);
         upstreamSignals = [...upstreamSignals, ...s];
     });
 
@@ -108,14 +113,18 @@ export const getSignalInfo = (items, connections, portLabels, signalConfigs, ite
 
     // Aplica filtros de permissão (allowedIds) se houver
     const filtered = allowedIds ? uniqueSignals.filter(s => allowedIds.includes(s.id)) : uniqueSignals;
-    
+
     // Junta com os sinais locais
     const result = [...filtered, ...localSignals];
-    
+
     // Remove duplicatas finais
     return Array.from(new Map(result.map(s => [s.id, s])).values());
 };
-// Cálculo de potencia
+//==================================================//
+
+
+
+// Cálculo de potencia ============================//
 export const calculatePower = (items, connections, itemId, portId, side = 'A', visited = new Set()) => {
     const key = `${itemId}-${portId}-${side}`;
     if (visited.has(key)) return null; // Evita loop infinito
@@ -127,7 +136,7 @@ export const calculatePower = (items, connections, itemId, portId, side = 'A', v
     // 1. BASE: Se for OLT (Porta PON), retorna a potência inicial
     if (item.type === 'OLT') {
         // Assume que portas PON (não uplinks) emitem sinal
-        if (String(portId).includes('-p-')) return ATTENUATION.DEFAULT_TX; 
+        if (String(portId).includes('-p-')) return ATTENUATION.DEFAULT_TX;
         return null; // Uplinks não emitem sinal PON downstream
     }
 
@@ -146,36 +155,36 @@ export const calculatePower = (items, connections, itemId, portId, side = 'A', v
                 prevPower = calculatePower(items, connections, isT ? conn.fromId : conn.toId, isT ? conn.fromPort : conn.toPort, isT ? conn.fromSide : conn.toSide, visited);
                 connectionLoss = conn.type === 'FUSION' ? ATTENUATION.FUSION_LOSS : ATTENUATION.CONNECTOR_LOSS;
             }
-        } 
+        }
         else {
             // Se estou na saída, o sinal vem da porta de entrada (0)
             // Recursividade interna: pega a potência da porta 0 e subtrai a perda do splitter
             prevPower = calculatePower(items, connections, itemId, 0, 'A', visited);
             // Calcula perda baseada no número de portas (ratio)
             // Se ports = 9 (1 entrada + 8 saídas), ratio é 8.
-            const ratio = item.ports - 1; 
+            const ratio = item.ports - 1;
             componentLoss = ATTENUATION.SPLITTER_LOSS[ratio] || 10.5; // Default para 1:8 se não achar
         }
-    } 
+    }
     // Lógica para Cabos e Passivos (Passagem direta)
     else {
         let upstreamConn = null;
-        
+
         if (item.type === 'CABLE') {
             // Cabo passa o sinal do lado A para B (ou vice-versa)
             const otherSide = side === 'A' ? 'B' : 'A';
             upstreamConn = findConnection(connections, itemId, portId, otherSide);
-        } 
+        }
         else if (item.type === 'DIO' || item.type === 'CEO' || item.type === 'CTO') {
-             // Passivos comuns: buscam conexão na mesma porta (ou frente/trás no DIO)
-             if (side === 'FRONT') upstreamConn = findConnection(connections, itemId, portId, 'FRONT'); // DIO Front
-             else if (side === 'BACK') return calculatePower(items, connections, itemId, portId, 'FRONT', visited); // DIO Back pede pro Front
-             else upstreamConn = findConnection(connections, itemId, portId, side);
+            // Passivos comuns: buscam conexão na mesma porta (ou frente/trás no DIO)
+            if (side === 'FRONT') upstreamConn = findConnection(connections, itemId, portId, 'FRONT'); // DIO Front
+            else if (side === 'BACK') return calculatePower(items, connections, itemId, portId, 'FRONT', visited); // DIO Back pede pro Front
+            else upstreamConn = findConnection(connections, itemId, portId, side);
         }
         else if (item.type === 'POE') {
-             // POE Patch Panel: LAN reflete POE (passagem interna)
-             if (side === 'POE') upstreamConn = findConnection(connections, itemId, portId, 'POE');
-             else if (side === 'LAN') return calculatePower(items, connections, itemId, portId, 'POE', visited);
+            // POE Patch Panel: LAN reflete POE (passagem interna)
+            if (side === 'POE') upstreamConn = findConnection(connections, itemId, portId, 'POE');
+            else if (side === 'LAN') return calculatePower(items, connections, itemId, portId, 'POE', visited);
         }
 
         if (upstreamConn) {
@@ -192,17 +201,19 @@ export const calculatePower = (items, connections, itemId, portId, side = 'A', v
 
     return null;
 };
+//=================================================//
 
 
-// EXPORTAÇÃO KML ----------------------------------------------------------------
+
+// EXPORTAÇÃO KML =================================//
 // 1. Função auxiliar para converter cor HEX (#RRGGBB) para KML (aabbggrr)
 const hexToKmlColor = (hex) => {
     if (!hex) return 'ff000000'; // Preto padrão
     const cleanHex = hex.replace('#', '');
-    
+
     // Se for curto (ex: #fff), expande
-    const fullHex = cleanHex.length === 3 
-        ? cleanHex.split('').map(c => c + c).join('') 
+    const fullHex = cleanHex.length === 3
+        ? cleanHex.split('').map(c => c + c).join('')
         : cleanHex;
 
     // Separa R, G, B
@@ -228,8 +239,8 @@ const generateCableDescription = (cable, allItems, connections, signalConfigs) =
     for (let i = 0; i < cable.ports; i++) {
         // Pega o sinal (Lado A é suficiente para verificar o que passa na fibra)
         const signals = getSignalInfo(allItems, connections, {}, signalConfigs, cable.id, i, 'A');
-        const signalText = signals.length > 0 
-            ? signals.map(s => `<b>${s.name}</b>`).join(', ') 
+        const signalText = signals.length > 0
+            ? signals.map(s => `<b>${s.name}</b>`).join(', ')
             : '<span style="color: #ccc;">Sem sinal</span>';
 
         html += `
@@ -246,7 +257,7 @@ const generateCableDescription = (cable, allItems, connections, signalConfigs) =
 // 2. Gera o Plano de Fusão do Nó (O que conecta com o que)
 const generateNodeDescription = (node, allItems, connections, signalConfigs) => {
     // Encontra todos os cabos conectados a este nó (externamente)
-    const attachedCables = allItems.filter(i => 
+    const attachedCables = allItems.filter(i =>
         i.type === 'CABLE' && (i.fromNode === node.id || i.toNode === node.id)
     );
 
@@ -264,11 +275,11 @@ const generateNodeDescription = (node, allItems, connections, signalConfigs) => 
     attachedCables.forEach(cable => {
         // Descobre qual lado do cabo entra nesta caixa (A ou B)
         const mySide = cable.fromNode === node.id ? 'A' : 'B';
-        
+
         html += `<h4 style="margin-bottom: 5px; margin-top: 15px; color: ${cable.color || '#000'}; border-bottom: 1px solid #ccc;">
             Cabo: ${cable.name} (Lado ${mySide})
         </h4>`;
-        
+
         html += `
         <table border="0" cellpadding="2" cellspacing="0" style="width: 100%; border-bottom: 1px solid #eee;">
             <tr style="background-color: #f9f9f9; text-align: left;">
@@ -281,11 +292,11 @@ const generateNodeDescription = (node, allItems, connections, signalConfigs) => 
         for (let i = 0; i < cable.ports; i++) {
             // Busca o que está conectado nesta fibra, deste lado (mySide)
             const conn = findConnection(connections, cable.id, i, mySide);
-            
+
             // Busca o sinal que passa aqui
             const signals = getSignalInfo(allItems, connections, {}, signalConfigs, cable.id, i, mySide);
-            const signalText = signals.length > 0 
-                ? signals.map(s => `<span style="color:green">${s.name}</span>`).join(', ') 
+            const signalText = signals.length > 0
+                ? signals.map(s => `<span style="color:green">${s.name}</span>`).join(', ')
                 : '<span style="color:#ccc">-</span>';
 
             let destText = '<span style="color: #999;">Livre / Cortado</span>';
@@ -305,13 +316,13 @@ const generateNodeDescription = (node, allItems, connections, signalConfigs) => 
                     if (targetItem.type === 'CABLE') {
                         targetDetail = `(Fibra ${parseInt(targetPort) + 1})`;
                         destText = `<b>${targetName}</b> ${targetDetail}`;
-                    } 
+                    }
                     else if (targetItem.type === 'SPLITTER') {
                         targetDetail = (targetPort === 0 || targetPort === '0') ? '(IN)' : `(OUT ${targetPort})`;
                         destText = `<b>Splitter: ${targetName}</b> ${targetDetail}`;
                     }
                     else if (targetItem.type === 'DIO' || targetItem.type === 'OLT') {
-                         destText = `<b>${targetItem.type}: ${targetName}</b> (Porta ${parseInt(targetPort)+1})`;
+                        destText = `<b>${targetItem.type}: ${targetName}</b> (Porta ${parseInt(targetPort) + 1})`;
                     }
                     else {
                         destText = `<b>${targetName}</b>`;
@@ -346,7 +357,7 @@ export const downloadKML = (nodes, cables, connections, signalConfigs, allItems)
         nodes.forEach(node => {
             if (node.lat && node.lng) {
                 const color = hexToKmlColor(node.color || '#ffffff');
-                
+
                 // GERA DESCRIÇÃO AVANÇADA (FUSÕES)
                 const description = generateNodeDescription(node, allItems, connections, signalConfigs);
 
@@ -380,17 +391,17 @@ export const downloadKML = (nodes, cables, connections, signalConfigs, allItems)
 
             if (nodeA && nodeB && nodeA.lat && nodeB.lat) {
                 const strokeColor = hexToKmlColor(cable.color || '#000000');
-                
+
                 // GERA DESCRIÇÃO AVANÇADA (SINAIS)
                 const description = generateCableDescription(cable, allItems, connections, signalConfigs);
 
-                let coordsString = `${nodeA.lng},${nodeA.lat},0`; 
+                let coordsString = `${nodeA.lng},${nodeA.lat},0`;
                 if (cable.waypoints && cable.waypoints.length > 0) {
                     cable.waypoints.forEach(wp => {
                         coordsString += ` ${wp.lng},${wp.lat},0`;
                     });
                 }
-                coordsString += ` ${nodeB.lng},${nodeB.lat},0`; 
+                coordsString += ` ${nodeB.lng},${nodeB.lat},0`;
 
                 kmlContent += `
                 <Placemark>
@@ -416,31 +427,32 @@ export const downloadKML = (nodes, cables, connections, signalConfigs, allItems)
 
         const blob = new Blob([kmlContent], { type: 'application/vnd.google-earth.kml+xml' });
         const url = URL.createObjectURL(blob);
-        
+
         const link = document.createElement('a');
         link.href = url;
-        link.download = `rede_ftth_${new Date().toISOString().slice(0,10)}.kml`;
+        link.download = `rede_ftth_${new Date().toISOString().slice(0, 10)}.kml`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
+
         return true;
 
-  } catch (error) {
-    console.error("Erro ao gerar KML:", error);
-    return false;
-  }
+    } catch (error) {
+        console.error("Erro ao gerar KML:", error);
+        return false;
+    }
 };
+//=================================================//
 
 
-// --- IMPORTAÇÃO KML -----------------------------------------------------------------
+// IMPORTAÇÃO KML =================================//
 // Converte cor KML (aabbggrr) para Hex Web (#rrggbb)
 const kmlColorToHex = (kmlColor) => {
     if (!kmlColor) return '#000000'; // Preto padrão
-    
+
     // Remove espaços e quebras de linha
     let c = kmlColor.trim();
-    
+
     // O KML pode vir como aabbggrr ou só bbggrr. Geralmente são 8 chars.
     if (c.length === 8) {
         // Ignora os 2 primeiros (Alpha - Transparência)
@@ -448,7 +460,7 @@ const kmlColorToHex = (kmlColor) => {
         const green = c.substring(4, 6);
         const red = c.substring(6, 8);
         return `#${red}${green}${blue}`;
-    } 
+    }
     // Caso raro de vir sem alpha (6 chars: bbggrr)
     else if (c.length === 6) {
         const blue = c.substring(0, 2);
@@ -456,7 +468,7 @@ const kmlColorToHex = (kmlColor) => {
         const red = c.substring(4, 6);
         return `#${red}${green}${blue}`;
     }
-    
+
     return '#000000';
 };
 // 1. Função que tenta adivinhar o tipo do item pelo nome
@@ -474,7 +486,7 @@ const guessTypeByName = (name) => {
 export const parseKMLImport = (kmlText) => {
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(kmlText, "text/xml");
-    
+
     const styleMap = {};
 
     // 1. MAPEAMENTO DE ESTILOS
@@ -507,7 +519,7 @@ export const parseKMLImport = (kmlText) => {
                 }
             }
             if (!targetStyleUrl && pairs.length > 0) {
-                 targetStyleUrl = pairs[0].getElementsByTagName("styleUrl")[0]?.textContent?.trim();
+                targetStyleUrl = pairs[0].getElementsByTagName("styleUrl")[0]?.textContent?.trim();
             }
             if (targetStyleUrl && styleMap[targetStyleUrl]) {
                 styleMap[`#${id}`] = styleMap[targetStyleUrl];
@@ -522,7 +534,7 @@ export const parseKMLImport = (kmlText) => {
 
     const processPlacemark = (p, currentFolders) => {
         const name = p.getElementsByTagName("name")[0]?.textContent || "Item Desconhecido";
-        
+
         // --- NOVO: Extrair Descrição ---
         // O textContent pega o texto cru, ignorando tags HTML se não estiverem em CDATA.
         // Se estiver em CDATA (comum no Google Earth), virá com HTML. 
@@ -535,7 +547,7 @@ export const parseKMLImport = (kmlText) => {
         if (styleUrl && styleMap[styleUrl]) {
             itemColor = styleMap[styleUrl];
         }
-        
+
         const inlineStyle = p.getElementsByTagName("Style")[0];
         if (inlineStyle) {
             const inlineLineColor = inlineStyle.getElementsByTagName("LineStyle")[0]?.getElementsByTagName("color")[0]?.textContent;
@@ -556,18 +568,18 @@ export const parseKMLImport = (kmlText) => {
                     maxLat = Math.max(maxLat, lat);
                     minLng = Math.min(minLng, lng);
                     maxLng = Math.max(maxLng, lng);
-                    
-                    rawPoints.push({ 
-                        name, 
-                        lat, 
-                        lng, 
+
+                    rawPoints.push({
+                        name,
+                        lat,
+                        lng,
                         color: itemColor,
                         kmlFolders: [...currentFolders],
                         notes: description // <--- Passamos a descrição para cá
                     });
                 }
             }
-        } 
+        }
         else if (line) {
             const coordsStr = line.getElementsByTagName("coordinates")[0]?.textContent.trim();
             if (coordsStr) {
@@ -577,9 +589,9 @@ export const parseKMLImport = (kmlText) => {
                 }).filter(p => !isNaN(p.lat));
 
                 if (points.length > 1) {
-                    rawLines.push({ 
-                        name, 
-                        points, 
+                    rawLines.push({
+                        name,
+                        points,
                         color: itemColor,
                         kmlFolders: [...currentFolders],
                         notes: description // <--- Passamos a descrição para cá
@@ -671,7 +683,7 @@ export const parseKMLImport = (kmlText) => {
 
         const findNearestNode = (lat, lng) => {
             let nearest = null;
-            let minDist = 0.0002; 
+            let minDist = 0.0002;
             createdNodes.forEach(node => {
                 const d = Math.sqrt(Math.pow(node.lat - lat, 2) + Math.pow(node.lng - lng, 2));
                 if (d < minDist) {
@@ -689,8 +701,8 @@ export const parseKMLImport = (kmlText) => {
             id: `imp_cable_${Date.now()}_${index}`,
             type: 'CABLE',
             name: line.name || `Cabo ${index}`,
-            fromNode: nodeA ? nodeA.id : null, 
-            toNode: nodeB ? nodeB.id : null,   
+            fromNode: nodeA ? nodeA.id : null,
+            toNode: nodeB ? nodeB.id : null,
             ports: 12,
             waypoints: line.points.slice(1, -1),
             color: line.color || '#000000',
@@ -706,14 +718,14 @@ export const parseKMLImport = (kmlText) => {
 // Busca candidatos próximos para uma coordenada específica
 export const findNearbyCandidates = (targetLat, targetLng, allNodes, limit = 3) => {
     // Raio de busca expandido para sugestão (ex: ~100 metros)
-    const SEARCH_RADIUS = 0.001; 
-    
+    const SEARCH_RADIUS = 0.001;
+
     const candidates = allNodes
         .map(node => {
             const dist = Math.sqrt(Math.pow(node.lat - targetLat, 2) + Math.pow(node.lng - targetLng, 2));
             // Converte graus para metros (aproximado) para exibir ao usuário
             // 1 grau lat ~ 111km. 0.00001 ~ 1.1m
-            const meters = Math.round(dist * 111320); 
+            const meters = Math.round(dist * 111320);
             return { node, dist, meters };
         })
         .filter(item => item.dist < SEARCH_RADIUS)
@@ -725,7 +737,7 @@ export const findNearbyCandidates = (targetLat, targetLng, allNodes, limit = 3) 
 // --- ANÁLISE DE DUPLICATAS ---
 export const analyzeDuplicates = (newItems, existingItems) => {
     // Distância de ~5 metros para considerar "suspeito"
-    const THRESHOLD = 0.00005; 
+    const THRESHOLD = 0.00005;
 
     const cleanItems = [];
     const conflicts = [];
@@ -735,9 +747,9 @@ export const analyzeDuplicates = (newItems, existingItems) => {
 
         // 1. Verifica CABOS (Pelo nome exato)
         if (newItem.type === 'CABLE') {
-            match = existingItems.find(existing => 
-                existing.type === 'CABLE' && 
-                newItem.name && existing.name && 
+            match = existingItems.find(existing =>
+                existing.type === 'CABLE' &&
+                newItem.name && existing.name &&
                 newItem.name.trim() === existing.name.trim()
             );
         }
@@ -745,13 +757,13 @@ export const analyzeDuplicates = (newItems, existingItems) => {
         else {
             match = existingItems.find(existing => {
                 if (existing.type !== newItem.type) return false;
-                
+
                 const dLat = Math.abs(existing.lat - newItem.lat);
                 const dLng = Math.abs(existing.lng - newItem.lng);
-                
+
                 // Se está muito perto
                 if (dLat < THRESHOLD && dLng < THRESHOLD) {
-                    return true; 
+                    return true;
                 }
                 return false;
             });
@@ -770,8 +782,11 @@ export const analyzeDuplicates = (newItems, existingItems) => {
 
     return { cleanItems, conflicts };
 };
+//==================================================//
 
-// --- CÁLCULO DE DISTÂNCIA E METRIFICAÇÃO ---
+
+
+// CÁLCULO DE DISTÂNCIA E METRIFICAÇÃO =============//
 // 1. Fórmula de Haversine (Distância entre dois pontos GPS em metros)
 export const getDistanceInMeters = (lat1, lon1, lat2, lon2) => {
     if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
@@ -785,9 +800,9 @@ export const getDistanceInMeters = (lat1, lon1, lat2, lon2) => {
     const Δλ = toRad(lon2 - lon1);
 
     const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-              Math.cos(φ1) * Math.cos(φ2) *
-              Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-    
+        Math.cos(φ1) * Math.cos(φ2) *
+        Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
     return R * c; // Retorna metros
@@ -815,8 +830,11 @@ export const calculateCableLength = (cable, allItems) => {
 
     return totalDistance;
 };
+//==================================================//
 
-// Função auxiliar para apagar imagens do Storage
+
+
+// Função auxiliar para apagar imagens do Storage =//
 const deleteNodeImages = async (node) => {
     // Se o node não tem fotos, não faz nada
     if (!node.photos || node.photos.length === 0) return;
@@ -825,23 +843,23 @@ const deleteNodeImages = async (node) => {
         // Precisamos do 'path' (caminho interno) para apagar.
         // Se no teu sistema antigo só salvavas a 'url', teremos de tentar extrair o path
         // Mas assumindo que segues o padrão novo que fizemos no backup:
-        
+
         let pathToDelete = photo.path;
 
         // FALLBACK: Se não tiver 'path' salvo, tentamos adivinhar ou usar a URL
         // (Geralmente é melhor ter o path salvo no objeto da foto)
         if (!pathToDelete) {
-             console.warn("Imagem sem path definido, ignorando:", photo.url);
-             return Promise.resolve();
+            console.warn("Imagem sem path definido, ignorando:", photo.url);
+            return Promise.resolve();
         }
 
         const imageRef = ref(storage, pathToDelete);
-        
+
         // Retorna a promessa de delete (com tratamento de erro individual)
         return deleteObject(imageRef).catch(error => {
             // Se a imagem já não existir (404), não tem problema, segue o jogo
             if (error.code === 'storage/object-not-found') {
-                return; 
+                return;
             }
             console.error("Erro ao apagar imagem do storage:", error);
         });
@@ -850,3 +868,4 @@ const deleteNodeImages = async (node) => {
     // Espera todas as imagens serem apagadas
     await Promise.all(deletePromises);
 };
+//=================================================//
