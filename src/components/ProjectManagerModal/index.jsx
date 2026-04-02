@@ -5,7 +5,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
     Folder, Trash2, Eye, EyeOff, Edit3, Check, PenTool, FolderOpen,
     Share2, UserCheck, Inbox, UserMinus, Users, ArrowRightLeft, AlertTriangle,
-    Square, CheckSquare, Plus, ChevronDown, ChevronUp, X, Focus, UserPen, HardHat
+    Square, CheckSquare, Plus, ChevronDown, ChevronUp, X, Focus, UserPen, HardHat, LogOut
 } from 'lucide-react';
 
 const ProjectManagerModal = ({
@@ -28,6 +28,7 @@ const ProjectManagerModal = ({
     onBulkToggleVisibility,
     onRespondInvite,
     onRevokeShare,
+    onUpdateSharePermission,
     onAcceptTransfer,
     onConfirmRequest,
     onAlertRequest,
@@ -255,13 +256,14 @@ const ProjectManagerModal = ({
                                 >
                                     <Share2 size={20} />
                                 </button>
-                                <button
+                                {/* Botão de Transferência em Massa - Desativado por enquanto */}
+                                {/* <button
                                     onClick={() => setBulkAction('TRANSFER')}
                                     className="btn-visibility vis-idle"
                                     title="Transferir Selecionados"
                                 >
                                     <ArrowRightLeft size={20} />
-                                </button>
+                                </button> */}
                                 <button
                                     onClick={() => { onBulkDelete(Array.from(selectedIds)); setSelectedIds(new Set()); }}
                                     className="btn-delete-project"
@@ -393,14 +395,14 @@ const ProjectManagerModal = ({
                                                                 <Share2 size={20} />
                                                             </button>
 
-                                                            {/* BOTÃO DE TRANSFERIR INDIVIDUAL */}
-                                                            <button
+                                                            {/* BOTÃO DE TRANSFERIR INDIVIDUAL - Desativado por enquanto */}
+                                                            {/* <button
                                                                 onClick={() => { setSelectedIds(new Set([proj.id])); setBulkAction('TRANSFER'); }}
                                                                 className="btn-visibility vis-idle"
                                                                 title="Transferir Projeto"
                                                             >
                                                                 <ArrowRightLeft size={20} />
-                                                            </button>
+                                                            </button> */}
 
                                                             {/* BOTÃO PRA DELETAR PROJETO */}
                                                             <button
@@ -448,13 +450,26 @@ const ProjectManagerModal = ({
                                                                     <span className={`share-email ${share.status === 'pending' ? 'italic text-gray-400' : 'text-gray-700 dark:text-gray-300'}`}>
                                                                         {share.toEmail}
                                                                     </span>
-                                                                    {/* Badge de Permissão */}
-                                                                    <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide ${share.permission === 'READ_ONLY_GEOMETRY'
-                                                                        ? 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400'
-                                                                        : 'bg-green-500/20 text-green-600 dark:text-green-400'
-                                                                        }`}>
-                                                                        {share.permission === 'READ_ONLY_GEOMETRY' ? 'Técnico de Ativação' : 'Projetista'}
-                                                                    </span>
+                                                                    {/* Botão de Troca Rápida de Permissão */}
+                                                                    <button
+                                                                        onClick={() => onUpdateSharePermission(
+                                                                            share.id,
+                                                                            share.permission === 'READ_ONLY_GEOMETRY' ? 'FULL_ACCESS' : 'READ_ONLY_GEOMETRY'
+                                                                        )}
+                                                                        className={`btn-permission-toggle ${share.permission === 'READ_ONLY_GEOMETRY'
+                                                                            ? 'btn-permission-tech'
+                                                                            : 'btn-permission-designer'
+                                                                            }`}
+                                                                        title={share.permission === 'READ_ONLY_GEOMETRY'
+                                                                            ? 'Clique para alterar para Projetista'
+                                                                            : 'Clique para alterar para Técnico de Ativação'
+                                                                        }
+                                                                    >
+                                                                        {share.permission === 'READ_ONLY_GEOMETRY'
+                                                                            ? <><HardHat size={10} /> Técnico de Ativação</>
+                                                                            : <><UserPen size={10} /> Projetista</>
+                                                                        }
+                                                                    </button>
                                                                 </div>
                                                                 <button
                                                                     onClick={() => onRevokeShare(share.id)}
@@ -498,11 +513,14 @@ const ProjectManagerModal = ({
                                                             {/* Nome do Projeto */}
                                                             <span className={`font-bold text-sm truncate ${isActive ? 'name-active' : 'name-idle'}`}>{proj.name}</span>
                                                             {/* Badge de Permissão do Projeto Compartilhado */}
-                                                            <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide ${proj.permission === 'READ_ONLY_GEOMETRY'
+                                                            <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide flex items-center gap-1 ${proj.permission === 'READ_ONLY_GEOMETRY'
                                                                 ? 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400'
                                                                 : 'bg-green-500/20 text-green-600 dark:text-green-400'
                                                                 }`}>
-                                                                {proj.permission === 'READ_ONLY_GEOMETRY' ? 'Técnico de Ativação' : 'Projetista'}
+                                                                {proj.permission === 'READ_ONLY_GEOMETRY'
+                                                                    ? <><HardHat size={10} /> Técnico de Ativação</>
+                                                                    : <><UserPen size={10} /> Projetista</>
+                                                                }
                                                             </span>
                                                         </div>
 
@@ -538,7 +556,7 @@ const ProjectManagerModal = ({
                                                             </button>
                                                         </div>
 
-                                                        {/* Status e Accordion */}
+                                                        {/* Status e Dono */}
                                                         <div className="status-row">
                                                             {isActive && <span className="status-badge-blue">● Editando</span>}
                                                             {isVisible && <span className="status-badge-green">● Visível</span>}
@@ -549,6 +567,14 @@ const ProjectManagerModal = ({
                                                                 <Users size={10} />
                                                                 Dono: {proj.fromEmail || "Desconhecido"}
                                                             </span>
+                                                            {/* Botão de Sair do Projeto Compartilhado */}
+                                                            <button
+                                                                onClick={() => onRevokeShare(proj.inviteId)}
+                                                                className="btn-revoke"
+                                                                title="Sair deste projeto compartilhado"
+                                                            >
+                                                                <LogOut size={20} />
+                                                            </button>
                                                         </div>
                                                     </div>
                                                 </div>

@@ -1,4 +1,4 @@
-import { writeBatch, doc, collection, getDocs, query } from "firebase/firestore";
+import { writeBatch, doc, collection, getDocs, query, getDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { db, storage } from './firebaseConfig';
 import JSZip from 'jszip';
@@ -30,9 +30,40 @@ export const generateBackupFile = async (data, visibleProjects) => {
         const zip = new JSZip();
         const imgFolder = zip.folder("images");
 
-        // 1. Filtra dados do projeto
-        const projectItems = items.filter(i => i._projectId === project.id);
-        const projectConnections = connections.filter(c => c._projectId === project.id);
+        // 1. Busca dados do projeto diretamente do banco para garantir que pega tudo
+        // independentemente do projeto estar visível na tela (memória) ou não.
+        const projectPath = `artifacts/ftth-production/users/${project.ownerId}/projects/${project.id}`;
+
+        let projectItems = items.filter(i => i._projectId === project.id);
+        let projectConnections = connections.filter(c => c._projectId === project.id);
+        const finalSettings = { tags: availableTags, signals: signalNames, portLabels: portLabels, nodeColors: nodeColorSettings };
+
+        try {
+            // Se o projeto não está carregado na memória, ou por precaução, tenta buscar no banco:
+            if (projectItems.length === 0) {
+                const itemsSnap = await getDocs(query(collection(db, `${projectPath}/items`)));
+                projectItems = itemsSnap.docs.map(d => ({ id: d.id, ...d.data(), _projectId: project.id, _ownerId: project.ownerId }));
+
+                const connSnap = await getDocs(query(collection(db, `${projectPath}/connections`)));
+                projectConnections = connSnap.docs.map(d => ({ id: d.id, ...d.data(), _projectId: project.id, _ownerId: project.ownerId }));
+            }
+
+            // Busca configurações específicas do projeto, já que o state global ('availableTags', etc)
+            // poderia ser apenas o state do projeto ativo
+            const signalsDoc = await getDoc(doc(db, `${projectPath}/settings`, 'signals'));
+            if (signalsDoc.exists()) finalSettings.signals = signalsDoc.data();
+
+            const portLabelsDoc = await getDoc(doc(db, `${projectPath}/settings`, 'portLabels'));
+            if (portLabelsDoc.exists()) finalSettings.portLabels = portLabelsDoc.data();
+
+            const nodeColorsDoc = await getDoc(doc(db, `${projectPath}/settings`, 'nodeColors'));
+            if (nodeColorsDoc.exists()) {
+                const ncData = nodeColorsDoc.data();
+                finalSettings.nodeColors = ncData;
+            }
+        } catch (error) {
+            console.error(`Erro ao buscar dados completos do projeto ${project.name}:`, error);
+        }
 
         // 2. Processar Imagens
         // Vamos varrer todos os itens, achar as fotos, baixar e colocar no ZIP
@@ -84,12 +115,7 @@ export const generateBackupFile = async (data, visibleProjects) => {
             data: {
                 items: itemsWithLocalRefs, // Usamos a lista modificada
                 connections: projectConnections,
-                settings: {
-                    tags: availableTags,
-                    signals: signalNames,
-                    portLabels: portLabels,
-                    nodeColors: nodeColorSettings
-                }
+                settings: finalSettings
             }
         };
 
@@ -103,7 +129,7 @@ export const generateBackupFile = async (data, visibleProjects) => {
         const url = URL.createObjectURL(zipContent);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `${safeName}.ftth`; // Agora é .zip (ou pode manter .ftth se quiseres ser chique)
+        link.download = `${safeName}.zip`; // Agora é .zip (ou pode manter .ftth se quiseres ser chique)
         document.body.appendChild(link);
         link.click();
 
@@ -155,7 +181,24 @@ export const restoreFromBackup = async (file, projectOwnerId, targetProjectId, o
                             const storagePath = `users/${projectOwnerId}/images/${cleanItem.id}/${Date.now()}_${photo.backupFileName}`;
                             const storageRefToUpload = ref(storage, storagePath);
 
-                            const snapshot = await uploadBytes(storageRefToUpload, photoBlob);
+                            // 1. Extrair a extensão do nome do arquivo salvo no backup
+                            const extension = photo.backupFileName.split('.').pop().toLowerCase();
+
+                            // 2. Definir o MIME type com base na extensão
+                            let mimeType = 'image/jpeg'; // padrão seguro
+                            if (extension === 'png') mimeType = 'image/png';
+                            else if (extension === 'jpg') mimeType = 'image/jpeg';
+                            else if (extension === 'webp') mimeType = 'image/webp';
+                            else if (extension === 'gif') mimeType = 'image/gif';
+                            else if (extension === 'svg') mimeType = 'image/svg+xml';
+
+                            // 3. Criar os metadados para o Firebase
+                            const metadata = {
+                                contentType: mimeType
+                            };
+
+                            // 4. Passar os metadados no upload
+                            const snapshot = await uploadBytes(storageRefToUpload, photoBlob, metadata);
 
                             // Adiciona na nossa lista de Rollback de segurança
                             uploadedStorageRefs.push(snapshot.ref);

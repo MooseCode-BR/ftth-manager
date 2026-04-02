@@ -626,9 +626,9 @@ const App = () => {
     const [userLocation, setUserLocation] = useState(null); // { lat, lng } — última localização conhecida (atualizada pelo botão "Onde estou")
     const [suggestions, setSuggestions] = useState([]); // Lista de endereços encontrados
     const [showSuggestions, setShowSuggestions] = useState(false); // Se a lista aparece ou não
-    const [isDarkMode, setIsDarkMode] = useState(() => { 
-        const tema = localStorage.getItem('ftth_theme'); 
-        return tema ? tema === 'dark' : true; 
+    const [isDarkMode, setIsDarkMode] = useState(() => {
+        const tema = localStorage.getItem('ftth_theme');
+        return tema ? tema === 'dark' : true;
     });
     const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -2053,7 +2053,7 @@ const App = () => {
                 await batch.commit();
             }
 
-            const permLabel = permission === 'READ_ONLY_GEOMETRY' ? '(Somente Visualização)' : '(Acesso Total)';
+            const permLabel = permission === 'READ_ONLY_GEOMETRY' ? '(Técnico de Ativação)' : '(Projetista)';
             openAlert("Sucesso", `${allOperations.length} convites ${permLabel} enviados com sucesso!`);
 
         } catch (error) {
@@ -2127,6 +2127,18 @@ const App = () => {
                 }
             }
         );
+    };
+
+    // Função: Alternar Permissão de um Compartilhamento (Toggle Rápido)
+    const handleUpdateSharePermission = async (inviteId, newPermission) => {
+        try {
+            await updateDoc(doc(db, 'ftth_invitations', inviteId), {
+                permission: newPermission
+            });
+        } catch (error) {
+            console.error("Erro ao atualizar permissão:", error);
+            openAlert("Erro", "Não foi possível alterar a permissão.");
+        }
     };
 
     // 2. Transferir Vários Projetos Simultaneamente (Geralmente para 1 pessoa)
@@ -5244,8 +5256,8 @@ const App = () => {
             {isFilterPanelOpen && (
                 <>
                     {/* Overlay transparente para clique fora */}
-                    <div 
-                        className="fixed inset-0 z-[44]" 
+                    <div
+                        className="fixed inset-0 z-[44]"
                         onClick={() => setIsFilterPanelOpen(false)}
                     />
                     <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[45] bg-white/40 dark:bg-black/70 border border-white/60 dark:border-white/20 backdrop-blur-xl rounded-2xl shadow-xl p-4 w-[90%] max-w-lg animate-in slide-in-from-bottom-2">
@@ -5480,6 +5492,7 @@ const App = () => {
                     pendingInvites={pendingInvites}
                     outgoingInvites={outgoingInvites}
                     onRevokeShare={handleRevokeShare}
+                    onUpdateSharePermission={handleUpdateSharePermission}
                     activeProjectId={activeProjectId}
                     visibleProjectIds={visibleProjectIds}
                     currentUserEmail={user.email}

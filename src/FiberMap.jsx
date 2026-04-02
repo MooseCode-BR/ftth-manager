@@ -8,7 +8,7 @@ import { CompassIcon } from './icons';
 import {
     ChevronUp, Info, Lock, Unlock, Edit3, Trash2, Ruler, MapPin, Scissors,
     Group, Ungroup, Crosshair,
-    DoorOpen
+    DoorOpen, Copy
 } from 'lucide-react';
 import DraggableToolbar from './components/DraggableToolbar/DraggableToolbar';
 
@@ -782,6 +782,19 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                             >
                                 <Trash2 size={14} />
                             </button>
+
+                            {/* Botão COPIAR COORDENADAS */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard.writeText(`${item.lat}, ${item.lng}`);
+                                }}
+                                className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors shadow-none"
+                                style={{ width: '28px', height: '28px' }}
+                                title="Copiar Coordenadas"
+                            >
+                                <Copy size={14} />
+                            </button>
                         </div>
                     </DraggableToolbar>
                 </Popup>
@@ -959,7 +972,7 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
                                 onClick={(e) => { e.stopPropagation(); if (onSplit) onSplit(cable.id, clickPosition); }}
                                 className="bg-transparent text-orange-600 dark:text-orange-400 border border-transparent p-1.5 rounded-full hover:bg-orange-100/50 dark:hover:bg-orange-900/40 flex items-center justify-center transition-colors shadow-none"
                                 style={{ width: '28px', height: '28px' }}
-                                title="Seccionar (Dividir)"
+                                title="Seccionar (Cortar)"
                             >
                                 <Scissors size={14} className="rotate-90" />
                             </button>

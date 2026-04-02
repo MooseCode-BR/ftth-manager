@@ -259,6 +259,36 @@
     @apply text-red-400 hover:text-red-600 hover:bg-red-500/10 dark:hover:bg-red-500/10 p-1 rounded-full transition-colors shrink-0;
 }
 
+/* --- Botão de Troca Rápida de Permissão --- */
+.btn-permission-toggle {
+    @apply px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide cursor-pointer border border-transparent transition-all duration-200 ease-in-out flex items-center gap-1 shrink-0 select-none;
+}
+
+.btn-permission-toggle:hover {
+    @apply scale-105 shadow-sm;
+}
+
+.btn-permission-toggle:active {
+    @apply scale-95;
+}
+
+.btn-permission-tech {
+    @apply bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-500/35 hover:border-yellow-500/40;
+}
+
+.btn-permission-designer {
+    @apply bg-green-500/20 text-green-600 dark:text-green-400 hover:bg-green-500/35 hover:border-green-500/40;
+}
+
+/* --- Botão de Sair do Projeto Compartilhado --- */
+.btn-leave-shared {
+    @apply flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold text-red-500 dark:text-red-400 bg-red-500/10 dark:bg-red-500/10 hover:bg-red-500/25 hover:text-red-600 dark:hover:text-red-300 cursor-pointer transition-all duration-200 select-none shrink-0;
+}
+
+.btn-leave-shared:active {
+    @apply scale-95;
+}
+
 /* --- ABA COMPARTILHADOS --- */
 .shared-list {
     @apply space-y-2;
