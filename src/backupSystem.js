@@ -1,5 +1,5 @@
 import { writeBatch, doc, collection, getDocs, query } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { db, storage } from './firebaseConfig';
 import JSZip from 'jszip';
 
@@ -103,7 +103,7 @@ export const generateBackupFile = async (data, visibleProjects) => {
         const url = URL.createObjectURL(zipContent);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `${safeName}.zip`; // Agora é .zip (ou pode manter .ftth se quiseres ser chique)
+        link.download = `${safeName}.ftth`; // Agora é .zip (ou pode manter .ftth se quiseres ser chique)
         document.body.appendChild(link);
         link.click();
 
@@ -114,129 +114,12 @@ export const generateBackupFile = async (data, visibleProjects) => {
     }
 };
 
-
-// --- 2. RESTAURAR BACKUP (Lê ZIP e Re-upa Imagens) ---
-// export const restoreFromBackup = async (file, projectOwnerId, targetProjectId, onProgress) => {
-//     return new Promise(async (resolve, reject) => {
-//         try {
-//             const zip = new JSZip();
-//             const loadedZip = await zip.loadAsync(file);
-
-//             // 1. Ler o JSON de dados
-//             if (!loadedZip.file("data.json")) {
-//                 throw new Error("Arquivo de backup inválido: 'data.json' não encontrado.");
-//             }
-
-//             const content = await loadedZip.file("data.json").async("string");
-//             const parsed = JSON.parse(content);
-//             const { items, connections, settings } = parsed.data;
-
-//             if (onProgress) onProgress("Estrutura lida. Limpando projeto...", 10);
-
-//             // 2. Limpeza (Wipe)
-//             await wipeProjectDatabase(projectOwnerId, targetProjectId);
-
-//             const projectPath = `artifacts/ftth-production/users/${projectOwnerId}/projects/${targetProjectId}`;
-
-//             // 3. Restaurar ITENS e Re-upar IMAGENS
-//             // Aqui está o pulo do gato: Se o item tem fotos com 'backupFileName',
-//             // precisamos achar esse arquivo no ZIP, subir pro Firebase e atualizar a URL.
-
-//             const totalItems = items.length;
-//             const batchSize = 100; // Lote menor pois upload de imagem demora
-
-//             for (let i = 0; i < totalItems; i++) {
-//                 const item = items[i];
-
-//                 // Processar Fotos do Item
-//                 if (item.photos && item.photos.length > 0) {
-//                     const newPhotos = [];
-
-//                     for (const photo of item.photos) {
-//                         // Se tem nome de arquivo no ZIP, tenta restaurar
-//                         if (photo.backupFileName && loadedZip.file(`images/${photo.backupFileName}`)) {
-//                             try {
-//                                 // Pega o binário do ZIP
-//                                 const photoBlob = await loadedZip.file(`images/${photo.backupFileName}`).async("blob");
-
-//                                 // Cria referência no Storage (Pasta do Dono -> Images -> ItemID)
-//                                 const storagePath = `users/${projectOwnerId}/images/${item.id}/${Date.now()}_${photo.backupFileName}`;
-//                                 const storageRef = ref(storage, storagePath);
-
-//                                 // Upload
-//                                 const snapshot = await uploadBytes(storageRef, photoBlob);
-//                                 const newUrl = await getDownloadURL(snapshot.ref);
-
-//                                 // Atualiza o objeto da foto com a NOVA URL
-//                                 newPhotos.push({
-//                                     ...photo,
-//                                     url: newUrl,
-//                                     path: storagePath, // Importante para poder deletar depois
-//                                     backupFileName: undefined // Limpa esse campo temporário
-//                                 });
-
-//                             } catch (err) {
-//                                 console.error("Falha ao restaurar imagem:", photo.backupFileName, err);
-//                                 // Se falhar, tenta manter a URL original se existir, ou ignora
-//                                 if (photo.originalUrl) {
-//                                     newPhotos.push({ ...photo, url: photo.originalUrl });
-//                                 }
-//                             }
-//                         } else {
-//                             // Backup antigo ou imagem perdida, mantém como está
-//                             newPhotos.push(photo);
-//                         }
-//                     }
-//                     item.photos = newPhotos;
-//                 }
-
-//                 // Salva o Item no Firestore
-//                 const { _projectId, _ownerId, ...cleanItem } = item;
-//                 // cleanItem._projectId = targetProjectId; // Opcional
-//                 await dbActionSave(doc(db, `${projectPath}/items`, item.id), cleanItem);
-
-//                 // Progresso detalhado
-//                 if (onProgress && i % 5 === 0) {
-//                     const percent = 20 + (i / totalItems) * 50; // De 20% a 70%
-//                     onProgress(`Restaurando Itens e Imagens... (${i + 1}/${totalItems})`, percent);
-//                 }
-//             }
-
-//             // 4. Restaurar CONEXÕES (Rápido)
-//             if (onProgress) onProgress("Restaurando Conexões...", 75);
-//             await batchSaveHelper(connections, `${projectPath}/connections`);
-
-//             // 5. Restaurar CONFIGURAÇÕES
-//             if (onProgress) onProgress("Restaurando Configurações...", 90);
-//             const batchSettings = writeBatch(db);
-
-//             if (settings.tags) {
-//                 const tagsObj = Array.isArray(settings.tags) 
-//                     ? settings.tags.reduce((acc, t) => ({...acc, [t.id]: t}), {}) 
-//                     : settings.tags;
-//                 batchSettings.set(doc(db, `${projectPath}/settings`, 'tags'), tagsObj);
-//             }
-//             if (settings.signals) batchSettings.set(doc(db, `${projectPath}/settings`, 'signals'), settings.signals);
-//             if (settings.portLabels) batchSettings.set(doc(db, `${projectPath}/settings`, 'portLabels'), settings.portLabels);
-//             if (settings.nodeColors) {
-//                 let payload = settings.nodeColors;
-//                  if (!payload.settings && !payload.favorites) payload = { settings: payload, favorites: [] };
-//                 batchSettings.set(doc(db, `${projectPath}/settings`, 'nodeColors'), payload);
-//             }
-//             await batchSettings.commit();
-
-//             if (onProgress) onProgress("Concluído!", 100);
-//             resolve(parsed.meta);
-
-//         } catch (error) {
-//             console.error("Erro fatal no restore:", error);
-//             reject(error);
-//         }
-//     });
-// };
-// --- 2. RESTAURAR BACKUP (Lê ZIP e Re-upa Imagens) ---
+// --- 2. RESTAURAR BACKUP (Abordagem Transacional / Tudo ou Nada) ---
 export const restoreFromBackup = async (file, projectOwnerId, targetProjectId, onProgress) => {
     return new Promise(async (resolve, reject) => {
+        // Armazena as referências dos uploads para podermos apagá-las se algo der erro (Rollback)
+        const uploadedStorageRefs = [];
+
         try {
             const zip = new JSZip();
             const loadedZip = await zip.loadAsync(file);
@@ -249,110 +132,144 @@ export const restoreFromBackup = async (file, projectOwnerId, targetProjectId, o
             const content = await loadedZip.file("data.json").async("string");
             const parsed = JSON.parse(content);
             const { items, connections, settings } = parsed.data;
-
-            if (onProgress) onProgress("Estrutura lida. Limpando projeto...", 10);
-
-            // 2. Limpeza (Wipe)
-            await wipeProjectDatabase(projectOwnerId, targetProjectId);
-
             const projectPath = `artifacts/ftth-production/users/${projectOwnerId}/projects/${targetProjectId}`;
 
-            // 3. Restaurar ITENS e Re-upar IMAGENS
-            const totalItems = items.length;
+            if (onProgress) onProgress("Preparando dados e imagens", 10);
 
-            for (let i = 0; i < totalItems; i++) {
+            // --- FASE 1: PREPARAÇÃO E UPLOAD DE IMAGENS ---
+            // Nenhuma alteração é feita no Firestore ainda. Se falhar aqui, o projeto atual continua intacto.
+            const itemsToSave = [];
+
+            for (let i = 0; i < items.length; i++) {
                 const item = items[i];
+                const { _projectId, _ownerId, ...cleanItem } = item; // Limpa chaves obsoletas
 
-                // Processar Fotos do Item
-                if (item.photos && item.photos.length > 0) {
+                if (cleanItem.photos && cleanItem.photos.length > 0) {
                     const newPhotos = [];
-
-                    for (const photo of item.photos) {
-                        // Clona o objeto para não alterar a referência original
+                    for (const photo of cleanItem.photos) {
                         let photoToSave = { ...photo };
 
-                        // Se tem nome de arquivo no ZIP, tenta restaurar
                         if (photo.backupFileName && loadedZip.file(`images/${photo.backupFileName}`)) {
-                            try {
-                                // Pega o binário do ZIP
-                                const photoBlob = await loadedZip.file(`images/${photo.backupFileName}`).async("blob");
+                            // Faz a extração do ZIP e o Upload pro Storage
+                            const photoBlob = await loadedZip.file(`images/${photo.backupFileName}`).async("blob");
+                            const storagePath = `users/${projectOwnerId}/images/${cleanItem.id}/${Date.now()}_${photo.backupFileName}`;
+                            const storageRefToUpload = ref(storage, storagePath);
 
-                                // Cria referência no Storage
-                                const storagePath = `users/${projectOwnerId}/images/${item.id}/${Date.now()}_${photo.backupFileName}`;
-                                const storageRef = ref(storage, storagePath);
+                            const snapshot = await uploadBytes(storageRefToUpload, photoBlob);
 
-                                // Upload
-                                const snapshot = await uploadBytes(storageRef, photoBlob);
-                                const newUrl = await getDownloadURL(snapshot.ref);
+                            // Adiciona na nossa lista de Rollback de segurança
+                            uploadedStorageRefs.push(snapshot.ref);
 
-                                // Atualiza a URL e o Path
-                                photoToSave.url = newUrl;
-                                photoToSave.path = storagePath;
-
-                            } catch (err) {
-                                console.error("Falha ao restaurar imagem:", photo.backupFileName, err);
-                                // Se falhar, tenta manter a URL original se existir
-                                if (photo.originalUrl) {
-                                    photoToSave.url = photo.originalUrl;
-                                }
-                            }
+                            // Atualiza a URL e o Path
+                            photoToSave.url = await getDownloadURL(snapshot.ref);
+                            photoToSave.path = storagePath;
+                        } else if (photo.originalUrl) {
+                            photoToSave.url = photo.originalUrl;
                         }
 
-                        // --- CORREÇÃO DO ERRO ---
-                        // Removemos as propriedades temporárias totalmente
-                        // O Firestore odeia 'undefined', então usamos delete
                         delete photoToSave.backupFileName;
-                        delete photoToSave.originalUrl; // Opcional: removemos também a url antiga para limpar
-
+                        delete photoToSave.originalUrl;
                         newPhotos.push(photoToSave);
                     }
-                    item.photos = newPhotos;
+                    cleanItem.photos = newPhotos;
                 }
+                itemsToSave.push(cleanItem);
 
-                // Salva o Item no Firestore
-                const { _projectId, _ownerId, ...cleanItem } = item;
-
-                await dbActionSave(doc(db, `${projectPath}/items`, item.id), cleanItem);
-
-                // Progresso detalhado
                 if (onProgress) {
-                    const percent = 20 + (i / totalItems) * 50;
-                    onProgress(`Restaurando Itens e Imagens... (${i + 1}/${totalItems})`, percent);
-                    await new Promise(resolve => setTimeout(resolve, 0));
+                    const percent = 10 + (i / items.length) * 40; // Vai de 10% a 50%
+                    onProgress(`Restaurando itens (${i + 1}/${items.length})`, percent);
                 }
             }
 
-            // 4. Restaurar CONEXÕES (Rápido)
-            if (onProgress) onProgress("Restaurando Conexões...", 75);
-            await batchSaveHelper(connections, `${projectPath}/connections`);
+            // --- FASE 2: PREPARAÇÃO DO FIRESTORE (O Delta) ---
+            if (onProgress) onProgress("Analisando o que precisa ser substituído...", 60);
 
-            // 5. Restaurar CONFIGURAÇÕES
-            if (onProgress) onProgress("Restaurando Configurações...", 90);
-            const batchSettings = writeBatch(db);
+            // Puxa o que existe ATUALMENTE no banco para descobrirmos o que precisa ser deletado
+            const currentItemsSnap = await getDocs(query(collection(db, `${projectPath}/items`)));
+            const currentConnectionsSnap = await getDocs(query(collection(db, `${projectPath}/connections`)));
 
+            const newItemsIds = itemsToSave.map(i => i.id);
+            const newConnectionsIds = connections.map(c => c.id);
+
+            // Filtramos para apagar SOMENTE o que existe no banco atual mas NÃO existe no backup.
+            // O que existe em ambos será automaticamente sobrescrito pelos próximos passos.
+            const itemsToDelete = currentItemsSnap.docs.map(d => d.id).filter(id => !newItemsIds.includes(id));
+            const connectionsToDelete = currentConnectionsSnap.docs.map(d => d.id).filter(id => !newConnectionsIds.includes(id));
+
+            // Centralizamos todas as operações de banco em um grande array
+            const firestoreOperations = [];
+
+            // 1. Adiciona operações de Deleção do que sobrou
+            itemsToDelete.forEach(id => firestoreOperations.push({ type: 'delete', ref: doc(db, `${projectPath}/items`, id) }));
+            connectionsToDelete.forEach(id => firestoreOperations.push({ type: 'delete', ref: doc(db, `${projectPath}/connections`, id) }));
+
+            // 2. Adiciona operações de Criação/Atualização dos novos itens
+            itemsToSave.forEach(item => {
+                firestoreOperations.push({ type: 'set', ref: doc(db, `${projectPath}/items`, item.id), data: item });
+            });
+
+            // 3. Adiciona operações das Conexões
+            connections.forEach(conn => {
+                const { _projectId, _ownerId, ...cleanConn } = conn;
+                firestoreOperations.push({ type: 'set', ref: doc(db, `${projectPath}/connections`, cleanConn.id), data: cleanConn });
+            });
+
+            // 4. Adiciona operações das Configurações
             if (settings.tags) {
-                const tagsObj = Array.isArray(settings.tags)
-                    ? settings.tags.reduce((acc, t) => ({ ...acc, [t.id]: t }), {})
-                    : settings.tags;
-                // Tags são globais por usuário — gravar no caminho correto com merge
-                // para não apagar tags que o usuário já possui.
+                const tagsObj = Array.isArray(settings.tags) ? settings.tags.reduce((acc, t) => ({ ...acc, [t.id]: t }), {}) : settings.tags;
                 const userTagsRef = doc(db, `artifacts/ftth-production/users/${projectOwnerId}/settings`, 'tags');
-                batchSettings.set(userTagsRef, tagsObj, { merge: true });
+                firestoreOperations.push({ type: 'set', ref: userTagsRef, data: tagsObj, merge: true });
             }
-            if (settings.signals) batchSettings.set(doc(db, `${projectPath}/settings`, 'signals'), settings.signals);
-            if (settings.portLabels) batchSettings.set(doc(db, `${projectPath}/settings`, 'portLabels'), settings.portLabels);
+            if (settings.signals) firestoreOperations.push({ type: 'set', ref: doc(db, `${projectPath}/settings`, 'signals'), data: settings.signals });
+            if (settings.portLabels) firestoreOperations.push({ type: 'set', ref: doc(db, `${projectPath}/settings`, 'portLabels'), data: settings.portLabels });
             if (settings.nodeColors) {
                 let payload = settings.nodeColors;
                 if (!payload.settings && !payload.favorites) payload = { settings: payload, favorites: [] };
-                batchSettings.set(doc(db, `${projectPath}/settings`, 'nodeColors'), payload);
+                firestoreOperations.push({ type: 'set', ref: doc(db, `${projectPath}/settings`, 'nodeColors'), data: payload });
             }
-            await batchSettings.commit();
 
-            if (onProgress) onProgress("Concluído!", 100);
+            // --- FASE 3: EXECUÇÃO DOS LOTES (COMMIT FINAL) ---
+            if (onProgress) onProgress("Gravando novos dados no projeto", 80);
+
+            // O Firebase suporta no máximo 500 operações por Lote (Batch). Usamos 450 por segurança.
+            const CHUNK_SIZE = 450;
+            for (let i = 0; i < firestoreOperations.length; i += CHUNK_SIZE) {
+                const batch = writeBatch(db);
+                const chunk = firestoreOperations.slice(i, i + CHUNK_SIZE);
+
+                chunk.forEach(op => {
+                    if (op.type === 'set') {
+                        if (op.merge) batch.set(op.ref, op.data, { merge: true });
+                        else batch.set(op.ref, op.data);
+                    } else if (op.type === 'delete') {
+                        batch.delete(op.ref);
+                    }
+                });
+
+                await batch.commit();
+            }
+
+            if (onProgress) onProgress("Restauração Concluída com Sucesso!", 100);
             resolve(parsed.meta);
 
         } catch (error) {
-            console.error("Erro fatal no restore:", error);
+            console.error("Erro fatal na restauração. Iniciando Rollback de segurança", error);
+            if (onProgress) onProgress("Falha detectada. Revertendo arquivos e cancelando operação", 0);
+
+            // --- ROLLBACK DE SEGURANÇA ---
+            // Se ocorreu um erro, tentamos apagar todas as imagens que foram subidas para o Storage durante essa tentativa falha.
+            if (uploadedStorageRefs.length > 0) {
+                try {
+                    const rollbackPromises = uploadedStorageRefs.map(storageReference =>
+                        deleteObject(storageReference).catch(e => console.warn("Não foi possível apagar arquivo no rollback", e))
+                    );
+                    await Promise.all(rollbackPromises);
+                    console.log("Rollback de imagens concluído. O banco de dados não foi afetado.");
+                } catch (rollbackError) {
+                    console.error("Erro durante o processo de Rollback:", rollbackError);
+                }
+            }
+
             reject(error);
         }
     });
@@ -379,26 +296,6 @@ const batchSaveHelper = async (list, collectionPath) => {
         });
         await batch.commit();
     }
-};
-
-const wipeProjectDatabase = async (projectOwnerId, projectId) => {
-    const basePath = `artifacts/ftth-production/users/${projectOwnerId}/projects/${projectId}`;
-    const itemsRef = collection(db, `${basePath}/items`);
-    const itemsSnap = await getDocs(query(itemsRef));
-    const itemsToDelete = itemsSnap.docs.map(d => d.id);
-    await batchDeleteHelper(itemsToDelete, `${basePath}/items`);
-
-    const connsRef = collection(db, `${basePath}/connections`);
-    const connsSnap = await getDocs(query(connsRef));
-    const connsToDelete = connsSnap.docs.map(d => d.id);
-    await batchDeleteHelper(connsToDelete, `${basePath}/connections`);
-
-    // Nota: 'tags' não está incluído pois agora são globais por usuário
-    // (caminho: users/{uid}/settings/tags) e não devem ser apagadas ao limpar o projeto.
-    const settingsDocs = ['signals', 'portLabels', 'nodeColors', 'standards'];
-    const batch = writeBatch(db);
-    settingsDocs.forEach(docId => batch.delete(doc(db, `${basePath}/settings`, docId)));
-    await batch.commit();
 };
 
 const batchDeleteHelper = async (ids, collectionPath) => {
