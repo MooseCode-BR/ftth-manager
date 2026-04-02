@@ -345,140 +345,102 @@ const generateNodeDescription = (node, allItems, connections, signalConfigs) => 
     return `<![CDATA[${html}]]>`;
 };
 // 2. Função Principal de Download
-export const downloadKML = async (selectedProjects, data, signalConfigs) => {
-    if (!selectedProjects || selectedProjects.length === 0) return false;
+export const downloadKML = (nodes, cables, connections, signalConfigs, allItems) => {
+    try {
+        let kmlContent = `<?xml version="1.0" encoding="UTF-8"?>
+                                <kml xmlns="http://www.opengis.net/kml/2.2">
+                                    <Document>
+                                        <name>Rede FTTH Export</name>
+                                        <description>Exportado do FTTH Manager Cloud</description>`;
 
-    const { items, connections } = data;
+        // --- GERAR PONTOS (CAIXAS/CLIENTES) ---
+        nodes.forEach(node => {
+            if (node.lat && node.lng) {
+                const color = hexToKmlColor(node.color || '#ffffff');
 
-    // Imports feitos uma vez fora do loop
-    const { getDocs, getDoc, query, collection, doc } = await import('firebase/firestore');
-    const { db } = await import('../firebaseConfig');
+                // GERA DESCRIÇÃO AVANÇADA (FUSÕES)
+                const description = generateNodeDescription(node, allItems, connections, signalConfigs);
 
-    for (const project of selectedProjects) {
-        try {
-            const projectPath = `artifacts/ftth-production/users/${project.ownerId}/projects/${project.id}`;
-
-            // Busca itens do projeto — usa memória se disponível, senão vai ao Firestore
-            let projectItems = items.filter(i => i._projectId === project.id);
-            let projectConnections = connections.filter(c => c._projectId === project.id);
-
-            if (projectItems.length === 0) {
-                const itemsSnap = await getDocs(query(collection(db, `${projectPath}/items`)));
-                projectItems = itemsSnap.docs.map(d => ({ id: d.id, ...d.data(), _projectId: project.id, _ownerId: project.ownerId }));
-
-                const connSnap = await getDocs(query(collection(db, `${projectPath}/connections`)));
-                projectConnections = connSnap.docs.map(d => ({ id: d.id, ...d.data(), _projectId: project.id, _ownerId: project.ownerId }));
+                kmlContent += `
+                <Placemark>
+                    <name>${node.name || 'Sem Nome'}</name>
+                    <description>${description}</description>
+                    <Style>
+                        <IconStyle>
+                            <color>${color}</color>
+                            <scale>1.1</scale>
+                            <Icon>
+                                <href>http://maps.google.com/mapfiles/kml/pushpin/wht-pushpin.png</href>
+                            </Icon>
+                        </IconStyle>
+                        <LabelStyle>
+                            <scale>0.8</scale>
+                        </LabelStyle>
+                    </Style>
+                    <Point>
+                        <coordinates>${node.lng},${node.lat},0</coordinates>
+                    </Point>
+                </Placemark>`;
             }
+        });
 
-            // Sempre busca os sinais do próprio projeto no Firestore para garantir que as
-            // configurações de sinal reflitam este projeto, independente do que está no state global
-            let projectSignalConfigs = signalConfigs || {};
-            try {
-                const signalsDoc = await getDoc(doc(db, `${projectPath}/settings`, 'signals'));
-                if (signalsDoc.exists()) {
-                    projectSignalConfigs = signalsDoc.data();
+        // --- GERAR LINHAS (CABOS) ---
+        cables.forEach(cable => {
+            const nodeA = nodes.find(n => n.id === cable.fromNode);
+            const nodeB = nodes.find(n => n.id === cable.toNode);
+
+            if (nodeA && nodeB && nodeA.lat && nodeB.lat) {
+                const strokeColor = hexToKmlColor(cable.color || '#000000');
+
+                // GERA DESCRIÇÃO AVANÇADA (SINAIS)
+                const description = generateCableDescription(cable, allItems, connections, signalConfigs);
+
+                let coordsString = `${nodeA.lng},${nodeA.lat},0`;
+                if (cable.waypoints && cable.waypoints.length > 0) {
+                    cable.waypoints.forEach(wp => {
+                        coordsString += ` ${wp.lng},${wp.lat},0`;
+                    });
                 }
-            } catch (e) {
-                console.warn(`Não foi possível buscar sinais do projeto ${project.name}. Usando estado global.`, e);
+                coordsString += ` ${nodeB.lng},${nodeB.lat},0`;
+
+                kmlContent += `
+                <Placemark>
+                    <name>${cable.name || 'Cabo'}</name>
+                    <description>${description}</description>
+                    <Style>
+                        <LineStyle>
+                            <color>${strokeColor}</color>
+                            <width>5</width>
+                        </LineStyle>
+                    </Style>
+                    <LineString>
+                        <tessellate>1</tessellate>
+                        <coordinates>${coordsString}</coordinates>
+                    </LineString>
+                </Placemark>`;
             }
+        });
 
-            // Separa nós e cabos
-            const nodes = projectItems.filter(i => !i.parentId && i.type !== 'CABLE');
-            const cables = projectItems.filter(i => i.type === 'CABLE');
+        kmlContent += `
+            </Document>
+        </kml>`;
 
-            // Monta o KML do projeto
-            let kmlContent = `<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2">
-    <Document>
-        <name>${project.name}</name>
-        <description>Exportado do FTTH Manager Cloud</description>`;
+        const blob = new Blob([kmlContent], { type: 'application/vnd.google-earth.kml+xml' });
+        const url = URL.createObjectURL(blob);
 
-            // --- PONTOS (Caixas / Clientes) ---
-            nodes.forEach(node => {
-                if (node.lat && node.lng) {
-                    const color = hexToKmlColor(node.color || '#ffffff');
-                    const description = generateNodeDescription(node, projectItems, projectConnections, projectSignalConfigs);
-                    kmlContent += `
-        <Placemark>
-            <name>${node.name || 'Sem Nome'}</name>
-            <description>${description}</description>
-            <Style>
-                <IconStyle>
-                    <color>${color}</color>
-                    <scale>1.1</scale>
-                    <Icon>
-                        <href>http://maps.google.com/mapfiles/kml/pushpin/wht-pushpin.png</href>
-                    </Icon>
-                </IconStyle>
-                <LabelStyle>
-                    <scale>0.8</scale>
-                </LabelStyle>
-            </Style>
-            <Point>
-                <coordinates>${node.lng},${node.lat},0</coordinates>
-            </Point>
-        </Placemark>`;
-                }
-            });
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `rede_ftth_${new Date().toISOString().slice(0, 10)}.kml`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
 
-            // --- LINHAS (Cabos) ---
-            cables.forEach(cable => {
-                const nodeA = nodes.find(n => n.id === cable.fromNode);
-                const nodeB = nodes.find(n => n.id === cable.toNode);
+        return true;
 
-                if (nodeA && nodeB && nodeA.lat && nodeB.lat) {
-                    const strokeColor = hexToKmlColor(cable.color || '#000000');
-                    const description = generateCableDescription(cable, projectItems, projectConnections, projectSignalConfigs);
-
-                    let coordsString = `${nodeA.lng},${nodeA.lat},0`;
-                    if (cable.waypoints && cable.waypoints.length > 0) {
-                        cable.waypoints.forEach(wp => { coordsString += ` ${wp.lng},${wp.lat},0`; });
-                    }
-                    coordsString += ` ${nodeB.lng},${nodeB.lat},0`;
-
-                    kmlContent += `
-        <Placemark>
-            <name>${cable.name || 'Cabo'}</name>
-            <description>${description}</description>
-            <Style>
-                <LineStyle>
-                    <color>${strokeColor}</color>
-                    <width>5</width>
-                </LineStyle>
-            </Style>
-            <LineString>
-                <tessellate>1</tessellate>
-                <coordinates>${coordsString}</coordinates>
-            </LineString>
-        </Placemark>`;
-                }
-            });
-
-            kmlContent += `
-    </Document>
-</kml>`;
-
-            // Dispara o download individual
-            const blob = new Blob([kmlContent], { type: 'application/vnd.google-earth.kml+xml' });
-            const url = URL.createObjectURL(blob);
-            const safeName = project.name.replace(/[^a-z0-9à-ú ]/gi, '_');
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `${safeName}.kml`;
-            document.body.appendChild(link);
-            link.click();
-
-            setTimeout(() => {
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
-            }, 100);
-
-        } catch (error) {
-            console.error(`Erro ao gerar KML do projeto ${project.name}:`, error);
-        }
+    } catch (error) {
+        console.error("Erro ao gerar KML:", error);
+        return false;
     }
-
-    return true;
 };
 //=================================================//
 

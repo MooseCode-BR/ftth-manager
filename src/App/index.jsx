@@ -84,6 +84,7 @@ import ProjectManagerModal from '../components/ProjectManagerModal'; // Gerencia
 import ReportModal from '../components/ReportModal'; // Geração de relatórios
 import SettingsModal from '../components/SettingsModal'; // Configurações gerais
 import BackupModal from '../components/BackupModal'; // Novo modal de seleção de projetos para salvar
+import KMLExportModal from '../components/KMLExportModal'; // Modal de seleção de projetos para exportar KML
 import StandardsModal from '../components/StandardModal'; // Padrões de cores de cabos
 import TagManagerModal from '../components/TagManagerModal'; // Gerenciamento de tags
 import TraceModal from '../components/TraceModal'; // Rastreamento de sinal óptico
@@ -588,6 +589,7 @@ const App = () => {
     const [isLoading, setIsLoading] = useState(true);  //Está carregando?
     const [mapStartConfig, setMapStartConfig] = useState(null); // Guarda o centro do mapa salvo
     const [isBackupModalOpen, setIsBackupModalOpen] = useState(false); // Modal de Salvar Backup
+    const [isKMLExportModalOpen, setIsKMLExportModalOpen] = useState(false); // Modal de Exportar KML
 
     // --- ESTADOS DE INTERFACE ---
     const [pendingConn, setPendingConn] = useState(null); //Conexao pendente
@@ -2116,7 +2118,7 @@ const App = () => {
     const handleRevokeShare = async (inviteId) => {
         openConfirm(
             "Revogar Acesso",
-            "Deseja revogar o acesso deste usuário?",
+            "Deseja revogar o acesso a este projeto?",
             async () => {
                 try {
                     await deleteDoc(doc(db, 'ftth_invitations', inviteId));
@@ -4227,161 +4229,161 @@ const App = () => {
         setTraceModalData(fullPath);
     };
 
-    // --- FUNÇÃO OTDR (CÁLCULO DE DISTÂNCIA FÍSICA) ---
-    const handleOTDR = (startItemId, startPort) => {
-        const inputDist = window.prompt("Distância medida pelo OTDR (em metros):");
-        if (!inputDist) return;
+    // --- FUNÇÃO OTDR (CÁLCULO DE DISTÂNCIA FÍSICA) --- DESATIVADA POR ENQUANTO
+    // const handleOTDR = (startItemId, startPort) => {
+    //     const inputDist = window.prompt("Distância medida pelo OTDR (em metros):");
+    //     if (!inputDist) return;
 
-        let remainingDist = parseFloat(inputDist);
-        if (isNaN(remainingDist) || remainingDist <= 0) {
-            openAlert("Erro", "Distância inválida.");
-            return;
-        }
+    //     let remainingDist = parseFloat(inputDist);
+    //     if (isNaN(remainingDist) || remainingDist <= 0) {
+    //         openAlert("Erro", "Distância inválida.");
+    //         return;
+    //     }
 
-        // --- CORREÇÃO: Busca robusta (aceita texto ou número na porta) ---
-        const findConn = (itemId, port, side) => {
-            return connections.find(c =>
-                (c.fromId === itemId && c.fromPort == port && c.fromSide === side) || // Usa == em vez de ===
-                (c.toId === itemId && c.toPort == port && c.toSide === side)
-            );
-        };
+    //     // --- CORREÇÃO: Busca robusta (aceita texto ou número na porta) ---
+    //     const findConn = (itemId, port, side) => {
+    //         return connections.find(c =>
+    //             (c.fromId === itemId && c.fromPort == port && c.fromSide === side) || // Usa == em vez de ===
+    //             (c.toId === itemId && c.toPort == port && c.toSide === side)
+    //         );
+    //     };
 
-        let currentId = startItemId;
-        let currentPort = startPort;
-        let currentSide = 'A';
+    //     let currentId = startItemId;
+    //     let currentPort = startPort;
+    //     let currentSide = 'A';
 
-        // Tenta achar a conexão de saída
-        // 1. Tenta Lado A (Padrão para OLT/Splitter)
-        let startConn = findConn(currentId, currentPort, 'A');
+    //     // Tenta achar a conexão de saída
+    //     // 1. Tenta Lado A (Padrão para OLT/Splitter)
+    //     let startConn = findConn(currentId, currentPort, 'A');
 
-        // 2. Se não achou, tenta Frente (DIO)
-        if (!startConn) startConn = findConn(currentId, currentPort, 'FRONT');
+    //     // 2. Se não achou, tenta Frente (DIO)
+    //     if (!startConn) startConn = findConn(currentId, currentPort, 'FRONT');
 
-        // 3. Se não achou, tenta Trás (DIO)
-        if (!startConn) startConn = findConn(currentId, currentPort, 'BACK');
+    //     // 3. Se não achou, tenta Trás (DIO)
+    //     if (!startConn) startConn = findConn(currentId, currentPort, 'BACK');
 
-        // 4. Se não achou, tenta Lado B (Raro, mas possível em cabos)
-        if (!startConn) startConn = findConn(currentId, currentPort, 'B');
+    //     // 4. Se não achou, tenta Lado B (Raro, mas possível em cabos)
+    //     if (!startConn) startConn = findConn(currentId, currentPort, 'B');
 
-        if (!startConn) {
-            openAlert("Sem Link", "Não foi encontrado cabo conectado nesta porta/fibra.");
-            return;
-        }
+    //     if (!startConn) {
+    //         openAlert("Sem Link", "Não foi encontrado cabo conectado nesta porta/fibra.");
+    //         return;
+    //     }
 
-        // Define o primeiro "Pulo"
-        let nextId = startConn.fromId === currentId ? startConn.toId : startConn.fromId;
-        let nextPort = startConn.fromId === currentId ? startConn.toPort : startConn.fromPort;
-        let nextSide = startConn.fromId === currentId ? startConn.toSide : startConn.fromSide;
+    //     // Define o primeiro "Pulo"
+    //     let nextId = startConn.fromId === currentId ? startConn.toId : startConn.fromId;
+    //     let nextPort = startConn.fromId === currentId ? startConn.toPort : startConn.fromPort;
+    //     let nextSide = startConn.fromId === currentId ? startConn.toSide : startConn.fromSide;
 
-        // LOOP DE NAVEGAÇÃO
-        for (let i = 0; i < 100; i++) {
-            const item = items.find(x => x.id === nextId);
-            if (!item) break;
+    //     // LOOP DE NAVEGAÇÃO
+    //     for (let i = 0; i < 100; i++) {
+    //         const item = items.find(x => x.id === nextId);
+    //         if (!item) break;
 
-            // --- CASO 1: É UM CABO (CALCULAR METRAGEM) ---
-            if (item.type === 'CABLE') {
-                const nodeA = items.find(n => n.id === item.fromNode);
-                const nodeB = items.find(n => n.id === item.toNode);
+    //         // --- CASO 1: É UM CABO (CALCULAR METRAGEM) ---
+    //         if (item.type === 'CABLE') {
+    //             const nodeA = items.find(n => n.id === item.fromNode);
+    //             const nodeB = items.find(n => n.id === item.toNode);
 
-                if (nodeA && nodeB) {
-                    // Monta geometria: [Inicio, ...waypoints, Fim]
-                    let points = [{ lat: nodeA.lat, lng: nodeA.lng }, ...(item.waypoints || []), { lat: nodeB.lat, lng: nodeB.lng }];
+    //             if (nodeA && nodeB) {
+    //                 // Monta geometria: [Inicio, ...waypoints, Fim]
+    //                 let points = [{ lat: nodeA.lat, lng: nodeA.lng }, ...(item.waypoints || []), { lat: nodeB.lat, lng: nodeB.lng }];
 
-                    // Se entramos pelo lado B, invertemos para andar na direção certa
-                    if (nextSide === 'B') {
-                        points = points.reverse();
-                    }
+    //                 // Se entramos pelo lado B, invertemos para andar na direção certa
+    //                 if (nextSide === 'B') {
+    //                     points = points.reverse();
+    //                 }
 
-                    // Percorre cada segmento do cabo
-                    for (let j = 0; j < points.length - 1; j++) {
-                        const p1 = points[j];
-                        const p2 = points[j + 1];
+    //                 // Percorre cada segmento do cabo
+    //                 for (let j = 0; j < points.length - 1; j++) {
+    //                     const p1 = points[j];
+    //                     const p2 = points[j + 1];
 
-                        // Haversine simplificado
-                        const R = 6371e3;
-                        const rad = Math.PI / 180;
-                        const φ1 = p1.lat * rad, φ2 = p2.lat * rad;
-                        const Δφ = (p2.lat - p1.lat) * rad, Δλ = (p2.lng - p1.lng) * rad;
-                        const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
-                        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                        const segmentDist = R * c;
+    //                     // Haversine simplificado
+    //                     const R = 6371e3;
+    //                     const rad = Math.PI / 180;
+    //                     const φ1 = p1.lat * rad, φ2 = p2.lat * rad;
+    //                     const Δφ = (p2.lat - p1.lat) * rad, Δλ = (p2.lng - p1.lng) * rad;
+    //                     const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+    //                     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    //                     const segmentDist = R * c;
 
-                        // ACHAMOS O PONTO?
-                        if (remainingDist <= segmentDist) {
-                            const ratio = remainingDist / segmentDist;
-                            const finalLat = p1.lat + (p2.lat - p1.lat) * ratio;
-                            const finalLng = p1.lng + (p2.lng - p1.lng) * ratio;
+    //                     // ACHAMOS O PONTO?
+    //                     if (remainingDist <= segmentDist) {
+    //                         const ratio = remainingDist / segmentDist;
+    //                         const finalLat = p1.lat + (p2.lat - p1.lat) * ratio;
+    //                         const finalLng = p1.lng + (p2.lng - p1.lng) * ratio;
 
-                            // CENTRALIZA E MARCA
-                            setViewMode('MAP');
-                            setFlyToCoords([finalLat, finalLng]);
-                            setDetailId(null);
+    //                         // CENTRALIZA E MARCA
+    //                         setViewMode('MAP');
+    //                         setFlyToCoords([finalLat, finalLng]);
+    //                         setDetailId(null);
 
-                            // (Opcional) Poderíamos criar um marcador temporário aqui
-                            openAlert("Localizado", `Ponto encontrado a ${inputDist}m da origem.`);
-                            return;
-                        }
+    //                         // (Opcional) Poderíamos criar um marcador temporário aqui
+    //                         openAlert("Localizado", `Ponto encontrado a ${inputDist}m da origem.`);
+    //                         return;
+    //                     }
 
-                        remainingDist -= segmentDist;
-                    }
-                }
+    //                     remainingDist -= segmentDist;
+    //                 }
+    //             }
 
-                // Se o cabo acabou e não achou, vai para o próximo item
-                const exitSide = nextSide === 'A' ? 'B' : 'A';
+    //             // Se o cabo acabou e não achou, vai para o próximo item
+    //             const exitSide = nextSide === 'A' ? 'B' : 'A';
 
-                // Pega a conexão na saída do cabo
-                const exitConn = findConn(item.id, nextPort, exitSide);
-                if (exitConn) {
-                    nextId = exitConn.fromId === item.id ? exitConn.toId : exitConn.fromId;
-                    nextPort = exitConn.fromId === item.id ? exitConn.toPort : exitConn.fromPort;
-                    nextSide = exitConn.fromId === item.id ? exitConn.toSide : exitConn.fromSide;
-                } else {
-                    openAlert("Fim de Rede", `A fibra termina neste cabo (Sobra de ${remainingDist.toFixed(1)}m).`);
-                    return;
-                }
-            }
+    //             // Pega a conexão na saída do cabo
+    //             const exitConn = findConn(item.id, nextPort, exitSide);
+    //             if (exitConn) {
+    //                 nextId = exitConn.fromId === item.id ? exitConn.toId : exitConn.fromId;
+    //                 nextPort = exitConn.fromId === item.id ? exitConn.toPort : exitConn.fromPort;
+    //                 nextSide = exitConn.fromId === item.id ? exitConn.toSide : exitConn.fromSide;
+    //             } else {
+    //                 openAlert("Fim de Rede", `A fibra termina neste cabo (Sobra de ${remainingDist.toFixed(1)}m).`);
+    //                 return;
+    //             }
+    //         }
 
-            // --- CASO 2: ITEM PASSIVO (FUSÃO/SPLITTER) ---
-            else {
-                let exitSide = null;
-                let exitPort = null;
+    //         // --- CASO 2: ITEM PASSIVO (FUSÃO/SPLITTER) ---
+    //         else {
+    //             let exitSide = null;
+    //             let exitPort = null;
 
-                if (item.type === 'DIO' || item.type === 'PATCH_PANEL') {
-                    exitSide = nextSide === 'FRONT' ? 'BACK' : 'FRONT';
-                    exitPort = nextPort;
-                } else if (item.type === 'SPLITTER') {
-                    if (nextPort != 0) { // Entrou na saída, sai na entrada
-                        exitPort = 0;
-                        exitSide = 'A';
-                    } else {
-                        openAlert("Splitter", "O sinal chegou na entrada do Splitter e se dividiu. Selecione a porta de saída manualmente para continuar.");
-                        return;
-                    }
-                } else if (item.type === 'CEO' || item.type === 'CTO' || item.type === 'POP') {
-                    // Se for apenas o nó (caixa), assume fusão passante se houver
-                    // A lógica aqui depende de como você modelou a fusão interna. 
-                    // Se a fusão liga Cabo A direto no Cabo B, o 'nextId' já teria pulado a caixa e ido pro Cabo B.
-                    // Se caiu aqui, é porque parou na caixa.
-                    openAlert("Caixa", `Chegou em ${item.name}. Verifique as fusões internas.`);
-                    setDetailId(item.id); // Abre a caixa para inspeção
-                    return;
-                }
+    //             if (item.type === 'DIO' || item.type === 'PATCH_PANEL') {
+    //                 exitSide = nextSide === 'FRONT' ? 'BACK' : 'FRONT';
+    //                 exitPort = nextPort;
+    //             } else if (item.type === 'SPLITTER') {
+    //                 if (nextPort != 0) { // Entrou na saída, sai na entrada
+    //                     exitPort = 0;
+    //                     exitSide = 'A';
+    //                 } else {
+    //                     openAlert("Splitter", "O sinal chegou na entrada do Splitter e se dividiu. Selecione a porta de saída manualmente para continuar.");
+    //                     return;
+    //                 }
+    //             } else if (item.type === 'CEO' || item.type === 'CTO' || item.type === 'POP') {
+    //                 // Se for apenas o nó (caixa), assume fusão passante se houver
+    //                 // A lógica aqui depende de como você modelou a fusão interna. 
+    //                 // Se a fusão liga Cabo A direto no Cabo B, o 'nextId' já teria pulado a caixa e ido pro Cabo B.
+    //                 // Se caiu aqui, é porque parou na caixa.
+    //                 openAlert("Caixa", `Chegou em ${item.name}. Verifique as fusões internas.`);
+    //                 setDetailId(item.id); // Abre a caixa para inspeção
+    //                 return;
+    //             }
 
-                if (exitSide) {
-                    const conn = findConn(item.id, exitPort, exitSide);
-                    if (conn) {
-                        nextId = conn.fromId === item.id ? conn.toId : conn.fromId;
-                        nextPort = conn.fromId === item.id ? conn.toPort : conn.fromPort;
-                        nextSide = conn.fromId === item.id ? conn.toSide : conn.fromSide;
-                    } else {
-                        openAlert("Fim", "Fim da conexão no " + item.name);
-                        return;
-                    }
-                }
-            }
-        }
-        openAlert("Limite", "Distância maior que a rede desenhada.");
-    };
+    //             if (exitSide) {
+    //                 const conn = findConn(item.id, exitPort, exitSide);
+    //                 if (conn) {
+    //                     nextId = conn.fromId === item.id ? conn.toId : conn.fromId;
+    //                     nextPort = conn.fromId === item.id ? conn.toPort : conn.fromPort;
+    //                     nextSide = conn.fromId === item.id ? conn.toSide : conn.fromSide;
+    //                 } else {
+    //                     openAlert("Fim", "Fim da conexão no " + item.name);
+    //                     return;
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     openAlert("Limite", "Distância maior que a rede desenhada.");
+    // };
 
     // Função para buscar endereço na API e mandar pro mapa
     const handleAddressSearch = async () => {
@@ -5325,10 +5327,7 @@ const App = () => {
                 isOpen={isSettingsOpen}
                 onClose={() => setIsSettingsOpen(false)}
                 onExportKML={() => {
-                    const mapNodes = items.filter(i => !i.parentId && (ITEM_TYPES[i.type]?.category === 'NODE' || i.type === 'CLIENT'));
-                    const mapCables = items.filter(i => i.type === 'CABLE');
-                    const success = downloadKML(mapNodes, mapCables, connections, signalNames, items);
-                    if (success) openAlert("Sucesso", "Arquivo KML gerado");
+                    setIsKMLExportModalOpen(true);
                 }}
                 onImportKML={() => {
                     fileInputRef.current.click();
@@ -5470,6 +5469,30 @@ const App = () => {
                         selectedProjects
                     );
                     setIsBackupModalOpen(false);
+                }}
+            />
+
+            <KMLExportModal
+                isOpen={isKMLExportModalOpen}
+                onClose={() => setIsKMLExportModalOpen(false)}
+                projects={myProjects}
+                onConfirm={async (selectedProjects) => {
+                    setIsKMLExportModalOpen(false);
+                    setIsProcessing(true);
+                    setProcessingMessage(`Gerando KML de ${selectedProjects.length} projeto(s)...`);
+                    try {
+                        await downloadKML(
+                            selectedProjects,
+                            { items, connections },
+                            signalNames
+                        );
+                        openAlert("Sucesso", `${selectedProjects.length} arquivo(s) KML gerado(s) com sucesso!`);
+                    } catch (e) {
+                        openAlert("Erro", "Falha ao gerar KML. Tente novamente.");
+                    } finally {
+                        setIsProcessing(false);
+                        setProcessingMessage('');
+                    }
                 }}
             />
 

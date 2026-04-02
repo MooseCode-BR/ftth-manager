@@ -400,7 +400,8 @@ const DetailPanel = ({
                                     <Activity size={12} /> <span className="text-[10px]">Rastrear</span>
                                 </button>
 
-                                <button
+                                {/* Botão OTDR desativado por enquanto*/}
+                                {/* <button
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         onOTDR(targetItem.id, portIndex);
@@ -409,7 +410,7 @@ const DetailPanel = ({
                                     title="OTDR (Medir Distância)"
                                 >
                                     <RulerDimensionLine size={12} /> <span className="text-[10px]">OTDR</span>
-                                </button>
+                                </button> */}
                             </div>
                         )}
                     </div>
