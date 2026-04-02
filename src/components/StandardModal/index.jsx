@@ -10,6 +10,22 @@ import { Plus, Trash2, Palette } from 'lucide-react';
 
 // Padrão de Cores dos Cabos
 const StandardsModal = ({ standards, onClose, onSave }) => {
+    const handleOverlayClick = (e) => {
+        if (e.target === e.currentTarget) onClose();
+    };
+
+    React.useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                const higher = document.querySelectorAll('.alert-overlay, .confirm-overlay, .photo-modal-overlay');
+                if (higher.length > 0) return;
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [onClose]);
+
     const [localStandards, setLocalStandards] = useState(standards || {}); 
     const [fiberCount, setFiberCount] = useState(''); 
     const [color, setColor] = useState('#000000');
@@ -28,7 +44,7 @@ const StandardsModal = ({ standards, onClose, onSave }) => {
     };
 
     return ( 
-        <div className="standards-overlay"> 
+        <div className="standards-overlay" onClick={handleOverlayClick}> 
             <div className="standards-card"> 
                 
                 {/* Cabeçalho */}

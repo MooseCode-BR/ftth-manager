@@ -8,6 +8,22 @@ import { calculateCableLength } from '../../utils'; // Certifique-se de ter adic
 
 const ReportModal = ({ items, connections, onAlertRequest, onClose }) => {
 
+    const handleOverlayClick = (e) => {
+        if (e.target === e.currentTarget) onClose();
+    };
+
+    React.useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                const higher = document.querySelectorAll('.alert-overlay, .confirm-overlay, .photo-modal-overlay');
+                if (higher.length > 0) return;
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [onClose]);
+
     // Processamento dos dados
     const report = useMemo(() => {
         const stats = {
@@ -118,7 +134,7 @@ const ReportModal = ({ items, connections, onAlertRequest, onClose }) => {
     };
 
     return (
-        <div className="report-overlay">
+        <div className="report-overlay" onClick={handleOverlayClick}>
             <div className="report-card">
 
                 {/* Cabeçalho */}

@@ -28,19 +28,14 @@ const AuthScreen = ({ onLogin }) => {
 
     // 1. Estado inicial inteligente
     const [isDarkMode, setIsDarkMode] = useState(() => {
-        // Verificação de segurança para garantir que estamos no navegador (evita erros em SSR como Next.js)
         if (typeof window !== 'undefined') {
-            const temaSalvo = localStorage.getItem('ftth_theme_preference');
-
-            // Se o utilizador já escolheu antes, usamos a escolha dele
+            const temaSalvo = localStorage.getItem('ftth_theme');
             if (temaSalvo) {
                 return temaSalvo === 'dark';
             }
-
-            // Se é a primeira vez, verificamos a preferência do Windows/Mac/Android do utilizador
-            return window.matchMedia('(prefers-color-scheme: dark)').matches;
+            return true; // Se é a primeira vez, modo escuro por padrão
         }
-        return false;
+        return true;
     });
 
     // 2. Sincronização com o HTML e LocalStorage
@@ -49,10 +44,10 @@ const AuthScreen = ({ onLogin }) => {
 
         if (isDarkMode) {
             root.classList.add('dark');
-            localStorage.setItem('ftth_theme_preference', 'dark');
+            localStorage.setItem('ftth_theme', 'dark');
         } else {
             root.classList.remove('dark');
-            localStorage.setItem('ftth_theme_preference', 'light');
+            localStorage.setItem('ftth_theme', 'light');
         }
     }, [isDarkMode]); // O array [isDarkMode] diz ao React: "Roda isto sempre que isDarkMode mudar"
 
@@ -193,7 +188,7 @@ const AuthScreen = ({ onLogin }) => {
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="seu@email.com"
+                                    placeholder="Digite o seu e-mail"
                                     autoFocus
                                     className="text-input pl-10"
                                     required
@@ -212,7 +207,7 @@ const AuthScreen = ({ onLogin }) => {
                                             type={showPassword ? "text" : "password"}
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
-                                            placeholder="••••••••"
+                                            placeholder="Digite a sua senha"
                                             className="text-input pl-10 pr-10"
                                             required
                                         />
@@ -237,7 +232,7 @@ const AuthScreen = ({ onLogin }) => {
                                                 type={showPassword ? "text" : "password"}
                                                 value={confirmPassword}
                                                 onChange={(e) => setConfirmPassword(e.target.value)}
-                                                placeholder="Repita a senha"
+                                                placeholder="Digite a sua senha novamente"
                                                 className={`text-input pl-10 pr-10 ${confirmPassword && password !== confirmPassword ? 'input-error' : 'input-default'}`}
                                                 required
                                             />

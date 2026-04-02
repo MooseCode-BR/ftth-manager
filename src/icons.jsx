@@ -63,28 +63,29 @@ export const CTOIcon = ({ size, className }) => (
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="1"
         strokeLinecap="round"
         strokeLinejoin="round"
         className={className}
-    >
-        <rect x="5" y="2" width="17" height="20" rx="3" fill="none" />
-        <rect x="18" y="6" width="4" height="4" rx="0.1" fill="currentColor" />
-        <rect x="18" y="14" width="4" height="4" rx="0.1" fill="currentColor" />
-        <rect x="2" y="4" width="3" height="16" rx="0.5" fill="currentColor" />
-    </svg>
     // >
-    //     <rect x="3.8" y="3" width="1.5" height="15" rx="0.2" />
-    //     <rect x="14" y="18.8" width="1.5" height="3" rx="0.1" />
-    //     <rect x="16" y="18.8" width="1.5" height="3" rx="0.1" />
-    //     <rect x="7" y="19.2" width="6" height="2" rx="0.2" />
-    //     <rect x="5" y="1" width="14" height="19" rx="1" />
-    //     <rect x="16" y="9.5" width="2" height="2" rx="1" />
-    //     <rect x="15.5" y="2.5" width="3.5" height="5" rx="0.2" />
-    //     <rect x="15.5" y="13.5" width="3.5" height="5" rx="0.2" />
-    //     <line x1="15" y1="15" x2="15" y2="17" />
-    //     <line x1="15" y1="4" x2="15" y2="6" />
+    //     <rect x="5" y="2" width="17" height="20" rx="3" fill="none" />
+    //     <rect x="18" y="6" width="4" height="4" rx="0.1" fill="currentColor" />
+    //     <rect x="18" y="14" width="4" height="4" rx="0.1" fill="currentColor" />
+    //     <rect x="2" y="4" width="3" height="16" rx="0.5" fill="currentColor" />
     // </svg>
+    >
+        <rect x="3" y="3" width="2" height="15" rx="0.2" fill="currentColor" /> {/*Dobradiça*/}
+        <rect x="13" y="20" width="1.5" height="2" fill="currentColor" /> {/*Entrada cabo direita*/}
+        <rect x="16" y="20" width="1.5" height="2" fill="currentColor" /> {/*Entrada cabo esquerda*/}
+        <rect x="7" y="20" width="4" height="1" strokeWidth="2" /> {/*Base*/}
+        <rect x="5" y="1" width="14" height="19" rx="1" strokeWidth="2" /> {/*Caixa principal*/}
+        <rect x="16" y="10" width="1" height="1" rx="1" /> {/*Bolinha*/}
+        <rect x="15.5" y="3.5" width="3.5" height="4" rx="0.2" fill="currentColor" /> {/*Trava superior*/}
+        <rect x="15.5" y="13.5" width="3.5" height="4" rx="0.2" fill="currentColor" /> {/*Trava inferior*/}
+        <line x1="15" y1="4.5" x2="15" y2="6.5" /> {/*Linha Trava Superior*/}
+        <line x1="15" y1="14.5" x2="15" y2="16.5" /> {/*Linha Trava Inferior*/}
+
+    </svg>
 );
 
 export const SplitterIcon = ({ size, className }) => (

@@ -55,6 +55,7 @@ import { findConnection, downloadKML, parseKMLImport, analyzeDuplicates } from '
 // generateBackupFile: Cria arquivo de backup completo do projeto
 // restoreFromBackup: Restaura projeto a partir de arquivo de backup
 import { generateBackupFile, restoreFromBackup } from '../backupSystem';
+import JSZip from 'jszip';
 
 // ============================================================================
 // COMPONENTES - AUTENTICAÇÃO E MODAIS
@@ -82,6 +83,7 @@ import PortPickerModal from '../components/PortPickerModal'; // Seleção de por
 import ProjectManagerModal from '../components/ProjectManagerModal'; // Gerenciador de projetos
 import ReportModal from '../components/ReportModal'; // Geração de relatórios
 import SettingsModal from '../components/SettingsModal'; // Configurações gerais
+import BackupModal from '../components/BackupModal'; // Novo modal de seleção de projetos para salvar
 import StandardsModal from '../components/StandardModal'; // Padrões de cores de cabos
 import TagManagerModal from '../components/TagManagerModal'; // Gerenciamento de tags
 import TraceModal from '../components/TraceModal'; // Rastreamento de sinal óptico
@@ -585,6 +587,7 @@ const App = () => {
     const [newClientPosition, setNewClientPosition] = useState(null); //Posição de novo cliente
     const [isLoading, setIsLoading] = useState(true);  //Está carregando?
     const [mapStartConfig, setMapStartConfig] = useState(null); // Guarda o centro do mapa salvo
+    const [isBackupModalOpen, setIsBackupModalOpen] = useState(false); // Modal de Salvar Backup
 
     // --- ESTADOS DE INTERFACE ---
     const [pendingConn, setPendingConn] = useState(null); //Conexao pendente
@@ -623,7 +626,10 @@ const App = () => {
     const [userLocation, setUserLocation] = useState(null); // { lat, lng } — última localização conhecida (atualizada pelo botão "Onde estou")
     const [suggestions, setSuggestions] = useState([]); // Lista de endereços encontrados
     const [showSuggestions, setShowSuggestions] = useState(false); // Se a lista aparece ou não
-    const [isDarkMode, setIsDarkMode] = useState(() => { return localStorage.getItem('ftth_theme') === 'dark'; });
+    const [isDarkMode, setIsDarkMode] = useState(() => { 
+        const tema = localStorage.getItem('ftth_theme'); 
+        return tema ? tema === 'dark' : true; 
+    });
     const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const [draggingNode, setDraggingNode] = useState(null);
@@ -1201,22 +1207,46 @@ const App = () => {
         // Confirmação de Segurança
         openConfirm(
             "Restaurar Backup",
-            "ATENÇÃO: Restaurar um arquivo FTTH irá SUBSTITUIR TODOS os dados atuais do projeto selecionado.\n\n" +
-            "Todos os itens e conexões atuais serão apagados e substituídos pelo arquivo selecionado.\n\n" +
-            "Deseja continuar?",
+            "Restaurar um arquivo FTTH criará um novo projeto contendo os dados do arquivo.\n\n" +
+            "Seus projetos atuais não serão afetados.",
             async () => {
                 setIsProcessing(true);
-                setProcessingMessage("Restaurando arquivo, aguarde a conclusão!");
+                setProcessingMessage("Lendo arquivo de backup...");
                 try {
-                    await restoreFromBackup(file, projectOwnerId, activeProjectId, (status, percent) => {
+                    let newProjectName = "Projeto Restaurado";
+                    try {
+                        const zip = new JSZip();
+                        const loadedZip = await zip.loadAsync(file);
+                        if (loadedZip.file("data.json")) {
+                            const content = await loadedZip.file("data.json").async("string");
+                            const parsed = JSON.parse(content);
+                            if (parsed.meta && parsed.meta.projectName) {
+                                newProjectName = parsed.meta.projectName + " (Restaurado)";
+                            }
+                        }
+                    } catch (e) {
+                        console.warn("Erro ao extrair nome do projeto do backup, usando padrao", e);
+                    }
+
+                    setProcessingMessage("Criando novo projeto...");
+
+                    const projectOwner = projectOwnerId || user.uid;
+                    const novoProjetoRef = await addDoc(collection(db, `artifacts/ftth-production/users/${projectOwner}/projects`), {
+                        name: newProjectName,
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                    });
+
+                    await restoreFromBackup(file, projectOwner, novoProjetoRef.id, (status, percent) => {
                         console.log(status);
                         setProcessingMessage(status);
                     });
-                    openAlert("Sucesso", "Backup restaurado com sucesso! O sistema será recarregado.");
+
+                    openAlert("Sucesso", `Projeto ${newProjectName} restaurado com sucesso! O sistema será recarregado.`);
                     setTimeout(() => window.location.reload(), 2000);
                 } catch (error) {
                     console.error(error);
-                    openAlert("Erro Crítico", "Falha ao restaurar backup. É necessário que o projeto atual esteja ativo para criações. Caso esteja, verifique o arquivo selecionado.");
+                    openAlert("Erro Crítico", "Falha ao restaurar arquivo. O arquivo selecionado pode estar corrompido.");
                 } finally {
                     setIsProcessing(false);
                     setProcessingMessage("");
@@ -2934,13 +2964,13 @@ const App = () => {
                     ];
 
                     const deleteSettingsPromises = settingsToDelete.map(docName =>
-                        deleteDoc(doc(db, `artifacts/ftth-production/users/${uid}/settings`, docName)).catch(() => {})
+                        deleteDoc(doc(db, `artifacts/ftth-production/users/${uid}/settings`, docName)).catch(() => { })
                     );
                     await Promise.all(deleteSettingsPromises);
 
                     // 3. APAGAR PERFIL DE USUÁRIO E ROOT (Tenta apagar pelo menos para não deixar sujeira vazia)
-                    await deleteDoc(doc(db, `artifacts/ftth-production/userProfiles`, uid)).catch(() => {});
-                    await deleteDoc(doc(db, `artifacts/ftth-production/users`, uid)).catch(() => {});
+                    await deleteDoc(doc(db, `artifacts/ftth-production/userProfiles`, uid)).catch(() => { });
+                    await deleteDoc(doc(db, `artifacts/ftth-production/users`, uid)).catch(() => { });
 
                     // 4. FINALMENTE: APAGAR USUÁRIO DO AUTH
                     await deleteUser(auth.currentUser);
@@ -5212,47 +5242,54 @@ const App = () => {
 
             {/* 3. PAINEL DE FILTROS FLUTUANTE (Novo Passo C) */}
             {isFilterPanelOpen && (
-                <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[45] bg-white dark:bg-gray-800 p-4 rounded-xl shadow-xl border dark:border-gray-700 w-[90%] max-w-lg animate-in slide-in-from-bottom-2">
-                    <div className="flex justify-between items-center mb-2">
-                        <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200">Filtrar por Etiquetas</h3>
-                        <div className="flex justify-between items-right mb-2 gap-5">
-                            <button onClick={() => setFilterTags([])} className="text-xs text-red-500 hover:underline">Limpar</button>
-                            <button onClick={() => setIsFilterPanelOpen(false)} className="text-xs text-blue-500 hover:underline">Fechar</button>
+                <>
+                    {/* Overlay transparente para clique fora */}
+                    <div 
+                        className="fixed inset-0 z-[44]" 
+                        onClick={() => setIsFilterPanelOpen(false)}
+                    />
+                    <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[45] bg-white/40 dark:bg-black/70 border border-white/60 dark:border-white/20 backdrop-blur-xl rounded-2xl shadow-xl p-4 w-[90%] max-w-lg animate-in slide-in-from-bottom-2">
+                        <div className="flex justify-between items-center mb-2">
+                            <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Filtrar por Etiquetas</h3>
+                            <div className="flex justify-between items-right mb-2 gap-5">
+                                <button onClick={() => setFilterTags([])} className="text-xs text-red-500 hover:underline">Limpar</button>
+                                <button onClick={() => setIsFilterPanelOpen(false)} className="text-xs text-blue-500 hover:underline">Fechar</button>
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar">
+                            {availableTags.sort((a, b) => a.name.localeCompare(b.name)).map(tag => (
+                                <button
+                                    key={tag.id}
+                                    onClick={() => {
+                                        const newTags = filterTags.includes(tag.id) ? filterTags.filter(t => t !== tag.id) : [...filterTags, tag.id];
+                                        setFilterTags(newTags);
+                                    }}
+                                    className={`px-3 py-1 rounded-full text-xs font-bold transition-all border ${filterTags.includes(tag.id)
+                                        ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-300'
+                                        : 'bg-white/50 dark:bg-black/50 text-gray-700 dark:text-gray-300 border-white/60 dark:border-white/20 hover:bg-blue-600 dark:hover:bg-blue-300 hover:text-white dark:hover:text-white'
+                                        }`}
+                                >
+                                    {tag.name}
+                                </button>
+                            ))}
+                            {availableTags.length === 0 && <p className="text-xs text-gray-600 dark:text-gray-400">Nenhuma etiqueta criada.</p>}
+                        </div>
+                        <div className="flex gap-2 mt-3 pt-2 border-t border-white/60 dark:border-white/20">
+                            {['OR', 'AND', 'EXACT'].map(mode => (
+                                <button
+                                    key={mode}
+                                    onClick={() => setFilterMode(mode)}
+                                    className={`flex-1 py-1 text-[10px] font-bold rounded transition-colors ${filterMode === mode
+                                        ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/50'
+                                        : 'text-gray-600 dark:text-gray-400 bg-white/30 dark:bg-black/30 hover:bg-white/50 dark:hover:bg-black/50'
+                                        }`}
+                                >
+                                    {mode === 'OR' ? 'Qualquer (OU)' : mode === 'AND' ? 'Todas (E)' : 'Exato'}
+                                </button>
+                            ))}
                         </div>
                     </div>
-                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar">
-                        {availableTags.sort((a, b) => a.name.localeCompare(b.name)).map(tag => (
-                            <button
-                                key={tag.id}
-                                onClick={() => {
-                                    const newTags = filterTags.includes(tag.id) ? filterTags.filter(t => t !== tag.id) : [...filterTags, tag.id];
-                                    setFilterTags(newTags);
-                                }}
-                                className={`px-3 py-1 rounded-full text-xs font-bold border transition-all  ${filterTags.includes(tag.id)
-                                    ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-300'
-                                    : 'bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-transparent hover:bg-blue-600 dark:hover:bg-blue-300'
-                                    }`}
-                            >
-                                {tag.name}
-                            </button>
-                        ))}
-                        {availableTags.length === 0 && <p className="text-xs text-gray-400">Nenhuma etiqueta criada.</p>}
-                    </div>
-                    <div className="flex gap-2 mt-3 pt-2 border-t dark:border-gray-700">
-                        {['OR', 'AND', 'EXACT'].map(mode => (
-                            <button
-                                key={mode}
-                                onClick={() => setFilterMode(mode)}
-                                className={`flex-1 py-1 text-[10px] font-bold rounded transition-colors ${filterMode === mode
-                                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                                    : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'
-                                    }`}
-                            >
-                                {mode === 'OR' ? 'Qualquer (OU)' : mode === 'AND' ? 'Todas (E)' : 'Exato'}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+                </>
             )}
 
             {/* 4. DOCK (Substitui a Sidebar) */}
@@ -5280,44 +5317,23 @@ const App = () => {
                     const mapCables = items.filter(i => i.type === 'CABLE');
                     const success = downloadKML(mapNodes, mapCables, connections, signalNames, items);
                     if (success) openAlert("Sucesso", "Arquivo KML gerado");
-                    setIsSettingsOpen(false);
                 }}
                 onImportKML={() => {
                     fileInputRef.current.click();
-                    setIsSettingsOpen(false);
                 }}
                 onBackup={() => {
-                    // 1. Filtra APENAS nos teus projetos ('myProjects')
-                    // Se houver um projeto compartilhado visível, ele será ignorado aqui
-                    const projectsToBackup = myProjects.filter(p => visibleProjectIds.includes(p.id));
-
-                    // Opcional: Adicionar uma verificação extra para não chamar a função à toa
-                    if (projectsToBackup.length === 0) {
-                        // Podes usar o teu openAlert aqui se quiseres ser mais específico
-                        openAlert("Sem projetos selecionados", "Você precisa deixar ao menos um projeto próprio visível para salvar. Não é possível salvar projetos compartilhados.");
-                        return;
-                    }
-
-                    // 2. Chama a função passando a lista filtrada
-                    generateBackupFile(
-                        { items, connections, availableTags, signalNames, portLabels, nodeColorSettings },
-                        projectsToBackup
-                    );
-
-                    setIsSettingsOpen(false);
+                    setIsBackupModalOpen(true);
                 }}
                 onRestore={() => {
                     backupInputRef.current.click();
-                    setIsSettingsOpen(false);
                 }}
                 onManageTags={() => {
                     setTagManagerOpen(true);
-                    setIsSettingsOpen(false);
                 }}
-                onOpenNodeColors={() => { setNodeColorsModalOpen(true); setIsSettingsOpen(false); }}
-                onOpenCableColors={() => { setStandardsModalOpen(true); setIsSettingsOpen(false); }}
-                onOpenReport={() => { setReportOpen(true); setIsSettingsOpen(false); }}
-                onManageProjects={() => { setIsProjectManagerOpen(true); setIsSettingsOpen(false); }}
+                onOpenNodeColors={() => { setNodeColorsModalOpen(true); }}
+                onOpenCableColors={() => { setStandardsModalOpen(true); }}
+                onOpenReport={() => { setReportOpen(true); }}
+                onManageProjects={() => { setIsProjectManagerOpen(true); }}
             />
 
             {/* Painel de Detalhes (Lógica existente) */}
@@ -5432,6 +5448,18 @@ const App = () => {
             {splitModalData && <SplitModal data={splitModalData} onConfirm={executeSplitCable} onCancel={() => setSplitModalData(null)} />}
             {isProfileOpen && auth.currentUser && <ProfileModal user={auth.currentUser} onClose={() => setIsProfileOpen(false)} onUpdateName={handleUpdateProfileName} onUpdatePassword={handleUpdatePassword} onDeleteAccount={handleDeleteAccountFull} onLogout={handleLogout} onUpdatePhoto={handleUpdatePhoto} onDeletePhoto={handleDeletePhoto} />}
             {traceModalData && <TraceModal path={traceModalData} onClose={() => setTraceModalData(null)} />}
+            <BackupModal
+                isOpen={isBackupModalOpen}
+                onClose={() => setIsBackupModalOpen(false)}
+                projects={myProjects}
+                onConfirm={(selectedProjects) => {
+                    generateBackupFile(
+                        { items, connections, availableTags, signalNames, portLabels, nodeColorSettings },
+                        selectedProjects
+                    );
+                    setIsBackupModalOpen(false);
+                }}
+            />
 
             {duplicatesData && <DuplicatesModal conflicts={duplicatesData} onCancel={() => { setDuplicatesData(null); setTempCleanItems([]); }} onConfirm={handleDuplicatesResolved} />}
             {importModalData && <ImportModal colors={importModalData.colors} itemCount={importModalData.items.length} onClose={() => setImportModalData(null)} onConfirm={processImportConfiguration} />}

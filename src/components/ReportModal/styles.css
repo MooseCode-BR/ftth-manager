@@ -1,10 +1,10 @@
 /* Overlay e Card Principal */
 .report-overlay {
-    @apply fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4;
+    @apply fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-[100] p-4;
 }
 
 .report-card {
-    @apply bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col border dark:border-gray-700 animate-in zoom-in-95;
+    @apply bg-white/40 dark:bg-black/70 border border-white/60 dark:border-white/20 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200;
 }
 
 /* Header */

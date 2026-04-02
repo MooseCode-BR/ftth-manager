@@ -11,6 +11,22 @@ import { ITEM_TYPES } from '../../constants';
 
 // Padrão de Cores dos Nós
 const NodeColorsModal = ({ nodeSettings, favoriteColors, onClose, onSave }) => {
+    const handleOverlayClick = (e) => {
+        if (e.target === e.currentTarget) onClose();
+    };
+
+    React.useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                const higher = document.querySelectorAll('.alert-overlay, .confirm-overlay, .photo-modal-overlay');
+                if (higher.length > 0) return;
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [onClose]);
+
     const [localSettings, setLocalSettings] = useState(nodeSettings || {
         POP: '#4338ca',
         CEO: '#ea580c',
@@ -38,7 +54,7 @@ const NodeColorsModal = ({ nodeSettings, favoriteColors, onClose, onSave }) => {
     };
 
     return (
-        <div className="node-colors-overlay">
+        <div className="node-colors-overlay" onClick={handleOverlayClick}>
             <div className="node-colors-card">
 
                 {/* Título */}

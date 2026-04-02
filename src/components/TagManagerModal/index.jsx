@@ -5,6 +5,22 @@ import React, { useState } from 'react';
 import { Tag, Plus, Trash2, Save, X, Edit3 } from 'lucide-react';
 
 const TagManagerModal = ({ tags = [], onClose, onSaveTag, onDeleteTag }) => {
+    const handleOverlayClick = (e) => {
+        if (e.target === e.currentTarget) onClose();
+    };
+
+    React.useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                const higher = document.querySelectorAll('.alert-overlay, .confirm-overlay, .photo-modal-overlay');
+                if (higher.length > 0) return;
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [onClose]);
+
     const [editingId, setEditingId] = useState(null);
     const [editName, setEditName] = useState("");
     const [editColor, setEditColor] = useState("#3b82f6");
@@ -40,7 +56,7 @@ const TagManagerModal = ({ tags = [], onClose, onSaveTag, onDeleteTag }) => {
     const sortedTags = [...tags].sort((a, b) => a.name.localeCompare(b.name));
 
     return (
-        <div className="tag-manager-overlay">
+        <div className="tag-manager-overlay" onClick={handleOverlayClick}>
             <div className="tag-manager-card">
                 
                 {/* Header */}
