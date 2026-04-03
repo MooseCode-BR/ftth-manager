@@ -5375,7 +5375,37 @@ const App = () => {
                 }
                 return (
                     <div className="fixed inset-0 bg-white dark:bg-gray-800 z-50 flex flex-col transition-transform overflow-hidden">
-                        <DetailPanel onOTDR={handleOTDR} itemId={detailId} items={items} connections={connections} portLabels={portLabels} signalNames={signalNames} setConnections={setConnections} setItems={setItems} /*setPortLabels={setPortLabels}*/ close={() => setDetailId(null)} openAddModal={setModalConfig} onEditRequest={renameItem} onGenericEditRequest={openEditModal} onConfirmRequest={openConfirm} onAlertRequest={openAlert} saveConnection={saveConnection} deleteConnectionDB={deleteConnectionDB} updateLabelDB={updateLabelDB} updateSignalDB={updateSignalDB} saveItem={saveItem} deleteItemDB={deleteItemDB} pendingConn={pendingConn} setPendingConn={setPendingConn} onInfoRequest={openInfoModal} onDelete={(id) => deleteItem(id)} onOpenPhotos={(item) => setPhotoModalData(item)} onAddSlotRequest={(item, type) => { const nextIndex = type === 'OLT' ? (item.interfaces?.length || 0) : (item.cards?.length || 0); setSlotModalConfig({ item, type, nextIndex }); }} onSplitCable={splitCable} onTraceRequest={handleTraceSignal} onOpenNotes={(item) => setNotesModalConfig({ itemId: item.id, title: `Nota: ${item.name}`, initialNotes: item.notes, onSave: (newText) => { saveItem({ ...item, notes: newText }); setNotesModalConfig(null); }, onClose: () => setNotesModalConfig(null) })} />
+                        <DetailPanel
+                            // onOTDR={handleOTDR}
+                            itemId={detailId}
+                            items={items}
+                            connections={connections}
+                            portLabels={portLabels}
+                            signalNames={signalNames}
+                            setConnections={setConnections}
+                            setItems={setItems}
+                            /*setPortLabels={setPortLabels}*/
+                            close={() => setDetailId(null)}
+                            openAddModal={setModalConfig}
+                            onEditRequest={renameItem}
+                            onGenericEditRequest={openEditModal}
+                            onConfirmRequest={openConfirm}
+                            onAlertRequest={openAlert}
+                            saveConnection={saveConnection}
+                            deleteConnectionDB={deleteConnectionDB}
+                            updateLabelDB={updateLabelDB}
+                            updateSignalDB={updateSignalDB}
+                            saveItem={saveItem}
+                            deleteItemDB={deleteItemDB}
+                            pendingConn={pendingConn}
+                            setPendingConn={setPendingConn}
+                            onInfoRequest={openInfoModal}
+                            onDelete={(id) => deleteItem(id)}
+                            onOpenPhotos={(item) => setPhotoModalData(item)}
+                            onAddSlotRequest={(item, type) => { const nextIndex = type === 'OLT' ? (item.interfaces?.length || 0) : (item.cards?.length || 0); setSlotModalConfig({ item, type, nextIndex }); }}
+                            onSplitCable={splitCable}
+                            onTraceRequest={handleTraceSignal}
+                            onOpenNotes={(item) => setNotesModalConfig({ itemId: item.id, title: `Nota: ${item.name}`, initialNotes: item.notes, onSave: (newText) => { saveItem({ ...item, notes: newText }); setNotesModalConfig(null); }, onClose: () => setNotesModalConfig(null) })} />
                     </div>
                 );
             })()}

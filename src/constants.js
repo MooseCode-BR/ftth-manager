@@ -69,17 +69,19 @@ export const ICON_MAP = {
 // Valores de Referência (Atenuação em dB)
 export const ATTENUATION = {
     DEFAULT_TX: 5.0,       // Potência de saída padrão da OLT (dBm)
-    FUSION_LOSS: 0.01,      // Perda por fusão
-    CONNECTOR_LOSS: 0.25,   // Perda por conector/acoplamento
+    FUSION_LOSS: 0.05,      // Perda por fusão
+    CONNECTOR_LOSS: 0.3,   // Perda por conector/acoplamento
     SPLITTER_LOSS: {
         2: 3.7,   // 1:2
         4: 7.1,   // 1:4
         8: 10.5,  // 1:8
-        16: 13.7  // 1:16
+        16: 13.7,  // 1:16
+        32: 17.1,  // 1:32
+        64: 20.5   // 1:64
     }
 };
 
 export const VERSAO = {
-    LOGO_URL: "favicon.svg",
-    NUMERO_VERSAO: "FTTH Manager v0.6.5 Beta"
+    // LOGO_URL: "favicon.svg",
+    NUMERO_VERSAO: "FTTH Manager Cloud v0.6.6 Beta"
 }
