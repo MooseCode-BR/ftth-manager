@@ -1,6 +1,7 @@
 // src/utils/pdfGenerator.js
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { saveFile } from './utils/fileDownloader';
 
 // Função auxiliar para carregar imagem, corrigir rotação via Canvas e converter para Base64
 const loadImage = (url) => {
@@ -209,5 +210,7 @@ export const generateNodeReport = async (node, allItems) => {
         }
     }
 
-    doc.save(`Relatorio_${node.name ? node.name.replace(/\s+/g, '_') : 'Node'}.pdf`);
+    const fileName = `Relatorio_${node.name ? node.name.replace(/\s+/g, '_') : 'Node'}.pdf`;
+    const docBlob = doc.output('blob');
+    await saveFile(docBlob, fileName);
 };

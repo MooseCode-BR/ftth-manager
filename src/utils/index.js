@@ -1,4 +1,5 @@
 import { ATTENUATION } from '../constants';
+import { saveFile } from './fileDownloader';
 //import tokml from 'tokml';
 
 
@@ -458,20 +459,11 @@ export const downloadKML = async (selectedProjects, data, signalConfigs) => {
     </Document>
 </kml>`;
 
-            // Dispara o download individual
+            // Dispara o download individual ou compartilha nativamente
             const blob = new Blob([kmlContent], { type: 'application/vnd.google-earth.kml+xml' });
-            const url = URL.createObjectURL(blob);
             const safeName = project.name.replace(/[^a-z0-9à-ú ]/gi, '_');
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `${safeName}.kml`;
-            document.body.appendChild(link);
-            link.click();
 
-            setTimeout(() => {
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
-            }, 100);
+            await saveFile(blob, `${safeName}.kml`);
 
         } catch (error) {
             console.error(`Erro ao gerar KML do projeto ${project.name}:`, error);

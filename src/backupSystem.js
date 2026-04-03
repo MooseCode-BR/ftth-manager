@@ -3,6 +3,8 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage
 import { db, storage } from './firebaseConfig';
 import JSZip from 'jszip';
 
+import { saveFile } from './utils/fileDownloader';
+
 // --- 1. GERAR BACKUP (COM IMAGENS EM ZIP) ---
 export const generateBackupFile = async (data, visibleProjects) => {
     const {
@@ -122,23 +124,15 @@ export const generateBackupFile = async (data, visibleProjects) => {
         // Adiciona o JSON ao ZIP
         zip.file("data.json", JSON.stringify(backupObject, null, 2));
 
-        // 4. Gera o arquivo ZIP e baixa
-        const zipContent = await zip.generateAsync({ type: "blob" });
+        // 4. Gera o arquivo ZIP como Blob e distribui via download/share
+        // O Blob vai direto para o capacitor-blob-writer (streaming), sem conversão Base64
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
         const safeName = project.name.replace(/[^a-z0-9à-ú ]/gi, '_');
 
-        const url = URL.createObjectURL(zipContent);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${safeName}.zip`; // Agora é .zip (ou pode manter .ftth se quiseres ser chique)
-        document.body.appendChild(link);
-        link.click();
-
-        setTimeout(() => {
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(url);
-        }, 100);
+        await saveFile(zipBlob, `${safeName}.zip`);
     }
 };
+
 
 // --- 2. RESTAURAR BACKUP (Abordagem Transacional / Tudo ou Nada) ---
 export const restoreFromBackup = async (file, projectOwnerId, targetProjectId, onProgress) => {

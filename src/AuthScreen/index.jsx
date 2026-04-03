@@ -312,7 +312,8 @@ const AuthScreen = ({ onLogin }) => {
 
             {/* Copyright */}
             <div className="copyright-text">
-                <img src={VERSAO.LOGO_URL} alt="" className="w-6 h-6" /> &copy; 2026 {VERSAO.NUMERO_VERSAO}. Todos os direitos reservados.
+                {/* <img src={VERSAO.LOGO_URL} alt="" className="w-6 h-6" />  */}
+                &copy; 2026 {VERSAO.NUMERO_VERSAO}. Todos os direitos reservados.
             </div>
         </div>
     );
