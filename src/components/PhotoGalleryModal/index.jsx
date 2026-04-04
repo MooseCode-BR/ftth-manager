@@ -21,9 +21,66 @@ const PhotoGalleryModal = ({ item, onClose, onUpload, onDelete, onBatchDelete, u
         setIsSelectionMode(false);
     }, [item.id]);
 
-    const handleFileChange = (e) => {
+    // Função para gerar o thumbnail via Canvas
+    const generateThumbnail = (file, maxWidth = 300) => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+
+                    // Mantém a proporção correta da imagem
+                    const ratio = maxWidth / img.width;
+                    const width = maxWidth;
+                    const height = img.height * ratio;
+
+                    canvas.width = width;
+                    canvas.height = height;
+
+                    // Desenha a imagem redimensionada no canvas
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // Converte para WebP (formato super leve do Google) com 70% de qualidade
+                    canvas.toBlob((blob) => {
+                        const thumbFile = new File([blob], `thumb_${file.name}`, {
+                            type: 'image/webp',
+                            lastModified: Date.now(),
+                        });
+                        resolve(thumbFile);
+                    }, 'image/webp', 0.7);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    };
+
+    // const handleFileChange = (e) => {
+    //     if (e.target.files && e.target.files.length > 0) {
+    //         onUpload(item, e.target.files);
+    //         e.target.value = '';
+    //     }
+    // };
+    const handleFileChange = async (e) => {
         if (e.target.files && e.target.files.length > 0) {
-            onUpload(item, e.target.files);
+            // Transforma o FileList em um array normal para podermos usar o .map()
+            const filesArray = Array.from(e.target.files);
+
+            // Gera as miniaturas para todos os arquivos selecionados
+            const filesWithThumbnails = await Promise.all(
+                filesArray.map(async (file) => {
+                    const thumbnailFile = await generateThumbnail(file, 300); // 300px é um ótimo tamanho para grid
+                    return {
+                        original: file,
+                        thumbnail: thumbnailFile
+                    };
+                })
+            );
+
+            // Agora passamos o array com os originais e as miniaturas
+            onUpload(item, filesWithThumbnails);
             e.target.value = '';
         }
     };
@@ -143,7 +200,8 @@ const PhotoGalleryModal = ({ item, onClose, onUpload, onDelete, onBatchDelete, u
                                         className={`photo-card ${isSelected ? 'card-selected' : 'card-idle'} ${isSelectionMode ? 'mode-selection' : ''} cursor-pointer`}
                                     >
                                         <img
-                                            src={photo.url}
+                                            // src={photo.url}
+                                            src={photo.thumbnailUrl || photo.url}
                                             alt="Evidência"
                                             className="photo-img"
                                             // --- 5. OTIMIZAÇÃO DAS MINIATURAS ---

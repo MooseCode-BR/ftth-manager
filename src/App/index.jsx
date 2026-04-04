@@ -1866,11 +1866,21 @@ const App = () => {
                         const data = docSnap.data();
                         if (data.photos && data.photos.length > 0) {
                             data.photos.forEach(photo => {
+                                // Apaga a imagem ORIGINAL
                                 if (photo.path) {
                                     const imageRef = ref(storage, photo.path);
                                     imagePromises.push(
                                         deleteObject(imageRef).catch(err => {
                                             console.warn(`Aviso: Não foi possível apagar a imagem ${photo.path}`, err.code);
+                                        })
+                                    );
+                                }
+                                // [CORREÇÃO] Apaga a MINIATURA também (gerada a partir da atualização do sistema)
+                                if (photo.thumbnailPath) {
+                                    const thumbRef = ref(storage, photo.thumbnailPath);
+                                    imagePromises.push(
+                                        deleteObject(thumbRef).catch(err => {
+                                            console.warn(`Aviso: Não foi possível apagar miniatura ${photo.thumbnailPath}`, err.code);
                                         })
                                     );
                                 }
@@ -2487,10 +2497,23 @@ const App = () => {
                         const imageRef = ref(storage, photo.path);
                         // Adicionamos um catch individual para cada foto.
                         // Se a foto já não existir (404), não queremos travar a exclusão do item.
-                        const promise = deleteObject(imageRef).catch(err => {
-                            console.warn(`Aviso: Não foi possível apagar a imagem ${photo.path}`, err.code);
-                        });
-                        imageDeletionPromises.push(promise);
+                        imageDeletionPromises.push(
+                            deleteObject(imageRef).catch(err => {
+                                console.warn(`Aviso: Não foi possível apagar a imagem ${photo.path}`, err.code);
+                            })
+                        );
+                    }
+
+                    // [CORREÇÃO] Apagar a MINIATURA também (thumbnailPath)
+                    // Fotos enviadas após a atualização do sistema possuem este campo.
+                    // Fotos antigas não possuem, então o 'if' protege contra erros.
+                    if (photo.thumbnailPath) {
+                        const thumbRef = ref(storage, photo.thumbnailPath);
+                        imageDeletionPromises.push(
+                            deleteObject(thumbRef).catch(err => {
+                                console.warn(`Aviso: Não foi possível apagar miniatura ${photo.thumbnailPath}`, err.code);
+                            })
+                        );
                     }
                 });
             });
@@ -3617,53 +3640,125 @@ const App = () => {
         }
     };
 
+    // const handlePhotoUpload = async (item, filesInput) => {
+    //     if (!user || !filesInput) return;
+    //     setUploadingPhoto(true);
+    //     try {
+    //         // --- CORREÇÃO: Descobrir o Dono Real do Item ---
+    //         // 1. Identifica o projeto do item (ou usa o ativo como fallback)
+    //         const targetProjectId = item._projectId || activeProjectId;
+
+    //         // 2. Busca os dados desse projeto na lista unificada
+    //         const allProjects = [...myProjects, ...sharedProjects];
+    //         const targetProjectData = allProjects.find(p => p.id === targetProjectId);
+
+    //         // 3. Define o ID do Dono para salvar na pasta correta no Storage
+    //         const targetOwnerId = targetProjectData ? targetProjectData.ownerId : projectOwnerId;
+    //         // -----------------------------------------------
+
+    //         // Prepara a lista de arquivos
+    //         const files = filesInput.length !== undefined && typeof filesInput !== 'string'
+    //             ? Array.from(filesInput)
+    //             : [filesInput];
+
+    //         const newPhotos = [];
+
+    //         // 2. Faz o upload usando o targetOwnerId no caminho
+    //         await Promise.all(files.map(async (file) => {
+    //             // CAMINHO CORRIGIDO: Usa targetOwnerId em vez de projectOwnerId
+    //             const path = `users/${targetOwnerId}/images/${item.id}/${Date.now()}_${file.name}`;
+
+    //             const storageRef = ref(storage, path);
+    //             const snapshot = await uploadBytes(storageRef, file);
+    //             const url = await getDownloadURL(snapshot.ref);
+
+    //             newPhotos.push({
+    //                 url,
+    //                 path, // Guardamos o caminho completo para poder deletar depois
+    //                 date: new Date().toISOString(),
+    //                 id: Date.now().toString() + Math.random().toString().slice(2, 5),
+    //                 uploadedBy: user.uid // Audit: quem enviou a foto
+    //             });
+    //         }));
+
+    //         // 3. Atualiza o banco DEPOIS que todas subirem
+    //         const currentPhotos = item.photos || [];
+    //         const updatedItem = { ...item, photos: [...currentPhotos, ...newPhotos] };
+
+    //         // O saveItem já foi corrigido anteriormente, então ele vai salvar
+    //         // os metadados (links das fotos) no projeto correto automaticamente.
+    //         await saveItem(updatedItem);
+
+    //         // Atualiza o modal localmente
+    //         setPhotoModalData(updatedItem);
+
+    //     } catch (error) {
+    //         console.error("Erro no upload:", error);
+    //         openAlert("Erro", "Falha ao enviar algumas imagens.");
+    //     } finally {
+    //         setUploadingPhoto(false);
+    //     }
+    // };
     const handlePhotoUpload = async (item, filesInput) => {
         if (!user || !filesInput) return;
         setUploadingPhoto(true);
         try {
-            // --- CORREÇÃO: Descobrir o Dono Real do Item ---
-            // 1. Identifica o projeto do item (ou usa o ativo como fallback)
+            // --- Lógica de identificação de Dono (Mantida igual) ---
             const targetProjectId = item._projectId || activeProjectId;
-
-            // 2. Busca os dados desse projeto na lista unificada
             const allProjects = [...myProjects, ...sharedProjects];
             const targetProjectData = allProjects.find(p => p.id === targetProjectId);
-
-            // 3. Define o ID do Dono para salvar na pasta correta no Storage
             const targetOwnerId = targetProjectData ? targetProjectData.ownerId : projectOwnerId;
-            // -----------------------------------------------
 
-            // Prepara a lista de arquivos
+            // Prepara a lista de objetos { original, thumbnail } que veio do modal
             const files = filesInput.length !== undefined && typeof filesInput !== 'string'
                 ? Array.from(filesInput)
                 : [filesInput];
 
             const newPhotos = [];
 
-            // 2. Faz o upload usando o targetOwnerId no caminho
-            await Promise.all(files.map(async (file) => {
-                // CAMINHO CORRIGIDO: Usa targetOwnerId em vez de projectOwnerId
-                const path = `users/${targetOwnerId}/images/${item.id}/${Date.now()}_${file.name}`;
+            // Faz o upload de ambos os arquivos (Original e Miniatura)
+            await Promise.all(files.map(async (fileObj) => {
 
-                const storageRef = ref(storage, path);
-                const snapshot = await uploadBytes(storageRef, file);
-                const url = await getDownloadURL(snapshot.ref);
+                // 1. Extrai os arquivos (com fallback caso receba um File normal por acidente)
+                const isOptimized = fileObj.original && fileObj.thumbnail;
+                const originalFile = isOptimized ? fileObj.original : fileObj;
+                const thumbnailFile = isOptimized ? fileObj.thumbnail : null;
 
+                const baseTimestamp = Date.now();
+
+                // 2. Caminho e Upload da Foto ORIGINAL
+                const originalPath = `users/${targetOwnerId}/images/${item.id}/${baseTimestamp}_${originalFile.name}`;
+                const originalRef = ref(storage, originalPath);
+                const originalSnapshot = await uploadBytes(originalRef, originalFile);
+                const originalUrl = await getDownloadURL(originalSnapshot.ref);
+
+                let thumbnailUrl = null;
+                let thumbnailPath = null;
+
+                // 3. Caminho e Upload da MINIATURA (se existir)
+                if (thumbnailFile) {
+                    thumbnailPath = `users/${targetOwnerId}/images/${item.id}/${baseTimestamp}_${thumbnailFile.name}`;
+                    const thumbnailRef = ref(storage, thumbnailPath);
+                    const thumbnailSnapshot = await uploadBytes(thumbnailRef, thumbnailFile);
+                    thumbnailUrl = await getDownloadURL(thumbnailSnapshot.ref);
+                }
+
+                // 4. Salva TUDO no banco de dados
                 newPhotos.push({
-                    url,
-                    path, // Guardamos o caminho completo para poder deletar depois
+                    url: originalUrl, // Usado pelo seu Viewer em tela cheia
+                    path: originalPath,
+                    thumbnailUrl: thumbnailUrl || originalUrl, // Usado na grid (se não tiver thumb, usa original)
+                    thumbnailPath: thumbnailPath, // Precisamos guardar para poder deletar depois!
                     date: new Date().toISOString(),
-                    id: Date.now().toString() + Math.random().toString().slice(2, 5),
+                    id: baseTimestamp.toString() + Math.random().toString().slice(2, 5),
                     uploadedBy: user.uid // Audit: quem enviou a foto
                 });
             }));
 
-            // 3. Atualiza o banco DEPOIS que todas subirem
+            // Atualiza o banco DEPOIS que todas subirem
             const currentPhotos = item.photos || [];
             const updatedItem = { ...item, photos: [...currentPhotos, ...newPhotos] };
 
-            // O saveItem já foi corrigido anteriormente, então ele vai salvar
-            // os metadados (links das fotos) no projeto correto automaticamente.
             await saveItem(updatedItem);
 
             // Atualiza o modal localmente
@@ -3677,27 +3772,70 @@ const App = () => {
         }
     };
 
+    // const handlePhotoDelete = async (item, photoToDelete) => {
+    //     if (!user) return;
+    //     openConfirm("Excluir Foto", "Tem certeza que deseja apagar esta foto permanentemente?", async () => {
+    //         try {
+    //             // 1. Tenta apagar do Storage (bucket)
+    //             try {
+    //                 const imageRef = ref(storage, photoToDelete.path);
+    //                 await deleteObject(imageRef);
+    //             } catch (storageError) {
+    //                 // --- AQUI ESTÁ A CORREÇÃO DO BACKUP ---
+    //                 // Se o erro for 'object-not-found', significa que a imagem não existe mais fisicamente.
+    //                 // Nós ignoramos esse erro e deixamos o código continuar para apagar o link do banco.
+    //                 if (storageError.code === 'storage/object-not-found') {
+    //                     console.warn("Imagem fantasma: não encontrada no storage, removendo apenas referência.");
+    //                 } else {
+    //                     // Se for outro erro (ex: sem permissão), paramos tudo
+    //                     throw storageError;
+    //                 }
+    //             }
+
+    //             // 2. Apagar referência do Firestore (Banco de Dados)
+    //             const currentPhotos = item.photos || [];
+    //             const updatedPhotos = currentPhotos.filter(p => p.id !== photoToDelete.id);
+    //             const updatedItem = { ...item, photos: updatedPhotos };
+
+    //             await saveItem(updatedItem);
+    //             setPhotoModalData(updatedItem);
+
+    //         } catch (error) {
+    //             console.error("Erro ao excluir:", error);
+    //             openAlert("Erro", "Falha ao excluir imagem.");
+    //         }
+    //     });
+    // };
     const handlePhotoDelete = async (item, photoToDelete) => {
         if (!user) return;
         openConfirm("Excluir Foto", "Tem certeza que deseja apagar esta foto permanentemente?", async () => {
             try {
-                // 1. Tenta apagar do Storage (bucket)
-                try {
-                    const imageRef = ref(storage, photoToDelete.path);
-                    await deleteObject(imageRef);
-                } catch (storageError) {
-                    // --- AQUI ESTÁ A CORREÇÃO DO BACKUP ---
-                    // Se o erro for 'object-not-found', significa que a imagem não existe mais fisicamente.
-                    // Nós ignoramos esse erro e deixamos o código continuar para apagar o link do banco.
-                    if (storageError.code === 'storage/object-not-found') {
-                        console.warn("Imagem fantasma: não encontrada no storage, removendo apenas referência.");
-                    } else {
-                        // Se for outro erro (ex: sem permissão), paramos tudo
-                        throw storageError;
-                    }
-                }
 
-                // 2. Apagar referência do Firestore (Banco de Dados)
+                // --- NOVA FUNÇÃO AUXILIAR ---
+                // Tenta apagar do Storage e lida com o erro de "fantasma" automaticamente
+                const safeDeleteFromStorage = async (path) => {
+                    if (!path) return; // Se não tiver caminho (ex: foto antiga sem thumbnail), não faz nada
+
+                    try {
+                        const imageRef = ref(storage, path);
+                        await deleteObject(imageRef);
+                    } catch (storageError) {
+                        if (storageError.code === 'storage/object-not-found') {
+                            console.warn(`Imagem fantasma: não encontrada no storage (${path}). Removendo apenas referência.`);
+                        } else {
+                            // Se for outro erro (ex: sem permissão), joga pra cima para cair no catch principal
+                            throw storageError;
+                        }
+                    }
+                };
+
+                // 1. Apaga a foto ORIGINAL do bucket
+                await safeDeleteFromStorage(photoToDelete.path);
+
+                // 2. Apaga a MINIATURA do bucket (se existir)
+                await safeDeleteFromStorage(photoToDelete.thumbnailPath);
+
+                // 3. Apagar referência do Firestore (Banco de Dados)
                 const currentPhotos = item.photos || [];
                 const updatedPhotos = currentPhotos.filter(p => p.id !== photoToDelete.id);
                 const updatedItem = { ...item, photos: updatedPhotos };
@@ -3712,24 +3850,73 @@ const App = () => {
         });
     };
 
-    // --- NOVO: Função para apagar várias fotos ---
+    // --- Função para apagar várias fotos ---
+    // const handleBatchPhotoDelete = async (item, photosToDelete) => {
+    //     if (!user || !photosToDelete || photosToDelete.length === 0) return;
+
+    //     openConfirm("Excluir Fotos", `Tem a certeza que deseja apagar ${photosToDelete.length} fotos?`, async () => {
+    //         try {
+    //             // 1. Apagar do Storage (Loop)
+    //             // Usamos map para criar um array de promessas e esperar todas terminarem
+    //             await Promise.all(photosToDelete.map(async (photo) => {
+    //                 try {
+    //                     const imageRef = ref(storage, photo.path);
+    //                     await deleteObject(imageRef);
+    //                 } catch (storageError) {
+    //                     // Ignora erro se a imagem já não existir (Fantasma)
+    //                     if (storageError.code !== 'storage/object-not-found') {
+    //                         console.error(`Erro ao apagar ${photo.path}:`, storageError);
+    //                     }
+    //                 }
+    //             }));
+
+    //             // 2. Apagar referências do Banco de Dados
+    //             // Criamos um Set com os IDs que vamos apagar para facilitar a filtragem
+    //             const idsToDelete = new Set(photosToDelete.map(p => p.id));
+
+    //             const currentPhotos = item.photos || [];
+    //             // Mantém apenas as fotos que NÃO estão na lista de exclusão
+    //             const updatedPhotos = currentPhotos.filter(p => !idsToDelete.has(p.id));
+
+    //             const updatedItem = { ...item, photos: updatedPhotos };
+
+    //             await saveItem(updatedItem);
+    //             setPhotoModalData(updatedItem); // Atualiza o modal aberto
+
+    //             openAlert("Sucesso", "Fotos excluídas com sucesso.");
+
+    //         } catch (error) {
+    //             console.error("Erro na exclusão em massa:", error);
+    //             openAlert("Erro", "Falha ao excluir algumas imagens.");
+    //         }
+    //     });
+    // };
     const handleBatchPhotoDelete = async (item, photosToDelete) => {
         if (!user || !photosToDelete || photosToDelete.length === 0) return;
 
         openConfirm("Excluir Fotos", `Tem a certeza que deseja apagar ${photosToDelete.length} fotos?`, async () => {
             try {
-                // 1. Apagar do Storage (Loop)
-                // Usamos map para criar um array de promessas e esperar todas terminarem
-                await Promise.all(photosToDelete.map(async (photo) => {
+                // --- FUNÇÃO AUXILIAR DE SEGURANÇA ---
+                const safeDeleteFromStorage = async (path) => {
+                    if (!path) return; // Ignora se não houver caminho
                     try {
-                        const imageRef = ref(storage, photo.path);
+                        const imageRef = ref(storage, path);
                         await deleteObject(imageRef);
                     } catch (storageError) {
                         // Ignora erro se a imagem já não existir (Fantasma)
                         if (storageError.code !== 'storage/object-not-found') {
-                            console.error(`Erro ao apagar ${photo.path}:`, storageError);
+                            console.error(`Erro ao apagar ${path}:`, storageError);
+                        } else {
+                            console.warn(`Imagem fantasma limpa: ${path}`);
                         }
                     }
+                };
+
+                // 1. Apagar do Storage (Loop em todas as selecionadas)
+                await Promise.all(photosToDelete.map(async (photo) => {
+                    // Espera apagar a original E a miniatura antes de passar para a próxima fase
+                    await safeDeleteFromStorage(photo.path);
+                    await safeDeleteFromStorage(photo.thumbnailPath);
                 }));
 
                 // 2. Apagar referências do Banco de Dados
@@ -4386,6 +4573,7 @@ const App = () => {
     // };
 
     // Função para buscar endereço na API e mandar pro mapa
+
     const handleAddressSearch = async () => {
         if (!searchTerm || searchMode !== 'ADDRESS') return;
 

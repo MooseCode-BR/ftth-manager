@@ -1,13 +1,3 @@
-// import { defineConfig } from 'vite'
-// import react from '@vitejs/plugin-react'
-
-// // https://vite.dev/config/
-// export default defineConfig({
-//   plugins: [react()],
-//   base: './',
-// })
-
-
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 // 1. Importamos o plugin do PWA
@@ -77,4 +67,14 @@ export default defineConfig({
       }
     })
   ],
+
+  build: {
+    minify: 'esbuild',
+    target: 'esnext',
+  },
+
+  esbuild: {
+    // Remove consoles e debuggers do código final gerado pelo build
+    drop: ['console', 'debugger'],
+  },
 });

@@ -5,7 +5,57 @@ import JSZip from 'jszip';
 
 import { saveFile } from './utils/fileDownloader';
 
-// --- 1. GERAR BACKUP (COM IMAGENS EM ZIP) ---
+// ─────────────────────────────────────────────────────────
+//  HELPERS INTERNOS
+// ─────────────────────────────────────────────────────────
+
+/**
+ * Baixa uma imagem via URL e retorna um Blob, ou null em caso de falha.
+ */
+const fetchImageBlob = async (url) => {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Falha na rede");
+        return await response.blob();
+    } catch (error) {
+        console.warn("Não foi possível baixar imagem para backup:", url);
+        return null;
+    }
+};
+
+/**
+ * Re-gera uma miniatura WebP (300px) a partir de um Blob de imagem.
+ * Usado na restauração quando o ZIP não contém o arquivo thumb_ (backups antigos).
+ * Roda no browser via Canvas API.
+ */
+const generateThumbnailFromBlob = (blob, maxWidth = 300) => {
+    return new Promise((resolve) => {
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+            const ratio = maxWidth / img.width;
+            const canvas = document.createElement('canvas');
+            canvas.width = maxWidth;
+            canvas.height = img.height * ratio;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            URL.revokeObjectURL(url);
+            canvas.toBlob((thumbBlob) => {
+                resolve(thumbBlob);
+            }, 'image/webp', 0.7);
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            resolve(null); // não bloqueia a restauração se falhar
+        };
+        img.src = url;
+    });
+};
+
+
+// ─────────────────────────────────────────────────────────
+//  1. GERAR BACKUP (COM IMAGENS E MINIATURAS NO ZIP)
+// ─────────────────────────────────────────────────────────
 export const generateBackupFile = async (data, visibleProjects) => {
     const {
         items, connections, availableTags, signalNames, portLabels, nodeColorSettings
@@ -14,18 +64,6 @@ export const generateBackupFile = async (data, visibleProjects) => {
     if (!visibleProjects || visibleProjects.length === 0) {
         return;
     }
-
-    // Função para baixar a imagem via URL e retornar um Blob
-    const fetchImageBlob = async (url) => {
-        try {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error("Falha na rede");
-            return await response.blob();
-        } catch (error) {
-            console.warn("Não foi possível baixar imagem para backup:", url);
-            return null;
-        }
-    };
 
     // Itera sobre cada projeto visível
     for (const project of visibleProjects) {
@@ -50,8 +88,7 @@ export const generateBackupFile = async (data, visibleProjects) => {
                 projectConnections = connSnap.docs.map(d => ({ id: d.id, ...d.data(), _projectId: project.id, _ownerId: project.ownerId }));
             }
 
-            // Busca configurações específicas do projeto, já que o state global ('availableTags', etc)
-            // poderia ser apenas o state do projeto ativo
+            // Busca configurações específicas do projeto
             const signalsDoc = await getDoc(doc(db, `${projectPath}/settings`, 'signals'));
             if (signalsDoc.exists()) finalSettings.signals = signalsDoc.data();
 
@@ -67,47 +104,58 @@ export const generateBackupFile = async (data, visibleProjects) => {
             console.error(`Erro ao buscar dados completos do projeto ${project.name}:`, error);
         }
 
-        // 2. Processar Imagens
-        // Vamos varrer todos os itens, achar as fotos, baixar e colocar no ZIP
+        // 2. Processar Imagens (original + miniatura)
         const itemsWithLocalRefs = JSON.parse(JSON.stringify(projectItems)); // Clone para não alterar o original
 
         const imagePromises = [];
 
         itemsWithLocalRefs.forEach(item => {
             if (item.photos && item.photos.length > 0) {
-                item.photos.forEach((photo, index) => {
-                    // Promessa para baixar cada foto
+                item.photos.forEach((photo) => {
+
                     const promise = (async () => {
-                        const blob = await fetchImageBlob(photo.url);
-                        if (blob) {
-                            // Cria um nome único para a imagem dentro do ZIP
-                            // Ex: nodeID_timestamp.jpg
-                            const extension = photo.name ? photo.name.split('.').pop() : 'jpg';
-                            const zipFileName = `${item.id}_${photo.id}.${extension}`;
+                        const extension = photo.name ? photo.name.split('.').pop() : 'jpg';
+                        const zipFileName = `${item.id}_${photo.id}.${extension}`;
 
-                            // Salva no ZIP
-                            imgFolder.file(zipFileName, blob);
-
-                            // ATENÇÃO: No JSON que vai pro backup, substituímos a URL da nuvem
-                            // pelo nome do arquivo local no ZIP. Isso ajuda no Restore.
-                            // Guardamos a URL original em 'originalUrl' caso precise de fallback
-                            photo.backupFileName = zipFileName;
-                            photo.originalUrl = photo.url;
+                        // ── Imagem ORIGINAL ──
+                        if (photo.url) {
+                            const blob = await fetchImageBlob(photo.url);
+                            if (blob) {
+                                imgFolder.file(zipFileName, blob);
+                                photo.backupFileName = zipFileName;
+                                photo.originalUrl = photo.url;
+                            }
                         }
+
+                        // ── MINIATURA (thumbnailUrl) ──
+                        // Incluímos o blob da miniatura no ZIP com o prefixo "thumb_"
+                        // Isso garante que a restauração vai re-subir a miniatura sem precisar
+                        // re-gerar via canvas (mais rápido e sem perda de qualidade extra).
+                        if (photo.thumbnailUrl) {
+                            const thumbBlob = await fetchImageBlob(photo.thumbnailUrl);
+                            if (thumbBlob) {
+                                const thumbZipFileName = `thumb_${zipFileName}`;
+                                imgFolder.file(thumbZipFileName, thumbBlob);
+                                // Guarda o nome do arquivo no ZIP para o restore saber onde encontrar
+                                photo.backupThumbFileName = thumbZipFileName;
+                                photo.originalThumbnailUrl = photo.thumbnailUrl;
+                            }
+                        }
+
                     })();
                     imagePromises.push(promise);
                 });
             }
         });
 
-        // Espera todas as imagens baixarem
+        // Espera todas as imagens e miniaturas baixarem
         await Promise.all(imagePromises);
 
         // 3. Monta o JSON de dados (agora com referências locais nas fotos)
         const backupObject = {
             meta: {
                 appName: "FTTH Manager",
-                version: "0.4.0 (ZipImages)",
+                version: "0.7.0 (ZipImages+Thumbs)",
                 createdAt: new Date().toISOString(),
                 projectName: project.name,
                 projectId: project.id,
@@ -115,7 +163,7 @@ export const generateBackupFile = async (data, visibleProjects) => {
                 totalConnections: projectConnections.length
             },
             data: {
-                items: itemsWithLocalRefs, // Usamos a lista modificada
+                items: itemsWithLocalRefs, // Usamos a lista modificada (com backupFileName e backupThumbFileName)
                 connections: projectConnections,
                 settings: finalSettings
             }
@@ -125,7 +173,6 @@ export const generateBackupFile = async (data, visibleProjects) => {
         zip.file("data.json", JSON.stringify(backupObject, null, 2));
 
         // 4. Gera o arquivo ZIP como Blob e distribui via download/share
-        // O Blob vai direto para o capacitor-blob-writer (streaming), sem conversão Base64
         const zipBlob = await zip.generateAsync({ type: 'blob' });
         const safeName = project.name.replace(/[^a-z0-9à-ú ]/gi, '_');
 
@@ -134,7 +181,9 @@ export const generateBackupFile = async (data, visibleProjects) => {
 };
 
 
-// --- 2. RESTAURAR BACKUP (Abordagem Transacional / Tudo ou Nada) ---
+// ─────────────────────────────────────────────────────────
+//  2. RESTAURAR BACKUP (Abordagem Transacional / Tudo ou Nada)
+// ─────────────────────────────────────────────────────────
 export const restoreFromBackup = async (file, projectOwnerId, targetProjectId, onProgress) => {
     return new Promise(async (resolve, reject) => {
         // Armazena as referências dos uploads para podermos apagá-las se algo der erro (Rollback)
@@ -156,8 +205,8 @@ export const restoreFromBackup = async (file, projectOwnerId, targetProjectId, o
 
             if (onProgress) onProgress("Preparando dados e imagens", 10);
 
-            // --- FASE 1: PREPARAÇÃO E UPLOAD DE IMAGENS ---
-            // Nenhuma alteração é feita no Firestore ainda. Se falhar aqui, o projeto atual continua intacto.
+            // ── FASE 1: PREPARAÇÃO E UPLOAD DE IMAGENS (ORIGINAL + MINIATURA) ──
+            // Nenhuma alteração é feita no Firestore ainda.
             const itemsToSave = [];
 
             for (let i = 0; i < items.length; i++) {
@@ -169,43 +218,69 @@ export const restoreFromBackup = async (file, projectOwnerId, targetProjectId, o
                     for (const photo of cleanItem.photos) {
                         let photoToSave = { ...photo };
 
+                        // ── Restaurar imagem ORIGINAL ──
                         if (photo.backupFileName && loadedZip.file(`images/${photo.backupFileName}`)) {
-                            // Faz a extração do ZIP e o Upload pro Storage
                             const photoBlob = await loadedZip.file(`images/${photo.backupFileName}`).async("blob");
                             const storagePath = `users/${projectOwnerId}/images/${cleanItem.id}/${Date.now()}_${photo.backupFileName}`;
                             const storageRefToUpload = ref(storage, storagePath);
 
-                            // 1. Extrair a extensão do nome do arquivo salvo no backup
                             const extension = photo.backupFileName.split('.').pop().toLowerCase();
-
-                            // 2. Definir o MIME type com base na extensão
-                            let mimeType = 'image/jpeg'; // padrão seguro
+                            let mimeType = 'image/jpeg';
                             if (extension === 'png') mimeType = 'image/png';
                             else if (extension === 'jpg') mimeType = 'image/jpeg';
                             else if (extension === 'webp') mimeType = 'image/webp';
                             else if (extension === 'gif') mimeType = 'image/gif';
                             else if (extension === 'svg') mimeType = 'image/svg+xml';
 
-                            // 3. Criar os metadados para o Firebase
-                            const metadata = {
-                                contentType: mimeType
-                            };
-
-                            // 4. Passar os metadados no upload
-                            const snapshot = await uploadBytes(storageRefToUpload, photoBlob, metadata);
-
-                            // Adiciona na nossa lista de Rollback de segurança
+                            const snapshot = await uploadBytes(storageRefToUpload, photoBlob, { contentType: mimeType });
                             uploadedStorageRefs.push(snapshot.ref);
 
-                            // Atualiza a URL e o Path
                             photoToSave.url = await getDownloadURL(snapshot.ref);
                             photoToSave.path = storagePath;
+
+                            // ── Restaurar MINIATURA ──
+                            // Cenário A: o ZIP contém o arquivo de miniatura (backup novo, v0.5+)
+                            // Cenário B: o ZIP NÃO contém miniatura (backup antigo) → re-gera via canvas
+                            const thumbZipPath = `images/${photo.backupThumbFileName || `thumb_${photo.backupFileName}`}`;
+                            let thumbBlob = null;
+
+                            if (photo.backupThumbFileName && loadedZip.file(thumbZipPath)) {
+                                // Cenário A: pega do ZIP
+                                thumbBlob = await loadedZip.file(thumbZipPath).async("blob");
+                            } else {
+                                // Cenário B: re-gera via canvas a partir do original já baixado
+                                thumbBlob = await generateThumbnailFromBlob(photoBlob);
+                            }
+
+                            if (thumbBlob) {
+                                const thumbFileName = `thumb_${photo.backupFileName.replace(/\.[^.]+$/, '.webp')}`;
+                                const thumbStoragePath = `users/${projectOwnerId}/images/${cleanItem.id}/${Date.now()}_${thumbFileName}`;
+                                const thumbRef = ref(storage, thumbStoragePath);
+
+                                const thumbSnapshot = await uploadBytes(thumbRef, thumbBlob, { contentType: 'image/webp' });
+                                uploadedStorageRefs.push(thumbSnapshot.ref);
+
+                                photoToSave.thumbnailUrl = await getDownloadURL(thumbSnapshot.ref);
+                                photoToSave.thumbnailPath = thumbStoragePath;
+                            } else {
+                                // Se falhar na geração da miniatura, usa a original como fallback
+                                photoToSave.thumbnailUrl = photoToSave.url;
+                                photoToSave.thumbnailPath = storagePath;
+                            }
+
                         } else if (photo.originalUrl) {
+                            // Foto sem backupFileName (backup muito antigo, só tinha URL online)
                             photoToSave.url = photo.originalUrl;
+                            // Nesse caso, thumbnailUrl também vira fallback para a original
+                            photoToSave.thumbnailUrl = photo.originalThumbnailUrl || photo.originalUrl;
                         }
 
+                        // Limpa campos temporários de backup
                         delete photoToSave.backupFileName;
+                        delete photoToSave.backupThumbFileName;
                         delete photoToSave.originalUrl;
+                        delete photoToSave.originalThumbnailUrl;
+
                         newPhotos.push(photoToSave);
                     }
                     cleanItem.photos = newPhotos;
@@ -218,7 +293,7 @@ export const restoreFromBackup = async (file, projectOwnerId, targetProjectId, o
                 }
             }
 
-            // --- FASE 2: PREPARAÇÃO DO FIRESTORE (O Delta) ---
+            // ── FASE 2: PREPARAÇÃO DO FIRESTORE (O Delta) ──
             if (onProgress) onProgress("Analisando o que precisa ser substituído...", 60);
 
             // Puxa o que existe ATUALMENTE no banco para descobrirmos o que precisa ser deletado
@@ -229,29 +304,28 @@ export const restoreFromBackup = async (file, projectOwnerId, targetProjectId, o
             const newConnectionsIds = connections.map(c => c.id);
 
             // Filtramos para apagar SOMENTE o que existe no banco atual mas NÃO existe no backup.
-            // O que existe em ambos será automaticamente sobrescrito pelos próximos passos.
             const itemsToDelete = currentItemsSnap.docs.map(d => d.id).filter(id => !newItemsIds.includes(id));
             const connectionsToDelete = currentConnectionsSnap.docs.map(d => d.id).filter(id => !newConnectionsIds.includes(id));
 
             // Centralizamos todas as operações de banco em um grande array
             const firestoreOperations = [];
 
-            // 1. Adiciona operações de Deleção do que sobrou
+            // 1. Operações de Deleção do que sobrou
             itemsToDelete.forEach(id => firestoreOperations.push({ type: 'delete', ref: doc(db, `${projectPath}/items`, id) }));
             connectionsToDelete.forEach(id => firestoreOperations.push({ type: 'delete', ref: doc(db, `${projectPath}/connections`, id) }));
 
-            // 2. Adiciona operações de Criação/Atualização dos novos itens
+            // 2. Operações de Criação/Atualização dos novos itens
             itemsToSave.forEach(item => {
                 firestoreOperations.push({ type: 'set', ref: doc(db, `${projectPath}/items`, item.id), data: item });
             });
 
-            // 3. Adiciona operações das Conexões
+            // 3. Operações das Conexões
             connections.forEach(conn => {
                 const { _projectId, _ownerId, ...cleanConn } = conn;
                 firestoreOperations.push({ type: 'set', ref: doc(db, `${projectPath}/connections`, cleanConn.id), data: cleanConn });
             });
 
-            // 4. Adiciona operações das Configurações
+            // 4. Operações das Configurações
             if (settings.tags) {
                 const tagsObj = Array.isArray(settings.tags) ? settings.tags.reduce((acc, t) => ({ ...acc, [t.id]: t }), {}) : settings.tags;
                 const userTagsRef = doc(db, `artifacts/ftth-production/users/${projectOwnerId}/settings`, 'tags');
@@ -265,10 +339,9 @@ export const restoreFromBackup = async (file, projectOwnerId, targetProjectId, o
                 firestoreOperations.push({ type: 'set', ref: doc(db, `${projectPath}/settings`, 'nodeColors'), data: payload });
             }
 
-            // --- FASE 3: EXECUÇÃO DOS LOTES (COMMIT FINAL) ---
+            // ── FASE 3: EXECUÇÃO DOS LOTES (COMMIT FINAL) ──
             if (onProgress) onProgress("Gravando novos dados no projeto", 80);
 
-            // O Firebase suporta no máximo 500 operações por Lote (Batch). Usamos 450 por segurança.
             const CHUNK_SIZE = 450;
             for (let i = 0; i < firestoreOperations.length; i += CHUNK_SIZE) {
                 const batch = writeBatch(db);
@@ -293,8 +366,9 @@ export const restoreFromBackup = async (file, projectOwnerId, targetProjectId, o
             console.error("Erro fatal na restauração. Iniciando Rollback de segurança", error);
             if (onProgress) onProgress("Falha detectada. Revertendo arquivos e cancelando operação", 0);
 
-            // --- ROLLBACK DE SEGURANÇA ---
-            // Se ocorreu um erro, tentamos apagar todas as imagens que foram subidas para o Storage durante essa tentativa falha.
+            // ── ROLLBACK DE SEGURANÇA ──
+            // Se ocorreu um erro, tentamos apagar TODAS as imagens (originais + miniaturas)
+            // que foram subidas para o Storage durante essa tentativa falha.
             if (uploadedStorageRefs.length > 0) {
                 try {
                     const rollbackPromises = uploadedStorageRefs.map(storageReference =>
@@ -312,14 +386,10 @@ export const restoreFromBackup = async (file, projectOwnerId, targetProjectId, o
     });
 };
 
-// --- Helpers Auxiliares ---
 
-// Salva um documento único (usado no loop de itens para garantir upload síncrono das fotos)
-const dbActionSave = async (ref, data) => {
-    const batch = writeBatch(db);
-    batch.set(ref, data);
-    await batch.commit();
-}
+// ─────────────────────────────────────────────────────────
+//  Helpers Auxiliares (internos)
+// ─────────────────────────────────────────────────────────
 
 // Salva em lote (para conexões que não têm arquivos pesados)
 const batchSaveHelper = async (list, collectionPath) => {
