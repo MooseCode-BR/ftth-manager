@@ -1216,8 +1216,12 @@ const FiberMap = ({
                 zoomSnap={0} // 1. O segredo da fluidez: 0 permite qualquer valor decimal (ex: 5.12)
                 zoomDelta={1} // 2. Define quanto o zoom pula ao clicar nos botões + e - ou duplo clique
                 wheelPxPerZoomLevel={30} // 3. Ajusta a sensibilidade do scroll do mouse (quanto menor, mais rápido o zoom)
-                maxBounds={[[-90, -180], [90, 180]]} // 4. Define os limites geográficos do mapa
-                maxBoundsViscosity={1.0} // 5. Define a viscosidade dos limites geográficos
+                // maxBounds={[[-90, -180], [90, 180]]} // 4. Define os limites geográficos do mapa
+                // maxBoundsViscosity={1.0} // 5. Define a viscosidade dos limites geográficos
+                worldCopyJump={true}       // Faz a transição suave se cruzar a linha da data
+                inertiaMaxSpeed={1500}     // Evita que um cálculo bugado jogue a velocidade ao infinito
+                bounceAtZoomLimits={false} // Evita bugs físicos ao bater no limite de zoom
+                // inertia={false} // Desabilita a inércia (arrasto)
                 zoomAnimation={true} // 6. Habilita a animação de zoom
                 zoomAnimationDuration={1} // 7. Define a duração da animação de zoom
 

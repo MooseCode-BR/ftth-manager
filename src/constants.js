@@ -83,5 +83,5 @@ export const ATTENUATION = {
 
 export const VERSAO = {
     // LOGO_URL: "favicon.svg",
-    NUMERO_VERSAO: "FTTH Manager Cloud v0.7.0 Beta"
+    NUMERO_VERSAO: "FTTH Manager Cloud v0.7.1 Beta"
 }
