@@ -741,7 +741,7 @@ const App = () => {
                 if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
                     // Força modo mapa e voa para lá
                     setViewMode('MAP');
-                    setFlyToCoords([lat, lng]);
+                    setFlyToCoords({ coords: [lat, lng], id_solicitacao: Date.now() });
 
                     // Feedback visual temporário (opcional, pode ser um toast)
                     // alert(`Navegando para: ${lat}, ${lng}`);
@@ -1305,7 +1305,7 @@ const App = () => {
         if (suggestion.type === 'ADDRESS') {
             const lat = parseFloat(suggestion.lat);
             const lon = parseFloat(suggestion.lon);
-            setFlyToCoords([lat, lon]);
+            setFlyToCoords({ coords: [lat, lon], id_solicitacao: Date.now() });
         }
 
         // CASO 2: É UM ITEM (EQUIPAMENTO/CLIENTE)
@@ -1335,7 +1335,7 @@ const App = () => {
             if (viewMode === 'MAP') {
                 // Verifica coordenadas (Nós filhos geralmente não têm lat/lng próprias, usam a do pai)
                 if (targetItem.lat !== undefined && targetItem.lng !== undefined) {
-                    setFlyToCoords([targetItem.lat, targetItem.lng]);
+                    setFlyToCoords({ coords: [targetItem.lat, targetItem.lng], id_solicitacao: Date.now() });
                 } else {
                     openAlert("Aviso", "Este item não possui localização no mapa.");
                 }
@@ -4503,7 +4503,7 @@ const App = () => {
 
     //                         // CENTRALIZA E MARCA
     //                         setViewMode('MAP');
-    //                         setFlyToCoords([finalLat, finalLng]);
+    //                         setFlyToCoords({ coords: [finalLat, finalLng], id_solicitacao: Date.now() });
     //                         setDetailId(null);
 
     //                         // (Opcional) Poderíamos criar um marcador temporário aqui
@@ -4586,7 +4586,7 @@ const App = () => {
         if (match) {
             const lat = parseFloat(match[1]);
             const lng = parseFloat(match[3]);
-            setFlyToCoords([lat, lng]);
+            setFlyToCoords({ coords: [lat, lng], id_solicitacao: Date.now() });
             setIsSearchingAddr(false);
             return;
         }
@@ -4601,7 +4601,7 @@ const App = () => {
 
             if (data.features && data.features.length > 0) {
                 const [lon, lat] = data.features[0].center; // Mapbox retorna [lng, lat]
-                setFlyToCoords([lat, lon]);
+                setFlyToCoords({ coords: [lat, lon], id_solicitacao: Date.now() });
             } else {
                 openAlert("Não encontrado", "Endereço não localizado.");
             }
@@ -4944,7 +4944,7 @@ const App = () => {
             });
 
             if (count > 0) {
-                setFlyToCoords([totalLat / count, totalLng / count]);
+                setFlyToCoords({ coords: [totalLat / count, totalLng / count], id_solicitacao: Date.now() });
             } else {
                 openAlert("Sem GPS", "Itens deste projeto não possuem coordenadas.");
             }
@@ -5235,7 +5235,7 @@ const App = () => {
                                         onFlyToMap={(n) => {
                                             if (n.lat && n.lng) {
                                                 setViewMode('MAP');
-                                                setFlyToCoords([n.lat, n.lng]);
+                                                setFlyToCoords({ coords: [n.lat, n.lng], id_solicitacao: Date.now() });
                                             } else {
                                                 setAlertConfig({ title: 'Aviso', message: 'Este nó não possui localização geográfica definida no mapa.' });
                                             }

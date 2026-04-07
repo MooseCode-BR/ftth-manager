@@ -212,13 +212,36 @@ const MapZoomHandler = ({ onShowLabelsChange }) => {
 };
 
 // Voar para coordenadas
-const FlyToHandler = ({ coords }) => {
+// Variável global (O verificador)
+let ultimoVooRealizado = null;
+
+const FlyToHandler = (props) => {
     const map = useMap();
+
     useEffect(() => {
-        if (coords && coords.length === 2) {
-            map.flyTo(coords, 20, { duration: 1.5 }); // duration em segundos, padrão varia pela distância, 0.6s é super rápido
+        // Pega o pedido de voo (aceitando vários nomes para garantir a compatibilidade)
+        const pedido = props.flyRequest || props.coords || props.flyToCoords;
+
+        if (pedido && pedido.coords) {
+
+            // Verifica se este pedido já foi atendido
+            if (pedido.id_solicitacao !== ultimoVooRealizado) {
+
+                // 1. Marca como realizado imediatamente para evitar clones
+                ultimoVooRealizado = pedido.id_solicitacao;
+
+                // 2. Aguarda o mapa terminar de ser construído na tela (250ms)
+                setTimeout(() => {
+                    // Força um ajuste final para evitar bugs de tela cinza
+                    map.invalidateSize();
+
+                    // 3. Inicia o voo com segurança e pista livre!
+                    map.flyTo(pedido.coords, 20, { duration: 1.5 });
+                }, 250);
+            }
         }
-    }, [coords, map]);
+    }, [props, map]);
+
     return null;
 };
 
@@ -1334,11 +1357,11 @@ const FiberMap = ({
                     </LayersControl.BaseLayer>
                 </LayersControl>
 
-                <FlyToHandler coords={flyToCoords} />
+                <FlyToHandler flyRequest={flyToCoords} />
                 {/* --- NOVO: MARCADOR DE BUSCA --- */}
-                {flyToCoords && (
+                {flyToCoords && flyToCoords.coords && (
                     <Marker
-                        position={[flyToCoords[0], flyToCoords[1]]}
+                        position={flyToCoords.coords}
                         icon={searchIcon} // <--- Agora usamos a variável criada no topo
                         zIndexOffset={2000}
                     >
