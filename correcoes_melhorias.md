@@ -6,6 +6,7 @@ Ajustar a criação de novos nodes. Atualmente, o sistema só solicita a seleç�
 
 Adicionar a informação de qual usuario criou um item, seja ele um node, um cable, um device, etc. Já que o sistema é multi-usuário, é importante saber quem criou o quê e quando.
 Adicionar a informação de quem realizou a ultima alteração em um item, seja ele um node, um cable, um device, etc. Já que o sistema é multi-usuário, é importante saber quem alterou o quê e quando.
+Criar um log geral de alterações, que mostre todas as alterações realizadas em um projeto, com a informação de quem alterou o quê e quando.
 
 Arrumar modal de criação de cabo, o layout está ruim. O campo de colocar o numero de fibras do cabo está muito pequeno.
 O layout está com scroll desnecessário na horizontal quando existem muitas cores favoritas predefinidas, esse scroll pode ficar exclusivamente no container das cores.

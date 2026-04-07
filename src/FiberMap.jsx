@@ -16,6 +16,51 @@ import DraggableToolbar from './components/DraggableToolbar/DraggableToolbar';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
+
+// ============================================================================
+// MEMÓRIA DE ESTADO DO MAPA (Sobrevive à troca de ecrãs, reseta no F5)
+// ============================================================================
+let globalSavedCenter = [0, 0]; // Guarda a posição do mapa
+let globalSavedZoom = 1; // Guarda o zoom do mapa
+let globalSavedBearing = 0; // Guarda o ângulo (0 é o Norte)
+let mapHasMoved = false; // Bandeira para sabermos se o utilizador já mexeu no mapa
+const MapStateController = () => {
+    const map = useMap(); // Acede diretamente à instância nativa do Leaflet
+
+    // 1. Assim que o mapa reaparecer no ecrã, forçamos a posição salva
+    useEffect(() => {
+        if (mapHasMoved) {
+            // setView é um comando nativo que obriga o mapa a ir para as coordenadas
+            map.setView(globalSavedCenter, globalSavedZoom, { animate: false });
+
+            // Restaura a rotação exata em que você parou
+            map.setBearing(globalSavedBearing);
+
+            // Garantia extra: corrige problemas do mapa ficar cinzento se foi ocultado por CSS
+            setTimeout(() => map.invalidateSize(), 100);
+        }
+    }, [map]);
+
+    // 2. Escutamos os movimentos e guardamos sempre a última posição
+    useMapEvents({
+        moveend: () => {
+            const currentCenter = map.getCenter();
+            globalSavedCenter = [currentCenter.lat, currentCenter.lng];
+            globalSavedZoom = map.getZoom();
+            globalSavedBearing = map.getBearing(); // Salva a rotação
+            mapHasMoved = true;
+        },
+        // O evento "rotate" é específico do seu plugin leaflet-rotate
+        // Precisamos dele porque, às vezes, girar o mapa sem sair do lugar não dispara o "moveend"
+        rotate: () => {
+            globalSavedBearing = map.getBearing();
+            mapHasMoved = true;
+        }
+    });
+
+    return null;
+};
+
 let DefaultIcon = L.icon({
     iconUrl: icon,
     shadowUrl: iconShadow,
@@ -1219,9 +1264,9 @@ const FiberMap = ({
                 // maxBounds={[[-90, -180], [90, 180]]} // 4. Define os limites geográficos do mapa
                 // maxBoundsViscosity={1.0} // 5. Define a viscosidade dos limites geográficos
                 worldCopyJump={true}       // Faz a transição suave se cruzar a linha da data
-                inertiaMaxSpeed={1500}     // Evita que um cálculo bugado jogue a velocidade ao infinito
+                //inertiaMaxSpeed={1500}     // Evita que um cálculo bugado jogue a velocidade ao infinito
                 bounceAtZoomLimits={false} // Evita bugs físicos ao bater no limite de zoom
-                // inertia={false} // Desabilita a inércia (arrasto)
+                inertia={false} // Desabilita a inércia (arrasto)
                 zoomAnimation={true} // 6. Habilita a animação de zoom
                 zoomAnimationDuration={1} // 7. Define a duração da animação de zoom
 
@@ -1238,6 +1283,7 @@ const FiberMap = ({
                 touchRotate={true}
                 rotateControl={false}
             >
+                <MapStateController /> {/* Componente que salva e restaura a posição do mapa*/}
 
                 {/* Botão de Toggle do Cluster */}
                 <button
