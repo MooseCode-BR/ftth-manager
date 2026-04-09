@@ -4809,6 +4809,7 @@ const App = () => {
     };
 
     // Passo 3: Salva tudo no banco após correções
+    // Passo 3: Salva tudo no banco após correções
     const saveImportedData = async (fixes) => {
         if (!fixConnectionsData) return;
         setLoading(true);
@@ -4819,19 +4820,55 @@ const App = () => {
             .filter(f => f.nodeId === '__DELETE__')
             .map(f => f.cableId);
 
-        // Filtra a lista, removendo os excluídos
+        // Filtra a lista, removendo os cabos excluídos (mantemos como let ou array mutável para podermos adicionar os Endpoints)
         const itemsToSave = fixConnectionsData.filter(item => !cablesToDelete.includes(item.id));
+
+        // --- LÓGICA DE CRIAÇÃO DE ENDPOINTS ---
+        // Conta quantos endpoints precisamos criar para gerar a nomenclatura (x/y)
+        const endpointFixes = fixes.filter(f => f.nodeId === '__CREATE_ENDPOINT__');
+        const totalEndpoints = endpointFixes.length;
+        let endpointCounter = 1;
 
         // Aplica as correções nos restantes
         fixes.forEach(fix => {
-            // Se for para deletar ou manter vazio, ignoramos aqui (já filtramos ou não tem ação)
+            // Se for para deletar ou manter vazio, ignoramos aqui
             if (fix.nodeId === '__DELETE__' || fix.nodeId === '') return;
 
             const cable = itemsToSave.find(i => i.id === fix.cableId);
-            if (cable) {
-                if (fix.side === 'A') cable.fromNode = fix.nodeId;
-                if (fix.side === 'B') cable.toNode = fix.nodeId;
+            if (!cable) return;
+
+            let finalNodeId = fix.nodeId;
+
+            // 📍 SE A INSTRUÇÃO FOR PARA CRIAR O FIM DE CABO
+            if (fix.nodeId === '__CREATE_ENDPOINT__') {
+                // Gera um ID único aleatório e seguro para o novo nó
+                finalNodeId = `endpoint_${Date.now().toString(36)}_${Math.random().toString(36).substr(2, 5)}`;
+
+                // Cria o "Nó Fantasma" usando o tipo OBJECT genérico
+                const newEndpointNode = {
+                    id: finalNodeId,
+                    type: 'OBJECT',
+                    name: `Fim de Cabo Importado (${endpointCounter}/${totalEndpoints})`,
+                    lat: fix.coords.lat,
+                    lng: fix.coords.lng,
+
+                    // CORREÇÃO AQUI: O Canvas precisa do X e Y em pixels para não "crashar" com NaN.
+                    // Tenta pegar o X/Y se o KML gerou, senão joga pro ponto 0,0 do Canvas.
+                    x: fix.coords.x || 0,
+                    y: fix.coords.y || 0,
+
+                    // Garante que o nó pertença ao mesmo projeto do cabo (se aplicável no seu sistema)
+                    _projectId: cable._projectId || cable.projectId || null
+                };
+
+                // Adiciona este novo nó na lista de itens que vão subir para o banco
+                itemsToSave.push(newEndpointNode);
+                endpointCounter++;
             }
+
+            // Conecta o cabo (seja ao nó existente escolhido ou ao recém-criado)
+            if (fix.side === 'A') cable.fromNode = finalNodeId;
+            if (fix.side === 'B') cable.toNode = finalNodeId;
         });
 
         try {
@@ -4847,8 +4884,9 @@ const App = () => {
 
             const deletedCount = cablesToDelete.length > 0 ? [...new Set(cablesToDelete)].length : 0;
 
-            let msg = `Sucesso! ${count} itens importados.`;
-            if (deletedCount > 0) msg += ` (${deletedCount} cabos ignorados)`;
+            let msg = `Sucesso! ${count} itens salvos.`;
+            if (deletedCount > 0) msg += ` (${deletedCount} cabos ignorados).`;
+            if (totalEndpoints > 0) msg += ` Foram criados ${totalEndpoints} nós de "Fim de Cabo".`;
 
             openAlert("Importação Concluída", msg);
         } catch (error) {
@@ -4859,6 +4897,56 @@ const App = () => {
             setLoading(false);
         }
     };
+    // const saveImportedData = async (fixes) => {
+    //     if (!fixConnectionsData) return;
+    //     setLoading(true);
+
+    //     // Identifica quais cabos o usuário marcou para excluir
+    //     // Se alguma ponta (A ou B) estiver marcada como DELETE, deletamos o cabo inteiro
+    //     const cablesToDelete = fixes
+    //         .filter(f => f.nodeId === '__DELETE__')
+    //         .map(f => f.cableId);
+
+    //     // Filtra a lista, removendo os excluídos
+    //     const itemsToSave = fixConnectionsData.filter(item => !cablesToDelete.includes(item.id));
+
+    //     // Aplica as correções nos restantes
+    //     fixes.forEach(fix => {
+    //         // Se for para deletar ou manter vazio, ignoramos aqui (já filtramos ou não tem ação)
+    //         if (fix.nodeId === '__DELETE__' || fix.nodeId === '') return;
+
+    //         const cable = itemsToSave.find(i => i.id === fix.cableId);
+    //         if (cable) {
+    //             if (fix.side === 'A') cable.fromNode = fix.nodeId;
+    //             if (fix.side === 'B') cable.toNode = fix.nodeId;
+    //         }
+    //     });
+
+    //     try {
+    //         let count = 0;
+    //         for (const item of itemsToSave) {
+    //             // Remove propriedades temporárias antes de salvar no Firebase
+    //             delete item._startCoords;
+    //             delete item._endCoords;
+
+    //             await saveItem(item);
+    //             count++;
+    //         }
+
+    //         const deletedCount = cablesToDelete.length > 0 ? [...new Set(cablesToDelete)].length : 0;
+
+    //         let msg = `Sucesso! ${count} itens importados.`;
+    //         if (deletedCount > 0) msg += ` (${deletedCount} cabos ignorados)`;
+
+    //         openAlert("Importação Concluída", msg);
+    //     } catch (error) {
+    //         console.error(error);
+    //         openAlert("Erro", "Falha ao salvar itens.");
+    //     } finally {
+    //         setFixConnectionsData(null);
+    //         setLoading(false);
+    //     }
+    // };
 
 
     // EFEITO: Monitora se existe um foco pendente E se os itens chegaram (TRABALHA EM CONJUNTO COM handleFocusProject)

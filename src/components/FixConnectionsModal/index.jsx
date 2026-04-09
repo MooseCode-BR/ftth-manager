@@ -2,7 +2,7 @@
 
 import './styles.css';
 import React, { useState, useEffect } from 'react';
-import { Unplug, Link, ArrowRight, CheckCircle, Trash2, Loader2, Network } from 'lucide-react'; // Adicionei Loader2 e Network
+import { Unplug, Link, ArrowRight, CheckCircle, Trash2, Loader2, Network } from 'lucide-react';
 import { findNearbyCandidates } from '../../utils';
 import LoadingFiber from '../../assets/loadingfiber';
 
@@ -29,7 +29,8 @@ const FixConnectionsModal = ({ items, onClose, onConfirm }) => {
                     side: 'A', // Início
                     coords: cable._startCoords,
                     candidates: candidates,
-                    selectedNodeId: candidates.length > 0 ? candidates[0].node.id : ''
+                    // NOVO PADRÃO: Criar nó de Fim de Cabo ao invés de procurar o primeiro candidato
+                    selectedNodeId: '__CREATE_ENDPOINT__'
                 });
             }
 
@@ -42,7 +43,8 @@ const FixConnectionsModal = ({ items, onClose, onConfirm }) => {
                     side: 'B', // Fim
                     coords: cable._endCoords,
                     candidates: candidates,
-                    selectedNodeId: candidates.length > 0 ? candidates[0].node.id : ''
+                    // NOVO PADRÃO: Criar nó de Fim de Cabo ao invés de procurar o primeiro candidato
+                    selectedNodeId: '__CREATE_ENDPOINT__'
                 });
             }
         });
@@ -62,10 +64,12 @@ const FixConnectionsModal = ({ items, onClose, onConfirm }) => {
 
         // 2. Usa o setTimeout para permitir que o React desenhe o spinner
         setTimeout(() => {
-            const fixes = issues.map(issue => ({
+            const fixes = issues.map((issue) => ({
                 cableId: issue.cableId,
                 side: issue.side,
-                nodeId: issue.selectedNodeId
+                nodeId: issue.selectedNodeId,
+                // Passamos a coordenada junto para que a função pai possa criar o Node OBJECT no local exato!
+                coords: issue.coords
             }));
             onConfirm(fixes);
         }, 100);
@@ -153,11 +157,15 @@ const FixConnectionsModal = ({ items, onClose, onConfirm }) => {
                                                     value={issue.selectedNodeId}
                                                     onChange={(e) => handleSelectionChange(idx, e.target.value)}
                                                 >
+                                                    {/* OPÇÃO NOVA (PADRÃO): CRIAR ENDPOINT */}
+                                                    <option value="__CREATE_ENDPOINT__" className="font-bold text-blue-600">
+                                                        📍 Criar nó "Fim de Cabo" (Recomendado)
+                                                    </option>
+
                                                     <option value="">-- Manter Desconectado (Ignorar) --</option>
 
-                                                    {/* OPÇÃO NOVA: EXCLUIR */}
                                                     <option value="__DELETE__" className="opt-delete">
-                                                        ❌ NÃO IMPORTAR ESTE CABOs
+                                                        ❌ NÃO IMPORTAR ESTE CABO
                                                     </option>
 
                                                     <optgroup label="Conectar em Nó Próximo:">

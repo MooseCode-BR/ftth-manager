@@ -118,7 +118,7 @@ const Dock = ({
             {/* --- DOCK PRINCIPAL --- */}
             <div className="dock-main-bar">
                 {/* 5.5 Gerenciador de Projetos */}
-                <div className="md:hidden flex items-center gap-5">
+                <div className="lg:hidden flex items-center gap-5">
                     <DockBtn
                         icon={FolderClosed}
                         hoverIcon={FolderOpen}
@@ -135,7 +135,7 @@ const Dock = ({
                 {categories.map((cat, catIdx) => (
                     <React.Fragment key={cat.id}>
                         {/* Mobile: Botão da Categoria */}
-                        <div className="md:hidden">
+                        <div className="lg:hidden">
                             {(() => {
                                 const activeItem = cat.items.find(item => item.id === activeTool);
                                 const currentIcon = activeItem ? activeItem.icon : cat.defaultIcon;
@@ -154,7 +154,7 @@ const Dock = ({
                         </div>
 
                         {/* Desktop: Todos os itens da Categoria diretamente */}
-                        <div className="hidden md:flex items-center gap-2">
+                        <div className="hidden lg:flex items-center gap-2">
                             {cat.items.map(item => (
                                 <DockBtn
                                     key={item.id}
@@ -168,7 +168,7 @@ const Dock = ({
                         </div>
 
                         {/* Divisor entre categorias no Desktop */}
-                        {catIdx < categories.length - 1 && <div className="hidden md:block"><Divider /></div>}
+                        {catIdx < categories.length - 1 && <div className="hidden lg:block"><Divider /></div>}
                     </React.Fragment>
                 ))}
 
