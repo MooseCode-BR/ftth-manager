@@ -118,16 +118,18 @@ const Dock = ({
             {/* --- DOCK PRINCIPAL --- */}
             <div className="dock-main-bar">
                 {/* 5.5 Gerenciador de Projetos */}
-                <DockBtn
-                    icon={FolderClosed}
-                    hoverIcon={FolderOpen}
-                    label="Projetos"
-                    isActive={false}
-                    onClick={() => { onManageProjects(); setActiveCategory(null); }}
-                //colorClass="text-blue-600 dark:text-blue-400"
-                />
+                <div className="md:hidden flex items-center gap-5">
+                    <DockBtn
+                        icon={FolderClosed}
+                        hoverIcon={FolderOpen}
+                        label="Projetos"
+                        isActive={false}
+                        onClick={() => { onManageProjects(); setActiveCategory(null); }}
+                    //colorClass="text-blue-600 dark:text-blue-400"
+                    />
 
-                <Divider />
+                    <Divider />
+                </div>
 
                 {/* 1. Categorias Expansíveis (MOBILE) vs Itens Individuais (DESKTOP) */}
                 {categories.map((cat, catIdx) => (

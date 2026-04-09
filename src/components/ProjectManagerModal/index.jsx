@@ -1,9 +1,8 @@
 //Gerenciador de Projetos e Colaboração
 
-import './styles.css';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
-    Folder, Trash2, Eye, EyeOff, Edit3, Check, PenTool, FolderOpen,
+    Folder, Trash2, Eye, EyeOff, Edit3, Check, PenTool, FolderOpen, Search,
     Share2, UserCheck, Inbox, UserMinus, Users, ArrowRightLeft, AlertTriangle,
     Square, CheckSquare, Plus, ChevronDown, ChevronUp, X, Focus, UserPen, HardHat, LogOut
 } from 'lucide-react';
@@ -32,7 +31,9 @@ const ProjectManagerModal = ({
     onAcceptTransfer,
     onConfirmRequest,
     onAlertRequest,
-    onClose
+    onClose,
+    isOpen,
+    isDarkMode
 }) => {
     const [activeTab, setActiveTab] = useState('MY_PROJECTS');
     const [newProjectName, setNewProjectName] = useState('');
@@ -70,6 +71,65 @@ const ProjectManagerModal = ({
         return [...sharedProjects].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
     }, [sharedProjects]);
 
+    // --- ESTADO E LÓGICA DE BUSCA (FILTRO) ---
+    const [searchQuery, setSearchQuery] = useState('');
+
+    // Função que remove acentos e transforma em minúsculo
+    const normalizeText = (text) => {
+        if (!text) return '';
+        return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    };
+
+    // Filtros dinâmicos baseados no que foi digitado
+    // 1. Meus Projetos
+    const filteredMyProjects = useMemo(() => {
+        if (!searchQuery) return sortedMyProjects;
+        const query = normalizeText(searchQuery);
+        return sortedMyProjects.filter(p => normalizeText(p.name).includes(query));
+    }, [sortedMyProjects, searchQuery]);
+
+    // 2. Projetos Compartilhados
+    const filteredSharedProjects = useMemo(() => {
+        if (!searchQuery) return sortedSharedProjects;
+        const query = normalizeText(searchQuery);
+        return sortedSharedProjects.filter(p => normalizeText(p.name).includes(query));
+    }, [sortedSharedProjects, searchQuery]);
+
+    // 3. Transferências Recebidas
+    const filteredIncomingTransfers = useMemo(() => {
+        if (!searchQuery) return incomingTransfers;
+        const query = normalizeText(searchQuery);
+        return incomingTransfers.filter(t => normalizeText(t.projectName).includes(query));
+    }, [incomingTransfers, searchQuery]);
+
+    // 4. Convites Pendentes
+    const filteredPendingInvites = useMemo(() => {
+        if (!searchQuery) return pendingInvites;
+        const query = normalizeText(searchQuery);
+        return pendingInvites.filter(i => normalizeText(i.projectName).includes(query));
+    }, [pendingInvites, searchQuery]);
+
+    // --- LÓGICA DE SELEÇÃO EM MASSA (INTELIGENTE COM O FILTRO) ---
+    // 1. Variável que verifica se TODOS os projetos que estão na tela estão selecionados
+    const isAllVisibleSelected = filteredMyProjects.length > 0 &&
+        filteredMyProjects.every(p => selectedIds.has(p.id));
+
+    // 2. A nova função de "Selecionar Todos"
+    const toggleSelectAll = () => {
+        // Criamos uma cópia da seleção atual para não perdermos o que já estava marcado em outras abas/buscas
+        const newSelection = new Set(selectedIds);
+
+        if (isAllVisibleSelected) {
+            // Se todos da tela já estão selecionados, nós DESMARCAMOS apenas eles
+            filteredMyProjects.forEach(p => newSelection.delete(p.id));
+        } else {
+            // Se faltar algum, nós MARCAMOS todos os que estão na tela
+            filteredMyProjects.forEach(p => newSelection.add(p.id));
+        }
+
+        setSelectedIds(newSelection); // Atualiza o estado
+    };
+
     // --- FUNÇÕES DE EXPANSÃO ---
     const toggleExpand = (id) => {
         const newSet = new Set(expandedProjectIds);
@@ -86,13 +146,13 @@ const ProjectManagerModal = ({
         setSelectedIds(newSet);
     };
 
-    const toggleSelectAll = () => {
-        if (selectedIds.size === sortedMyProjects.length) {
-            setSelectedIds(new Set());
-        } else {
-            setSelectedIds(new Set(sortedMyProjects.map(p => p.id)));
-        }
-    };
+    // const toggleSelectAll = () => {
+    //     if (selectedIds.size === sortedMyProjects.length) {
+    //         setSelectedIds(new Set());
+    //     } else {
+    //         setSelectedIds(new Set(sortedMyProjects.map(p => p.id)));
+    //     }
+    // };
 
     // --- FUNÇÕES DE EMAIL MÚLTIPLO ---
     const addEmail = (email) => {
@@ -194,582 +254,601 @@ const ProjectManagerModal = ({
     };
 
     return (
-        <div className="projects-overlay" onClick={handleOverlayClick}>
-            <div className="projects-card" onClick={(e) => e.stopPropagation()}>
+        <div className={`
+            /* 1. VISIBILIDADE: Esconde no mobile se estiver fechado, mas SEMPRE mostra no desktop */
+            ${isOpen ? 'flex' : 'hidden'} lg:flex 
+            
+            /* 2. MOBILE: Tela cheia, sobrepondo tudo, sem glassmorphism */
+            fixed inset-0 z-[100] w-full h-full 
+            
+            /* 3. DESKTOP: Painel lateral estático, com largura fixa, empurrando o app */
+            lg:relative lg:w-[22rem] lg:h-full lg:border-r lg:border-gray-200 lg:dark:border-neutral-900 lg:z-10
+            
+            /* 4. TEMA: Fundo sólido, monocromático (Preto absoluto no Dark Mode) */
+            bg-white text-black dark:bg-black dark:text-gray-100
+            
+            flex-col transition-colors duration-200
+        `}>
 
-                {/* Header */}
-                <div className="card-header mb-0">
-                    <div className="header-title-group">
-                        <FolderOpen size={20} />
-                        <h3 className="header-title">Projetos & Colaboração</h3>
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 lg:px-3 py-4 lg:py-3 border-b border-gray-200 dark:border-neutral-900 shrink-0">
+                <div className="flex items-center gap-2">
+                    <FolderOpen size={18} className="text-gray-800 dark:text-gray-200" />
+                    <h3 className="font-bold text-base lg:text-sm text-black dark:text-white uppercase tracking-tight">Projetos & Colaboração</h3>
+                </div>
+
+                {/* Botão Fechar: Aparece apenas no mobile */}
+                <button onClick={onClose} className="lg:hidden p-1.5 rounded text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors" title="Fechar">
+                    <X size={20} />
+                </button>
+            </div>
+
+            {/* Abas */}
+            <div className="flex border-b border-gray-200 dark:border-neutral-900 shrink-0 px-2">
+                <button
+                    onClick={() => setActiveTab('MY_PROJECTS')}
+                    className={`flex-1 py-3 lg:py-2 text-sm lg:text-xs font-bold flex items-center justify-center gap-1.5 border-b-2 transition-colors
+                        ${activeTab === 'MY_PROJECTS'
+                            ? 'border-black text-black dark:border-white dark:text-white'
+                            : 'border-transparent text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white'}`}
+                >
+                    <Folder size={14} /> Meus
+                </button>
+                <button
+                    onClick={() => setActiveTab('SHARED')}
+                    className={`flex-1 py-3 lg:py-2 text-sm lg:text-xs font-bold flex items-center justify-center gap-1.5 border-b-2 transition-colors
+                        ${activeTab === 'SHARED'
+                            ? 'border-black text-black dark:border-white dark:text-white'
+                            : 'border-transparent text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white'}`}
+                >
+                    <UserCheck size={14} /> Compart.
+                </button>
+                <button
+                    onClick={() => setActiveTab('INBOX')}
+                    className={`flex-1 py-3 lg:py-2 text-sm lg:text-xs font-bold flex items-center justify-center gap-1.5 border-b-2 transition-colors relative
+                        ${activeTab === 'INBOX'
+                            ? 'border-black text-black dark:border-white dark:text-white'
+                            : 'border-transparent text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white'}`}
+                >
+                    <Inbox size={14} /> Convites
+                    {(pendingInvites.length > 0 || incomingTransfers.length > 0) && (
+                        <span className="absolute top-1.5 right-2 lg:right-3 bg-black text-white dark:bg-white dark:text-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                            {pendingInvites.length + incomingTransfers.length}
+                        </span>
+                    )}
+                </button>
+            </div>
+
+            {/* --- BARRA DE BUSCA GERAL --- */}
+            <div className="px-4 lg:px-3 py-3 border-b border-gray-200 dark:border-neutral-900 shrink-0">
+                <div className="relative flex items-center">
+                    <Search size={14} className="absolute left-3 text-gray-400 dark:text-gray-500" />
+                    <input
+                        type="text"
+                        placeholder="Buscar projetos..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 text-sm lg:text-xs rounded-lg outline-none transition-colors
+                                   bg-gray-100 text-black border border-transparent focus:border-gray-300
+                                   dark:bg-neutral-900 dark:text-white dark:focus:border-neutral-700"
+                    />
+                    {searchQuery && (
+                        <button onClick={() => setSearchQuery('')} className="absolute right-3 p-1 rounded-full text-gray-400 hover:text-black dark:hover:text-white transition-colors">
+                            <X size={12} />
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {/* --- BARRA DE SELEÇÃO EM MASSA --- */}
+            {activeTab === 'MY_PROJECTS' && filteredMyProjects.length > 0 && (
+                <div className="bg-gray-50 dark:bg-neutral-900 border-b border-gray-200 dark:border-neutral-800 px-4 lg:px-3 py-2 flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={toggleSelectAll}
+                            className="p-1 rounded text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors"
+                            title="Selecionar Todos"
+                        >
+                            {/* AQUI ESTÁ A MUDANÇA: Usamos a nossa nova variável isAllVisibleSelected */}
+                            {isAllVisibleSelected
+                                ? <CheckSquare size={16} className="text-black dark:text-white" />
+                                : <Square size={16} />}
+                        </button>
+                        <span className="font-medium text-xs text-gray-600 dark:text-gray-400">
+                            Selecionar Todos ({selectedIds.size})
+                        </span>
                     </div>
-                    <button onClick={onClose} className="btn-close-header" title="Fechar">
-                        <X size={20} />
-                    </button>
-                </div>
 
-                {/* Abas */}
-                <div className="tabs-bar">
-                    <button onClick={() => setActiveTab('MY_PROJECTS')} className={`tab-item ${activeTab === 'MY_PROJECTS' ? 'tab-my-projects' : 'tab-inactive'}`}>
-                        <Folder size={16} /> Meus Projetos
-                    </button>
-                    <button onClick={() => setActiveTab('SHARED')} className={`tab-item ${activeTab === 'SHARED' ? 'tab-shared' : 'tab-inactive'}`}>
-                        <UserCheck size={16} /> Compartilhados
-                    </button>
-                    <button onClick={() => setActiveTab('INBOX')} className={`tab-item ${activeTab === 'INBOX' ? 'tab-inbox' : 'tab-inactive'}`}>
-                        <Inbox size={16} /> Convites
-                        {(pendingInvites.length > 0 || incomingTransfers.length > 0) && (
-                            <span className="badge-notification">{pendingInvites.length + incomingTransfers.length}</span>
-                        )}
-                    </button>
-                </div>
-
-                {/* --- BARRA DE SELEÇÃO EM MASSA --- */}
-                {activeTab === 'MY_PROJECTS' && sortedMyProjects.length > 0 && (
-                    <div className="bulk-selection-bar">
-                        <div className="flex items-center gap-3 flex-1 overflow-hidden">
+                    {selectedIds.size > 0 && (
+                        <div className="flex items-center gap-1">
                             <button
-                                onClick={toggleSelectAll}
-                                className="btn-checkbox"
-                                title="Selecionar Todos"
+                                onClick={() => { onBulkToggleVisibility(Array.from(selectedIds)); setSelectedIds(new Set()); }}
+                                className="p-1.5 rounded text-gray-500 hover:bg-gray-200 hover:text-black dark:text-gray-400 dark:hover:bg-neutral-800 dark:hover:text-white transition-colors"
+                                title="Alternar Visibilidade"
                             >
-                                {selectedIds.size === sortedMyProjects.length && sortedMyProjects.length > 0 ? <CheckSquare size={20} className="text-blue-600" /> : <Square size={20} />}
+                                <Eye size={16} />
                             </button>
-                            <span className="font-bold text-sm text-gray-600 dark:text-gray-400">
-                                Selecionar Todos ({selectedIds.size})
-                            </span>
+                            <button
+                                onClick={() => setBulkAction('SHARE')}
+                                className="p-1.5 rounded text-gray-500 hover:bg-gray-200 hover:text-black dark:text-gray-400 dark:hover:bg-neutral-800 dark:hover:text-white transition-colors"
+                                title="Compartilhar Selecionados"
+                            >
+                                <Share2 size={16} />
+                            </button>
+                            <button
+                                onClick={() => { onBulkDelete(Array.from(selectedIds)); setSelectedIds(new Set()); }}
+                                className="p-1.5 rounded text-gray-500 hover:bg-red-100 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-900/30 dark:hover:text-red-500 transition-colors"
+                                title="Excluir Selecionados"
+                            >
+                                <Trash2 size={16} />
+                            </button>
                         </div>
+                    )}
+                </div>
+            )}
 
-                        {selectedIds.size > 0 && (
-                            <div className="actions-group">
-                                <button
-                                    onClick={() => { onBulkToggleVisibility(Array.from(selectedIds)); setSelectedIds(new Set()); }}
-                                    className="btn-visibility vis-idle"
-                                    title="Alternar Visibilidade"
-                                >
-                                    <Eye size={20} />
-                                </button>
-                                <button
-                                    onClick={() => setBulkAction('SHARE')}
-                                    className="btn-visibility vis-idle"
-                                    title="Compartilhar Selecionados"
-                                >
-                                    <Share2 size={20} />
-                                </button>
-                                {/* Botão de Transferência em Massa - Desativado por enquanto */}
-                                {/* <button
-                                    onClick={() => setBulkAction('TRANSFER')}
-                                    className="btn-visibility vis-idle"
-                                    title="Transferir Selecionados"
-                                >
-                                    <ArrowRightLeft size={20} />
-                                </button> */}
-                                <button
-                                    onClick={() => { onBulkDelete(Array.from(selectedIds)); setSelectedIds(new Set()); }}
-                                    className="btn-delete-project"
-                                    title="Excluir Selecionados"
-                                >
-                                    <Trash2 size={20} />
+            {/* --- CONTEÚDO DA LISTA --- */}
+            <div className="flex-1 overflow-y-auto p-4 lg:px-3 lg:py-4 space-y-3">
+
+                {/* INBOX */}
+                {activeTab === 'INBOX' && (
+                    <div className="space-y-3">
+                        {/* Transferências */}
+                        {filteredIncomingTransfers.map(transfer => (
+                            <div key={transfer.id} className="p-3 rounded-lg border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900 flex flex-col gap-3 relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-1 h-full bg-black dark:bg-white"></div>
+                                <div className="flex items-start gap-3">
+                                    <AlertTriangle size={18} className="text-black dark:text-white mt-0.5 shrink-0" />
+                                    <div>
+                                        <p className="text-sm lg:text-xs font-bold text-black dark:text-white">"{transfer.projectName}"</p>
+                                        <p className="text-xs lg:text-[11px] text-gray-600 dark:text-gray-400 mt-1">
+                                            <span className="font-bold text-black dark:text-gray-200">{transfer.fromEmail}</span> quer transferir a propriedade.
+                                        </p>
+                                    </div>
+                                </div>
+                                <button onClick={() => onAcceptTransfer(transfer)} className="w-full bg-black text-white dark:bg-white dark:text-black py-2 lg:py-1.5 rounded text-xs font-bold transition-opacity hover:opacity-80">
+                                    Aceitar Transferência
                                 </button>
                             </div>
+                        ))}
+
+                        {/* Convites */}
+                        {filteredPendingInvites.map(invite => (
+                            <div key={invite.id} className="p-3 rounded-lg border border-gray-200 dark:border-neutral-800 bg-white dark:bg-black flex flex-col gap-3">
+                                <div className="flex items-start gap-3">
+                                    <Share2 size={18} className="text-gray-800 dark:text-gray-200 mt-0.5 shrink-0" />
+                                    <div>
+                                        <p className="text-sm lg:text-xs font-bold text-black dark:text-white">{invite.projectName}</p>
+                                        <p className="text-xs lg:text-[11px] text-gray-500 dark:text-gray-400 mt-1">De: <span className="font-medium text-black dark:text-gray-200">{invite.fromEmail}</span></p>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2 mt-1">
+                                    <button onClick={() => onRespondInvite(invite, 'accepted')} className="flex-1 bg-black text-white dark:bg-white dark:text-black py-1.5 rounded text-xs font-bold hover:opacity-80 transition-opacity">Aceitar</button>
+                                    <button onClick={() => onRespondInvite(invite, 'rejected')} className="flex-1 bg-gray-100 text-black dark:bg-neutral-800 dark:text-white py-1.5 rounded text-xs font-bold hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors">Recusar</button>
+                                </div>
+                            </div>
+                        ))}
+
+                        {filteredPendingInvites.length === 0 && filteredIncomingTransfers.length === 0 && (
+                            <div className="text-center py-8 text-sm lg:text-xs font-medium text-gray-500 dark:text-gray-500">Nada pendente no momento.</div>
                         )}
                     </div>
                 )}
 
-                {/* --- CONTEÚDO DA LISTA --- */}
-                <div className="content-area">
+                {/* MEUS PROJETOS */}
+                {activeTab === 'MY_PROJECTS' && (
+                    <div className="space-y-2.5">
+                        {filteredMyProjects.length === 0 ? (
+                            <div className="text-center py-8 text-sm lg:text-xs font-medium text-gray-500 dark:text-gray-500">Nenhum projeto criado.</div>
+                        ) : (
+                            filteredMyProjects.map(proj => {
+                                const isActive = activeProjectId === proj.id;
+                                const isVisible = visibleProjectIds.includes(proj.id);
+                                const isEditing = editingId === proj.id;
+                                const isSelected = selectedIds.has(proj.id);
+                                const isExpanded = expandedProjectIds.has(proj.id);
+                                const projectShares = outgoingInvites.filter(inv => inv.projectId === proj.id);
 
-                    {/* INBOX */}
-                    {activeTab === 'INBOX' && (
-                        <div className="inbox-list">
-                            {/* Transferências */}
-                            {incomingTransfers.map(transfer => (
-                                <div key={transfer.id} className="transfer-card">
-                                    <div className="transfer-indicator"></div>
-                                    <div className="flex items-start gap-3">
-                                        <AlertTriangle size={20} className="text-yellow-600" />
-                                        <div>
-                                            <p className="transfer-title">"{transfer.projectName}"</p>
-                                            <p className="transfer-desc"><span className="font-bold">{transfer.fromEmail}</span> quer transferir a propriedade.</p>
-                                        </div>
-                                    </div>
-                                    <button onClick={() => onAcceptTransfer(transfer)} className="btn-accept-transfer">Aceitar Transferência</button>
-                                </div>
-                            ))}
+                                return (
+                                    <div key={proj.id} className={`flex flex-col rounded-lg border transition-all overflow-hidden bg-white dark:bg-black
+                                        ${isSelected ? 'border-gray-400 dark:border-neutral-500 bg-gray-50 dark:bg-neutral-900' :
+                                            isActive ? 'border-black dark:border-white ring-1 ring-black dark:ring-white' :
+                                                'border-gray-200 dark:border-neutral-800 hover:border-gray-300 dark:hover:border-neutral-700'}`}>
 
-                            {/* Convites */}
-                            {pendingInvites.map(invite => (
-                                <div key={invite.id} className="invite-card">
-                                    <div className="flex items-start gap-3">
-                                        <Share2 size={20} className="text-blue-500" />
-                                        <div>
-                                            <p className="invite-title">{invite.projectName}</p>
-                                            <p className="invite-desc">De: <b>{invite.fromEmail}</b></p>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-2 mt-1">
-                                        <button onClick={() => onRespondInvite(invite, 'accepted')} className="btn-accept-invite">Aceitar</button>
-                                        <button onClick={() => onRespondInvite(invite, 'rejected')} className="btn-reject-invite">Recusar</button>
-                                    </div>
-                                </div>
-                            ))}
+                                        <div className="p-3 lg:p-2.5 flex items-center justify-between">
+                                            <div className="flex items-center gap-2.5 overflow-hidden flex-1">
 
-                            {pendingInvites.length === 0 && incomingTransfers.length === 0 && <div className="empty-state-msg">Nada pendente.</div>}
-                        </div>
-                    )}
+                                                {/* CHECKBOX */}
+                                                <button onClick={() => toggleSelection(proj.id)} className="shrink-0 p-1 text-gray-400 hover:text-black dark:text-gray-500 dark:hover:text-white transition-colors">
+                                                    {isSelected ? <CheckSquare size={18} className="text-black dark:text-white" /> : <Square size={18} />}
+                                                </button>
 
-                    {/* MEUS PROJETOS */}
-                    {activeTab === 'MY_PROJECTS' && (
-                        <div className="projects-list">
-                            {sortedMyProjects.length === 0 ? (
-                                <div className="empty-state-msg">Nenhum projeto criado.</div>
-                            ) : (
-                                sortedMyProjects.map(proj => {
-                                    const isActive = activeProjectId === proj.id;
-                                    const isVisible = visibleProjectIds.includes(proj.id);
-                                    const isEditing = editingId === proj.id;
-                                    const isSelected = selectedIds.has(proj.id);
-                                    const isExpanded = expandedProjectIds.has(proj.id);
-                                    const projectShares = outgoingInvites.filter(inv => inv.projectId === proj.id);
-
-                                    return (
-                                        <div key={proj.id} className={`project-card ${isSelected ? 'card-selected' : isActive ? 'card-active' : 'card-idle'}`}>
-                                            <div className="project-card-header">
-                                                <div className="flex items-center gap-3 overflow-hidden flex-1">
-
-                                                    {/* CHECKBOX */}
-                                                    <button onClick={() => toggleSelection(proj.id)} className="btn-checkbox">
-                                                        {isSelected ? <CheckSquare size={20} className="text-blue-600" /> : <Square size={20} />}
-                                                    </button>
-
-                                                    <div className="flex flex-col flex-1 min-w-0 mr-2">
-                                                        {/* Título do Projeto */}
-                                                        {isEditing ? (
-                                                            <div className="flex items-center gap-3">
-                                                                <input autoFocus className="input-edit-name" value={editNameValue} onChange={e => setEditNameValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveEdit(proj.id); if (e.key === 'Escape') setEditingId(null); }} />
-                                                                <button onClick={() => saveEdit(proj.id)} className="text-green-600" title="Salvar"><Check size={14} /></button>
-                                                                <button onClick={() => setEditingId(null)} className="text-red-600" title="Cancelar"><X size={14} /></button>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="title-row-group gap-3">
-                                                                <span className={`project-name ${isActive ? 'name-active' : 'name-idle'}`} onClick={() => startEditing(proj)}>{proj.name}</span>
-                                                                <button onClick={() => startEditing(proj)} className="btn-rename" title="Renomear"><Edit3 size={12} /></button>
-                                                            </div>
-                                                        )}
-
-                                                        {/* Botões */}
-                                                        <div className="actions-group">
-                                                            {/* --- BOTÃO DE FOCO --- */}
-                                                            <button
-                                                                onClick={() => { onFocusProject(proj.id); setSelectedIds(new Set()); }}
-                                                                className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors"
-                                                                title="Localizar e Focar esse Projeto"
-                                                            >
-                                                                <Focus size={20} />
-                                                            </button>
-
-                                                            {/* BOTÃO DE ATIVAR/DESATIVAR PROJETO */}
-                                                            <button
-                                                                onClick={() => { onSetActive(proj); setSelectedIds(new Set()); }}
-                                                                className={`btn-visibility ${isActive ? 'vis-active' : 'vis-idle'}`}
-                                                                title={isActive ? "Desativar Projeto" : "Ativar Projeto"}
-                                                            >
-                                                                <PenTool size={20} />
-                                                            </button>
-
-                                                            {/* BOTÃO DE VISÍVEL/INVISÍVEL */}
-                                                            <button
-                                                                onClick={() => { onToggleVisibility(proj.id); setSelectedIds(new Set()); }}
-                                                                className={`btn-visibility ${isVisible ? 'vis-active' : 'vis-idle'}`}
-                                                                title={isVisible ? "Ocultar Projeto" : "Ver Projeto"}
-                                                            >
-                                                                {isVisible ? <Eye size={20} /> : <EyeOff size={20} />}
-                                                            </button>
-
-                                                            {/* BOTÃO DE COMPARTILHAR INDIVIDUAL */}
-                                                            <button
-                                                                onClick={() => { setSelectedIds(new Set([proj.id])); setBulkAction('SHARE'); }}
-                                                                className="btn-visibility vis-idle"
-                                                                title="Compartilhar Projeto"
-                                                            >
-                                                                <Share2 size={20} />
-                                                            </button>
-
-                                                            {/* BOTÃO DE TRANSFERIR INDIVIDUAL - Desativado por enquanto */}
-                                                            {/* <button
-                                                                onClick={() => { setSelectedIds(new Set([proj.id])); setBulkAction('TRANSFER'); }}
-                                                                className="btn-visibility vis-idle"
-                                                                title="Transferir Projeto"
-                                                            >
-                                                                <ArrowRightLeft size={20} />
-                                                            </button> */}
-
-                                                            {/* BOTÃO PRA DELETAR PROJETO */}
-                                                            <button
-                                                                onClick={() => { onDeleteProject(proj.id); setSelectedIds(new Set()); }}
-                                                                className="btn-visibility text-red-400 dark:text-red-500 hover:text-red-600 dark:hover:text-red-300 hover:bg-white/30 dark:hover:bg-white/10"
-                                                                title="Deletar Projeto"
-                                                            >
-                                                                <Trash2 size={20} />
+                                                <div className="flex flex-col flex-1 min-w-0 mr-1">
+                                                    {/* Título do Projeto */}
+                                                    {isEditing ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <input
+                                                                autoFocus
+                                                                className="w-full px-2 py-1 text-xs border rounded bg-white dark:bg-black text-black dark:text-white outline-none border-gray-300 dark:border-neutral-700 focus:border-black dark:focus:border-white"
+                                                                value={editNameValue}
+                                                                onChange={e => setEditNameValue(e.target.value)}
+                                                                onKeyDown={e => { if (e.key === 'Enter') saveEdit(proj.id); if (e.key === 'Escape') setEditingId(null); }}
+                                                            />
+                                                            <button onClick={() => saveEdit(proj.id)} className="p-1 rounded text-black bg-gray-100 hover:bg-gray-200 dark:bg-neutral-800 dark:text-white dark:hover:bg-neutral-700" title="Salvar"><Check size={14} /></button>
+                                                            <button onClick={() => setEditingId(null)} className="p-1 rounded text-gray-500 bg-gray-50 hover:bg-gray-200 dark:bg-neutral-900 dark:hover:bg-neutral-800 dark:hover:text-white" title="Cancelar"><X size={14} /></button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 group">
+                                                            <span className={`font-bold text-sm lg:text-xs truncate cursor-pointer transition-colors ${isActive ? 'text-black dark:text-white' : 'text-gray-800 dark:text-gray-200 hover:text-black dark:hover:text-white'}`} onClick={() => startEditing(proj)}>
+                                                                {proj.name}
+                                                            </span>
+                                                            <button onClick={() => startEditing(proj)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-black dark:hover:text-white transition-all" title="Renomear">
+                                                                <Edit3 size={12} />
                                                             </button>
                                                         </div>
+                                                    )}
 
-                                                        {/* Status e Accordion */}
-                                                        <div className="status-row">
-                                                            {isActive && <span className="status-badge-blue">● Editando</span>}
-                                                            {isVisible && <span className="status-badge-green">● Visível</span>}
+                                                    {/* Botões (Desktop compact style) */}
+                                                    <div className="flex items-center gap-0.5 mt-1 shrink-0">
+                                                        <button
+                                                            onClick={() => { onFocusProject(proj.id); setSelectedIds(new Set()); }}
+                                                            className="p-1.5 rounded text-gray-400 hover:text-black hover:bg-gray-100 dark:hover:text-white dark:hover:bg-neutral-800 transition-colors"
+                                                            title="Centralizar no Projeto"
+                                                        >
+                                                            <Focus size={14} />
+                                                        </button>
 
-                                                            {/* Botão de Toggle do Accordion */}
-                                                            {projectShares.length > 0 && (
-                                                                <button
-                                                                    onClick={() => toggleExpand(proj.id)}
-                                                                    className={`btn-toggle-accordion ${isExpanded ? 'accordion-open' : 'accordion-closed'}`}
-                                                                >
-                                                                    <Users size={10} />
-                                                                    {projectShares.length} acesso(s)
-                                                                    {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-                                                                </button>
-                                                            )}
-                                                        </div>
+                                                        <button
+                                                            onClick={() => { onSetActive(proj); setSelectedIds(new Set()); }}
+                                                            className={`p-1.5 rounded transition-colors ${isActive ? 'bg-black text-white dark:bg-white dark:text-black' : 'text-gray-400 hover:text-black hover:bg-gray-100 dark:hover:text-white dark:hover:bg-neutral-800'}`}
+                                                            title={isActive ? "Desativar Edição de Projeto" : "Ativar Edição de Projeto"}
+                                                        >
+                                                            <PenTool size={14} />
+                                                        </button>
+
+                                                        <button
+                                                            onClick={() => { onToggleVisibility(proj.id); setSelectedIds(new Set()); }}
+                                                            className={`p-1.5 rounded transition-colors ${isVisible ? 'text-black bg-gray-100 dark:text-white dark:bg-neutral-800' : 'text-gray-400 hover:text-black hover:bg-gray-100 dark:hover:text-white dark:hover:bg-neutral-800'}`}
+                                                            title={isVisible ? "Ocultar Projeto" : "Ver Projeto"}
+                                                        >
+                                                            {isVisible ? <Eye size={14} /> : <EyeOff size={14} />}
+                                                        </button>
+
+                                                        <button
+                                                            onClick={() => { setSelectedIds(new Set([proj.id])); setBulkAction('SHARE'); }}
+                                                            className="p-1.5 rounded text-gray-400 hover:text-black hover:bg-gray-100 dark:hover:text-white dark:hover:bg-neutral-800 transition-colors"
+                                                            title="Compartilhar Projeto"
+                                                        >
+                                                            <Share2 size={14} />
+                                                        </button>
+
+                                                        <button
+                                                            onClick={() => { onDeleteProject(proj.id); setSelectedIds(new Set()); }}
+                                                            className="p-1.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 dark:hover:text-red-500 transition-colors"
+                                                            title="Deletar Projeto"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
                                                     </div>
+
+                                                    {/* Status e Accordion */}
+                                                    <div className="flex items-center gap-2 mt-2 text-[10px] lg:text-[9px]">
+                                                        {isActive && <span className="font-bold uppercase text-black dark:text-white">● Ativo</span>}
+                                                        {isVisible && <span className="font-bold uppercase text-gray-500 dark:text-gray-400">● Visível</span>}
+
+                                                        {projectShares.length > 0 && (
+                                                            <button
+                                                                onClick={() => toggleExpand(proj.id)}
+                                                                className={`flex items-center gap-1 px-1.5 py-0.5 rounded flex-1 transition-colors font-bold uppercase
+                                                                    ${isExpanded ? 'bg-black text-white dark:bg-white dark:text-black' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-neutral-800 dark:text-gray-400 dark:hover:bg-neutral-700'}`}
+                                                            >
+                                                                <Users size={10} />
+                                                                {projectShares.length} Acesso{projectShares.length > 1 ? 's' : ''}
+                                                                {isExpanded ? <ChevronUp size={10} className="ml-auto" /> : <ChevronDown size={10} className="ml-auto" />}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* LISTA DE ACESSOS (ACCORDION) */}
+                                        {isExpanded && projectShares.length > 0 && (
+                                            <div className="bg-gray-50 dark:bg-neutral-900/50 px-3 lg:px-2.5 py-2 border-t border-gray-200 dark:border-neutral-800">
+                                                <p className="font-bold text-gray-400 dark:text-gray-500 mb-2 flex items-center gap-1 uppercase tracking-wider text-[9px]">
+                                                    <Users size={10} /> Compartilhado com:
+                                                </p>
+                                                <div className="space-y-1.5">
+                                                    {projectShares.map(share => (
+                                                        <div key={share.id} className="flex items-center justify-between bg-white dark:bg-black px-2 py-1.5 rounded border border-gray-200 dark:border-neutral-800 text-xs lg:text-[10px]">
+                                                            <div className="flex items-center gap-2 overflow-hidden flex-1">
+                                                                {/* Dot de Status Sutil */}
+                                                                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${share.status === 'accepted' ? 'bg-black dark:bg-white' : 'bg-gray-300 dark:bg-neutral-600'}`} title={share.status === 'accepted' ? 'Aceito' : 'Pendente'}></div>
+
+                                                                <span className={`truncate flex-1 ${share.status === 'pending' ? 'italic text-gray-400' : 'font-medium text-gray-800 dark:text-gray-200'}`}>
+                                                                    {share.toEmail}
+                                                                </span>
+
+                                                                {/* Toggle Permissão Minimalista */}
+                                                                <button
+                                                                    onClick={() => onUpdateSharePermission(share.id, share.permission === 'READ_ONLY_GEOMETRY' ? 'FULL_ACCESS' : 'READ_ONLY_GEOMETRY')}
+                                                                    className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest shrink-0 transition-colors border
+                                                                        ${share.permission === 'READ_ONLY_GEOMETRY'
+                                                                            ? 'bg-transparent text-gray-500 border-gray-300 dark:border-neutral-700 hover:text-black dark:hover:text-white'
+                                                                            : 'bg-black text-white dark:bg-white dark:text-black border-transparent'}`}
+                                                                    title={share.permission === 'READ_ONLY_GEOMETRY' ? 'Técnico de Ativação (Clique para mudar para Projetista)' : 'Projetista (Clique para mudar para Técnico)'}
+                                                                >
+                                                                    {share.permission === 'READ_ONLY_GEOMETRY' ? 'Ativação' : 'Projetista'}
+                                                                </button>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => onRevokeShare(share.id)}
+                                                                className="ml-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors shrink-0"
+                                                                title="Revogar Acesso"
+                                                            >
+                                                                <UserMinus size={14} />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                )}
+
+                {/* ABA COMPARTILHADOS COMIGO */}
+                {activeTab === 'SHARED' && (
+                    <div className="space-y-2.5">
+                        {filteredSharedProjects.length === 0 ? (
+                            <div className="text-center py-8 text-sm lg:text-xs font-medium text-gray-500 dark:text-gray-500">Nenhum projeto compartilhado.</div>
+                        ) : (
+                            filteredSharedProjects.map(proj => {
+                                const isActive = activeProjectId === proj.id;
+                                const isVisible = visibleProjectIds.includes(proj.id);
+                                const isSelected = selectedIds.has(proj.id);
+                                const isExpanded = expandedProjectIds.has(proj.id);
+                                const projectShares = outgoingInvites.filter(inv => inv.projectId === proj.id);
+
+                                return (
+                                    <div key={proj.id} className={`flex flex-col rounded-lg border transition-all overflow-hidden bg-white dark:bg-black
+                                        ${isSelected ? 'border-gray-400 dark:border-neutral-500 bg-gray-50 dark:bg-neutral-900' :
+                                            isActive ? 'border-black dark:border-white ring-1 ring-black dark:ring-white' :
+                                                'border-gray-200 dark:border-neutral-800 hover:border-gray-300 dark:hover:border-neutral-700'}`}>
+
+                                        <div className="p-3 lg:p-2.5 flex items-center justify-between">
+                                            <div className="flex flex-col flex-1 min-w-0 mr-1 gap-1.5">
+
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`font-bold text-sm lg:text-xs truncate transition-colors ${isActive ? 'text-black dark:text-white' : 'text-gray-800 dark:text-gray-200'}`}>
+                                                        {proj.name}
+                                                    </span>
+                                                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest flex items-center gap-1 border
+                                                        ${proj.permission === 'READ_ONLY_GEOMETRY'
+                                                            ? 'bg-transparent text-gray-500 border-gray-300 dark:border-neutral-700'
+                                                            : 'bg-black text-white dark:bg-white dark:text-black border-transparent'}`}>
+                                                        {proj.permission === 'READ_ONLY_GEOMETRY' ? 'Ativação' : 'Projetista'}
+                                                    </span>
                                                 </div>
 
                                                 {/* Botões */}
+                                                <div className="flex items-center gap-0.5 shrink-0">
+                                                    <button
+                                                        onClick={() => { onFocusProject(proj.id); setSelectedIds(new Set()); }}
+                                                        className="p-1.5 rounded text-gray-400 hover:text-black hover:bg-gray-100 dark:hover:text-white dark:hover:bg-neutral-800 transition-colors"
+                                                        title="Centralizar no Projeto"
+                                                    >
+                                                        <Focus size={14} />
+                                                    </button>
 
-                                            </div>
+                                                    {proj.permission !== 'READ_ONLY_GEOMETRY' && (
+                                                        <button
+                                                            onClick={() => { onSetActive(proj); setSelectedIds(new Set()); }}
+                                                            className={`p-1.5 rounded transition-colors ${isActive ? 'bg-black text-white dark:bg-white dark:text-black' : 'text-gray-400 hover:text-black hover:bg-gray-100 dark:hover:text-white dark:hover:bg-neutral-800'}`}
+                                                            title={isActive ? "Desativar Edição de Projeto" : "Ativar Edição de Projeto"}
+                                                        >
+                                                            <PenTool size={14} />
+                                                        </button>
+                                                    )}
 
-                                            {/* LISTA DE ACESSOS (ACCORDION) */}
-                                            {isExpanded && projectShares.length > 0 && (
-                                                <div className="accordion-content">
-                                                    <p className="accordion-title"><Users size={10} /> Acesso concedido a:</p>
-                                                    <div className="space-y-1">
-                                                        {projectShares.map(share => (
-                                                            <div key={share.id} className="share-row">
-                                                                <div className="flex items-center gap-2 overflow-hidden">
-                                                                    <div className={`status-dot ${share.status === 'accepted' ? 'bg-green-500' : 'bg-blue-400'}`} title={share.status === 'accepted' ? 'Aceito' : 'Pendente'}></div>
-                                                                    <span className={`share-email ${share.status === 'pending' ? 'italic text-gray-400' : 'text-gray-700 dark:text-gray-300'}`}>
-                                                                        {share.toEmail}
-                                                                    </span>
-                                                                    {/* Botão de Troca Rápida de Permissão */}
-                                                                    <button
-                                                                        onClick={() => onUpdateSharePermission(
-                                                                            share.id,
-                                                                            share.permission === 'READ_ONLY_GEOMETRY' ? 'FULL_ACCESS' : 'READ_ONLY_GEOMETRY'
-                                                                        )}
-                                                                        className={`btn-permission-toggle ${share.permission === 'READ_ONLY_GEOMETRY'
-                                                                            ? 'btn-permission-tech'
-                                                                            : 'btn-permission-designer'
-                                                                            }`}
-                                                                        title={share.permission === 'READ_ONLY_GEOMETRY'
-                                                                            ? 'Clique para alterar para Projetista'
-                                                                            : 'Clique para alterar para Técnico de Ativação'
-                                                                        }
-                                                                    >
-                                                                        {share.permission === 'READ_ONLY_GEOMETRY'
-                                                                            ? <><HardHat size={10} /> Técnico de Ativação</>
-                                                                            : <><UserPen size={10} /> Projetista</>
-                                                                        }
-                                                                    </button>
-                                                                </div>
-                                                                <button
-                                                                    onClick={() => onRevokeShare(share.id)}
-                                                                    className="btn-revoke"
-                                                                    title="Revogar Acesso"
-                                                                >
-                                                                    <UserMinus size={20} />
-                                                                </button>
-                                                            </div>
-                                                        ))}
-                                                    </div>
+                                                    <button
+                                                        onClick={() => { onToggleVisibility(proj.id); setSelectedIds(new Set()); }}
+                                                        className={`p-1.5 rounded transition-colors ${isVisible ? 'text-black bg-gray-100 dark:text-white dark:bg-neutral-800' : 'text-gray-400 hover:text-black hover:bg-gray-100 dark:hover:text-white dark:hover:bg-neutral-800'}`}
+                                                        title={isVisible ? "Ocultar Projeto" : "Ver Projeto"}
+                                                    >
+                                                        {isVisible ? <Eye size={14} /> : <EyeOff size={14} />}
+                                                    </button>
                                                 </div>
-                                            )}
-                                        </div>
-                                    );
-                                })
-                            )}
-                        </div>
-                    )}
 
-                    {/* ABA COMPARTILHADOS COMIGO */}
-                    {activeTab === 'SHARED' && (
-                        <div className="projects-list">
-                            {sortedSharedProjects.length === 0 ? (
-                                <div className="empty-state-msg">Nenhum projeto compartilhado com você.</div>
-                            ) : (
-                                sortedSharedProjects.map(proj => {
-                                    const isActive = activeProjectId === proj.id;
-                                    const isVisible = visibleProjectIds.includes(proj.id);
-                                    const isEditing = editingId === proj.id;
-                                    const isSelected = selectedIds.has(proj.id);
-                                    const isExpanded = expandedProjectIds.has(proj.id);
-                                    const projectShares = outgoingInvites.filter(inv => inv.projectId === proj.id);
+                                                {/* Status e Dono */}
+                                                <div className="flex items-center gap-2 mt-1 text-[10px] lg:text-[9px]">
+                                                    {isActive && <span className="font-bold uppercase text-black dark:text-white">● Ativo</span>}
+                                                    {isVisible && <span className="font-bold uppercase text-gray-500 dark:text-gray-400">● Visível</span>}
 
-                                    return (
-                                        <div key={proj.id} className={`project-card ${isSelected ? 'card-selected' : isActive ? 'card-active' : 'card-idle'}`}>
-                                            <div className="project-card-header">
-                                                <div className="flex items-center gap-3 overflow-hidden flex-1">
-                                                    <div className="flex flex-col flex-1 min-w-0 mr-2 gap-2">
-                                                        <div className="title-row-group gap-3">
-                                                            {/* Nome do Projeto */}
-                                                            <span className={`font-bold text-sm truncate ${isActive ? 'name-active' : 'name-idle'}`}>{proj.name}</span>
-                                                            {/* Badge de Permissão do Projeto Compartilhado */}
-                                                            <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide flex items-center gap-1 ${proj.permission === 'READ_ONLY_GEOMETRY'
-                                                                ? 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400'
-                                                                : 'bg-green-500/20 text-green-600 dark:text-green-400'
-                                                                }`}>
-                                                                {proj.permission === 'READ_ONLY_GEOMETRY'
-                                                                    ? <><HardHat size={10} /> Técnico de Ativação</>
-                                                                    : <><UserPen size={10} /> Projetista</>
-                                                                }
-                                                            </span>
-                                                        </div>
+                                                    <span className="flex items-center gap-1 font-medium text-gray-500 dark:text-gray-500 truncate max-w-[150px]">
+                                                        <Users size={10} /> Dono: {proj.fromEmail || "Desconhecido"}
+                                                    </span>
 
-                                                        {/* Botões */}
-                                                        <div className="actions-group">
-                                                            {/* --- BOTÃO DE FOCO --- */}
-                                                            <button
-                                                                onClick={() => { onFocusProject(proj.id); setSelectedIds(new Set()); }}
-                                                                className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors"
-                                                                title="Localizar e Focar esse Projeto"
-                                                            >
-                                                                <Focus size={20} />
-                                                            </button>
-
-                                                            {/* BOTÃO DE ATIVAR/DESATIVAR PROJETO (Oculto para Ativação) */}
-                                                            {proj.permission !== 'READ_ONLY_GEOMETRY' && (
-                                                                <button
-                                                                    onClick={() => { onSetActive(proj); setSelectedIds(new Set()); }}
-                                                                    className={`btn-visibility ${isActive ? 'vis-active' : 'vis-idle'}`}
-                                                                    title={isActive ? "Desativar Projeto" : "Ativar Projeto"}
-                                                                >
-                                                                    <PenTool size={20} />
-                                                                </button>
-                                                            )}
-
-                                                            {/* BOTÃO DE VISÍVEL/INVISÍVEL */}
-                                                            <button
-                                                                onClick={() => { onToggleVisibility(proj.id); setSelectedIds(new Set()); }}
-                                                                className={`btn-visibility ${isVisible ? 'vis-active' : 'vis-idle'}`}
-                                                                title={isVisible ? "Ocultar Projeto" : "Ver Projeto"}
-                                                            >
-                                                                {isVisible ? <Eye size={20} /> : <EyeOff size={20} />}
-                                                            </button>
-                                                        </div>
-
-                                                        {/* Status e Dono */}
-                                                        <div className="status-row">
-                                                            {isActive && <span className="status-badge-blue">● Editando</span>}
-                                                            {isVisible && <span className="status-badge-green">● Visível</span>}
-                                                            <span
-                                                                title={proj.fromEmail}
-                                                                className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full font-semibold bg-white/30 dark:bg-white/10 text-gray-600 dark:text-gray-300`}
-                                                            >
-                                                                <Users size={10} />
-                                                                Dono: {proj.fromEmail || "Desconhecido"}
-                                                            </span>
-                                                            {/* Botão de Sair do Projeto Compartilhado */}
-                                                            <button
-                                                                onClick={() => onRevokeShare(proj.inviteId)}
-                                                                className="btn-revoke"
-                                                                title="Sair deste projeto compartilhado"
-                                                            >
-                                                                <LogOut size={20} />
-                                                            </button>
-                                                        </div>
-                                                    </div>
+                                                    <button
+                                                        onClick={() => onRevokeShare(proj.inviteId)}
+                                                        className="ml-auto p-1.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-500 dark:hover:bg-red-900/20 transition-colors"
+                                                        title="Sair do projeto"
+                                                    >
+                                                        <LogOut size={12} />
+                                                    </button>
                                                 </div>
                                             </div>
-
-                                            {/* LISTA DE ACESSOS (ACCORDION) */}
-                                            {isExpanded && projectShares.length > 0 && (
-                                                <div className="accordion-content">
-                                                    <p className="accordion-title"><Users size={10} /> Acesso concedido a:</p>
-                                                    <div className="space-y-1">
-                                                        {projectShares.map(share => (
-                                                            <div key={share.id} className="share-row">
-                                                                <div className="flex items-center gap-2 overflow-hidden">
-                                                                    <div className={`status-dot ${share.status === 'accepted' ? 'bg-green-500' : 'bg-blue-400'}`} title={share.status === 'accepted' ? 'Aceito' : 'Pendente'}></div>
-                                                                    <span className={`share-email ${share.status === 'pending' ? 'italic text-gray-400' : 'text-gray-700 dark:text-gray-300'}`}>
-                                                                        {share.toEmail}
-                                                                    </span>
-                                                                </div>
-                                                                <button
-                                                                    onClick={() => onRevokeShare(share.id)}
-                                                                    className="btn-revoke"
-                                                                    title="Revogar Acesso"
-                                                                >
-                                                                    <UserMinus size={20} />
-                                                                </button>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
                                         </div>
-                                    );
-                                })
-                            )}
-                        </div>
-                    )}
-                </div>
 
-                {/* --- FOOTER: CRIAÇÃO RÁPIDA --- */}
-                {activeTab === 'MY_PROJECTS' && !bulkAction && (
-                    <div className="footer-create">
-                        {isCreating ? (
-                            <div className="flex gap-2">
-                                <input
-                                    autoFocus
-                                    required
-                                    value={newProjectName}
-                                    onChange={e => setNewProjectName(e.target.value)}
-                                    placeholder="Novo projeto..."
-                                    className="input-new-project"
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') handleCreate();
-                                        if (e.key === 'Escape') { setIsCreating(false); setNewProjectName(''); }
-                                    }}
-                                />
-                                <button onClick={handleCreate} className="btn-confirm-create" title="Salvar"><Check size={18} /></button>
-                                <button onClick={() => { setIsCreating(false); setNewProjectName(''); }} className="btn-cancel-create" title="Cancelar"><X size={18} /></button>
-                            </div>
-                        ) : (
-                            <button onClick={() => setIsCreating(true)} className="btn-start-create" title="Criar Novo Projeto">
-                                <Plus size={18} /> Criar Novo Projeto
-                            </button>
+                                        {/* ACCORDION (Apenas se houver invites originados deste share, geralmente não tem, mas mantendo a lógica) */}
+                                        {isExpanded && projectShares.length > 0 && (
+                                            <div className="bg-gray-50 dark:bg-neutral-900/50 px-3 lg:px-2.5 py-2 border-t border-gray-200 dark:border-neutral-800">
+                                                <p className="font-bold text-gray-400 dark:text-gray-500 mb-2 flex items-center gap-1 uppercase tracking-wider text-[9px]"><Users size={10} /> Compartilhado com:</p>
+                                                <div className="space-y-1.5">
+                                                    {projectShares.map(share => (
+                                                        <div key={share.id} className="flex items-center justify-between bg-white dark:bg-black px-2 py-1.5 rounded border border-gray-200 dark:border-neutral-800 text-xs lg:text-[10px]">
+                                                            <div className="flex items-center gap-2 overflow-hidden flex-1">
+                                                                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${share.status === 'accepted' ? 'bg-black dark:bg-white' : 'bg-gray-300 dark:bg-neutral-600'}`}></div>
+                                                                <span className={`truncate flex-1 ${share.status === 'pending' ? 'italic text-gray-400' : 'font-medium text-gray-800 dark:text-gray-200'}`}>
+                                                                    {share.toEmail}
+                                                                </span>
+                                                            </div>
+                                                            <button onClick={() => onRevokeShare(share.id)} className="ml-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors shrink-0">
+                                                                <UserMinus size={14} />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })
                         )}
                     </div>
                 )}
-
-                {/* --- MODAL DE AÇÃO EM MASSA (OVERLAY) --- */}
-                {bulkAction && (
-                    <div className="bulk-action-overlay">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="bulk-title">
-                                {bulkAction === 'SHARE' ? <Share2 className="text-blue-600" /> : <ArrowRightLeft className="text-blue-600" />}
-                                {bulkAction === 'SHARE' ? 'Compartilhar em Massa' : 'Transferir Propriedade'}
-                            </h3>
-                            <button onClick={() => { setBulkAction(null); setTargetEmails([]); }} className="btn-close-header" title="Fechar"><X size={20} /></button>
-                        </div>
-
-                        <div className="flex-1 flex flex-col gap-4">
-                            <div className="bulk-info-box">
-                                Você selecionou <b>{selectedIds.size} projetos</b>.
-                                {bulkAction === 'TRANSFER' && " Atenção: A transferência é irreversível após o aceite."}
-                            </div>
-
-                            <div className="flex-1">
-                                <label className="bulk-input-label">
-                                    {bulkAction === 'SHARE' ? 'Adicionar pessoas (E-mails)' : 'E-mail do novo proprietário'}
-                                </label>
-
-                                <div className="email-chips-container">
-                                    {targetEmails.map(email => (
-                                        <span key={email} className="email-chip">
-                                            {email}
-                                            <button onClick={() => removeEmail(email)} className="hover:text-red-500" title="Remover"><X size={12} /></button>
-                                        </span>
-                                    ))}
-                                    <input
-                                        value={emailInput}
-                                        onChange={e => setEmailInput(e.target.value)}
-                                        onKeyDown={handleKeyDownEmail}
-                                        onBlur={() => addEmail(emailInput)}
-                                        placeholder={targetEmails.length > 0 ? "" : "Digite e tecle Enter..."}
-                                        className="input-email-add"
-                                        autoFocus
-                                    />
-                                </div>
-
-                                {/* Contatos Recentes */}
-                                {recentContacts.length > 0 && (
-                                    <div className="mt-4">
-                                        <p className="recent-contacts-label">Contatos Recentes</p>
-                                        <div className="flex flex-wrap gap-2">
-                                            {recentContacts.map(contact => (
-                                                <button
-                                                    key={contact}
-                                                    onClick={() => addEmail(contact)}
-                                                    disabled={targetEmails.includes(contact)}
-                                                    className="btn-recent-contact"
-                                                >
-                                                    {contact}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Seletor de Nível de Permissão (Apenas para SHARE) */}
-                                {bulkAction === 'SHARE' && (
-                                    <div className="mt-4">
-                                        <p className="recent-contacts-label">Nível de Permissão</p>
-                                        <div className="flex flex-col gap-2 mt-2">
-                                            <label
-                                                className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer border-2 transition-all ${sharePermission === 'FULL_ACCESS'
-                                                    ? 'border-green-500/50 bg-green-500/10'
-                                                    : 'border-transparent bg-white/5 hover:bg-white/10'
-                                                    }`}
-                                            >
-                                                <input
-                                                    type="radio"
-                                                    name="permission"
-                                                    value="FULL_ACCESS"
-                                                    checked={sharePermission === 'FULL_ACCESS'}
-                                                    onChange={() => setSharePermission('FULL_ACCESS')}
-                                                    className="accent-green-500"
-                                                />
-                                                <div>
-                                                    <span className="font-bold text-sm text-green-600 dark:text-green-400 flex items-center gap-1.5">
-                                                        <UserPen size={14} /> Projetista
-                                                    </span>
-                                                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                                                        Pode ver todos os dados, editar e criar itens.
-                                                    </span>
-                                                </div>
-                                            </label>
-                                            <label
-                                                className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer border-2 transition-all ${sharePermission === 'READ_ONLY_GEOMETRY'
-                                                    ? 'border-yellow-500/50 bg-yellow-500/10'
-                                                    : 'border-transparent bg-white/5 hover:bg-white/10'
-                                                    }`}
-                                            >
-                                                <input
-                                                    type="radio"
-                                                    name="permission"
-                                                    value="READ_ONLY_GEOMETRY"
-                                                    checked={sharePermission === 'READ_ONLY_GEOMETRY'}
-                                                    onChange={() => setSharePermission('READ_ONLY_GEOMETRY')}
-                                                    className="accent-yellow-500"
-                                                />
-                                                <div>
-                                                    <span className="font-bold text-sm text-yellow-600 dark:text-yellow-400 flex items-center gap-1.5">
-                                                        <HardHat size={14} /> Técnico de Ativação
-                                                    </span>
-                                                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                                                        Vê apenas as CTOs
-                                                    </span>
-                                                </div>
-                                            </label>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <button
-                            onClick={executeBulkAction}
-                            disabled={targetEmails.length === 0}
-                            className={`btn-execute-bulk ${targetEmails.length === 0
-                                ? 'btn-disabled'
-                                : bulkAction === 'SHARE' ? 'btn-execute-share' : 'btn-execute-transfer'
-                                }`}
-                        >
-                            {bulkAction === 'SHARE' ? `Enviar Convites (${selectedIds.size} proj. x ${targetEmails.length} pessoas)` : 'Iniciar Transferência'}
-                        </button>
-                    </div>
-                )}
             </div>
+
+            {/* --- FOOTER: CRIAÇÃO RÁPIDA --- */}
+            {activeTab === 'MY_PROJECTS' && !bulkAction && (
+                <div className="p-4 lg:p-3 border-t border-gray-200 dark:border-neutral-900 bg-white dark:bg-black shrink-0">
+                    {isCreating ? (
+                        <div className="flex gap-2">
+                            <input
+                                autoFocus
+                                required
+                                value={newProjectName}
+                                onChange={e => setNewProjectName(e.target.value)}
+                                placeholder="Nome do projeto..."
+                                className="flex-1 px-3 lg:px-2 py-2 lg:py-1.5 rounded text-sm lg:text-xs outline-none bg-gray-50 dark:bg-neutral-900 text-black dark:text-white border border-gray-200 dark:border-neutral-800 focus:border-black dark:focus:border-white transition-colors"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleCreate();
+                                    if (e.key === 'Escape') { setIsCreating(false); setNewProjectName(''); }
+                                }}
+                            />
+                            <button onClick={handleCreate} className="bg-black dark:bg-white text-white dark:text-black px-3 rounded hover:opacity-80 transition-opacity flex items-center justify-center" title="Salvar"><Check size={16} /></button>
+                            <button onClick={() => { setIsCreating(false); setNewProjectName(''); }} className="bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300 px-3 rounded hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors flex items-center justify-center" title="Cancelar"><X size={16} /></button>
+                        </div>
+                    ) : (
+                        <button onClick={() => setIsCreating(true)} className="w-full py-2.5 lg:py-1.5 border border-dashed border-gray-300 dark:border-neutral-700 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-900 hover:border-black dark:hover:border-white hover:text-black dark:hover:text-white flex items-center justify-center gap-2 text-sm lg:text-xs font-bold transition-all" title="Criar Novo Projeto">
+                            <Plus size={16} /> Criar Novo Projeto
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {/* --- MODAL DE AÇÃO EM MASSA (OVERLAY) --- */}
+            {bulkAction && (
+                <div className="absolute inset-0 z-50 bg-white dark:bg-black flex flex-col p-5 lg:p-4 overflow-y-auto animate-in fade-in slide-in-from-bottom-4">
+                    <div className="flex justify-between items-center mb-6 shrink-0">
+                        <h3 className="text-lg lg:text-base font-bold flex items-center gap-2 text-black dark:text-white">
+                            {bulkAction === 'SHARE' ? <Share2 className="text-black dark:text-white" size={18} /> : <ArrowRightLeft className="text-black dark:text-white" size={18} />}
+                            {bulkAction === 'SHARE' ? 'Compartilhar' : 'Transferir'}
+                        </h3>
+                        <button onClick={() => { setBulkAction(null); setTargetEmails([]); }} className="p-1 text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors" title="Fechar"><X size={20} /></button>
+                    </div>
+
+                    <div className="flex-1 flex flex-col gap-4">
+                        <div className="bg-gray-50 dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 p-3 rounded-lg text-sm lg:text-xs text-gray-800 dark:text-gray-200">
+                            Selecionados: <b className="text-black dark:text-white">{selectedIds.size} projetos</b>.
+                            {bulkAction === 'TRANSFER' && <span className="block mt-1 text-red-600 dark:text-red-400 font-bold">Atenção: A transferência é irreversível.</span>}
+                        </div>
+
+                        <div className="flex-1 flex flex-col">
+                            <label className="block text-sm lg:text-xs font-bold text-gray-900 dark:text-gray-100 mb-2 uppercase tracking-wide">
+                                {bulkAction === 'SHARE' ? 'E-mails dos colaboradores' : 'E-mail do novo proprietário'}
+                            </label>
+
+                            <div className="border rounded-lg p-2 focus-within:border-black dark:focus-within:border-white bg-gray-50 dark:bg-neutral-900 border-gray-200 dark:border-neutral-800 min-h-[80px] flex flex-wrap content-start gap-2 transition-colors">
+                                {targetEmails.map(email => (
+                                    <span key={email} className="bg-black text-white dark:bg-white dark:text-black px-2 py-1 rounded text-[10px] lg:text-[9px] font-bold uppercase flex items-center gap-1">
+                                        {email}
+                                        <button onClick={() => removeEmail(email)} className="hover:opacity-70" title="Remover"><X size={10} /></button>
+                                    </span>
+                                ))}
+                                <input
+                                    value={emailInput}
+                                    onChange={e => setEmailInput(e.target.value)}
+                                    onKeyDown={handleKeyDownEmail}
+                                    onBlur={() => addEmail(emailInput)}
+                                    placeholder={targetEmails.length > 0 ? "" : "Digite o e-mail e tecle Enter..."}
+                                    className="flex-1 min-w-[150px] outline-none text-sm lg:text-xs bg-transparent text-black dark:text-white placeholder-gray-400 dark:placeholder-gray-600"
+                                    autoFocus
+                                />
+                            </div>
+
+                            {/* Contatos Recentes */}
+                            {recentContacts.length > 0 && (
+                                <div className="mt-4">
+                                    <p className="text-[10px] lg:text-[9px] font-bold text-gray-500 dark:text-gray-500 uppercase mb-2 tracking-wider">Recentes</p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {recentContacts.map(contact => (
+                                            <button
+                                                key={contact}
+                                                onClick={() => addEmail(contact)}
+                                                disabled={targetEmails.includes(contact)}
+                                                className="px-2 py-1 bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 border border-gray-200 dark:border-neutral-700 rounded text-[10px] text-gray-700 dark:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                            >
+                                                {contact}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Seletor de Nível de Permissão (Apenas para SHARE) */}
+                            {bulkAction === 'SHARE' && (
+                                <div className="mt-5">
+                                    <p className="text-[10px] lg:text-[9px] font-bold text-gray-500 dark:text-gray-500 uppercase mb-2 tracking-wider">Nível de Acesso</p>
+                                    <div className="flex flex-col gap-2">
+                                        <label className={`flex items-center gap-3 p-3 lg:p-2 rounded-lg cursor-pointer border transition-all 
+                                            ${sharePermission === 'FULL_ACCESS' ? 'border-black bg-gray-50 dark:border-white dark:bg-neutral-900 ring-1 ring-black dark:ring-white' : 'border-gray-200 dark:border-neutral-800 hover:border-gray-300 dark:hover:border-neutral-700'}`}>
+                                            <input type="radio" name="permission" value="FULL_ACCESS" checked={sharePermission === 'FULL_ACCESS'} onChange={() => setSharePermission('FULL_ACCESS')} className="hidden" />
+                                            <div className={`w-3 h-3 rounded-full border flex items-center justify-center shrink-0 ${sharePermission === 'FULL_ACCESS' ? 'border-black dark:border-white' : 'border-gray-300 dark:border-neutral-600'}`}>
+                                                {sharePermission === 'FULL_ACCESS' && <div className="w-1.5 h-1.5 bg-black dark:bg-white rounded-full"></div>}
+                                            </div>
+                                            <div>
+                                                <span className="font-bold text-sm lg:text-xs text-black dark:text-white flex items-center gap-1.5">
+                                                    <UserPen size={14} /> Projetista
+                                                </span>
+                                                <span className="text-xs lg:text-[10px] text-gray-500 dark:text-gray-400 block mt-0.5">Edição e criação liberada.</span>
+                                            </div>
+                                        </label>
+
+                                        <label className={`flex items-center gap-3 p-3 lg:p-2 rounded-lg cursor-pointer border transition-all 
+                                            ${sharePermission === 'READ_ONLY_GEOMETRY' ? 'border-black bg-gray-50 dark:border-white dark:bg-neutral-900 ring-1 ring-black dark:ring-white' : 'border-gray-200 dark:border-neutral-800 hover:border-gray-300 dark:hover:border-neutral-700'}`}>
+                                            <input type="radio" name="permission" value="READ_ONLY_GEOMETRY" checked={sharePermission === 'READ_ONLY_GEOMETRY'} onChange={() => setSharePermission('READ_ONLY_GEOMETRY')} className="hidden" />
+                                            <div className={`w-3 h-3 rounded-full border flex items-center justify-center shrink-0 ${sharePermission === 'READ_ONLY_GEOMETRY' ? 'border-black dark:border-white' : 'border-gray-300 dark:border-neutral-600'}`}>
+                                                {sharePermission === 'READ_ONLY_GEOMETRY' && <div className="w-1.5 h-1.5 bg-black dark:bg-white rounded-full"></div>}
+                                            </div>
+                                            <div>
+                                                <span className="font-bold text-sm lg:text-xs text-black dark:text-white flex items-center gap-1.5">
+                                                    <HardHat size={14} /> Técnico
+                                                </span>
+                                                <span className="text-xs lg:text-[10px] text-gray-500 dark:text-gray-400 block mt-0.5">Visualiza apenas mapa e caixas.</span>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={executeBulkAction}
+                        disabled={targetEmails.length === 0}
+                        className={`w-full py-3 lg:py-2.5 rounded-lg text-white dark:text-black font-bold text-sm transition-all mt-4 shrink-0
+                            ${targetEmails.length === 0
+                                ? 'bg-gray-300 dark:bg-neutral-800 text-gray-500 dark:text-gray-600 cursor-not-allowed'
+                                : 'bg-black dark:bg-white hover:opacity-80 shadow-md'}`}
+                    >
+                        {bulkAction === 'SHARE' ? `Enviar Convite para ${targetEmails.length} pessoa(s)` : 'Iniciar Transferência'}
+                    </button>
+                </div>
+            )}
         </div>
     );
 };

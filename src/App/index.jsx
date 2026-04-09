@@ -5131,63 +5131,730 @@ const App = () => {
     };
 
     // const App return
-    return (
-        <div className={`h-screen w-screen relative overflow-hidden flex flex-col font-sans select-none ${isDarkMode ? 'dark' : ''} bg-white dark:bg-black`}>
+    // return (
+    //     <div className={`h-screen w-screen relative overflow-hidden flex flex-col font-sans select-none ${isDarkMode ? 'dark' : ''} bg-white dark:bg-black`}>
 
+    //         <InstallPwaPopup />
+
+    //         {/* 1. ÁREA PRINCIPAL (MAPA OU CANVAS) - Ocupa toda a tela (z-0) */}
+    //         <div className="flex-1 relative z-0 overflow-hidden">
+    //             {viewMode === 'CANVAS' ? (
+    //                 /* --- MODO CANVAS --- */
+    //                 <div
+    //                     ref={canvasRef}
+    //                     className={`w-full h-full relative overflow-hidden bg-[#ddd] dark:bg-[#222] ${interactionMode === 'SELECT' ? (isDraggingCanvas ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-crosshair'} touch-none`}
+    //                     onMouseDown={(e) => handleStart(e, null)}
+    //                     onMouseMove={handleMove}
+    //                     onMouseUp={(e) => handleEnd(e, null)}
+    //                     onClick={handleCanvasClick}
+    //                     onTouchStart={(e) => handleStart(e, null)}
+    //                     onTouchMove={handleMove}
+    //                     onTouchEnd={(e) => handleEnd(e, null)}
+    //                     onWheel={handleWheel}
+    //                     style={{ backgroundImage: isDarkMode ? 'radial-gradient(#333 1px, transparent 1px)' : 'radial-gradient(#bbb 1px, transparent 1px)', backgroundSize: `${20 * scale}px ${20 * scale}px`, backgroundPosition: `${pan.x}px ${pan.y}px` }}
+    //                 >
+    //                     <div className="origin-top-left absolute top-0 left-0 w-full h-full pointer-events-none" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})` }}>
+    //                         <svg className="absolute top-0 left-0 w-[5000px] h-[5000px] pointer-events-none overflow-visible">
+    //                             {/* 1. Cabos Otimizados */}
+    //                             {visibleItems.filter(i => i.type === 'CABLE').map(c => {
+    //                                 const nodeA = items.find(n => n.id === c.fromNode);
+    //                                 const nodeB = items.find(n => n.id === c.toNode);
+    //                                 if (!nodeA || !nodeB) return null;
+
+    //                                 // Recupera dados do grupo (topoologia)
+    //                                 const [n1, n2] = [c.fromNode, c.toNode].sort();
+    //                                 const group = cableGroups[`${n1}-${n2}`] || [c];
+    //                                 const index = group.findIndex(g => g.id === c.id);
+    //                                 const count = group.length;
+
+    //                                 return (
+    //                                     <CableLine
+    //                                         key={c.id}
+    //                                         cable={c}
+    //                                         nodeA={nodeA} // Passamos o nó inteiro
+    //                                         nodeB={nodeB}
+    //                                         index={index} // Passamos a posição já calculada
+    //                                         count={count}
+    //                                         itemTypes={ITEM_TYPES}
+    //                                         onSelect={(id) => setSelectedIds(new Set([id]))}
+    //                                         onOpen={setDetailId}
+    //                                         onSplit={splitCable}
+    //                                         onDelete={deleteItem}
+    //                                         onEdit={renameItem}
+    //                                         isSelected={selectedIds.has(c.id)}
+    //                                     />
+    //                                 );
+    //                             })}
+
+    //                             {/* 2. Drops Otimizados */}
+    //                             {/* {visibleConnections.filter(c => c.type === 'DROP').map(c => {
+    //                                 const client = items.find(i => i.id === c.toId);
+    //                                 let sourceItem = items.find(i => i.id === c.fromId);
+    //                                 if (!client) return null;
+    //                                 if (sourceItem?.parentId) sourceItem = items.find(i => i.id === sourceItem.parentId);
+    //                                 if (!sourceItem) return null;
+
+    //                                 // Calculamos aqui para o componente ser "burro" e rápido
+    //                                 const x1 = (sourceItem.x || 0) + 60;
+    //                                 const y1 = (sourceItem.y || 0) + 40;
+    //                                 const x2 = (client.x || 0) + 60;
+    //                                 const y2 = (client.y || 0) + 40;
+
+    //                                 return <DropLine key={c.id} x1={x1} y1={y1} x2={x2} y2={y2} />;
+    //                             })} */}
+
+    //                             {/* Linha de desenho (Mantém igual) */}
+    //                             {interactionMode === 'DRAW_CABLE' && cableStartNode && <line x1={cableStartNode.x + ITEM_TYPES[cableStartNode.type].width / 2} y1={cableStartNode.y + 30} x2={draggingNode ? draggingNode.x : 0} y2={0} stroke={isDarkMode ? "white" : "black"} strokeDasharray="4" />}
+    //                         </svg>
+
+    //                         {/* Caixa de Seleção */}
+    //                         {selectionBox && <div style={{ position: 'absolute', left: selectionBox.x, top: selectionBox.y, width: selectionBox.w, height: selectionBox.h, border: '1px dashed #3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', pointerEvents: 'none' }}></div>}
+
+    //                         {/* Nós (Caixas e Clientes) */}
+    //                         <div className="pointer-events-auto">
+    //                             {visibleItems.filter(i => !i.parentId && ITEM_TYPES[i.type].category === 'NODE').map(n => (
+    //                                 <CanvasNodes
+    //                                     key={n.id}
+    //                                     node={n}
+    //                                     config={ITEM_TYPES[n.type]}
+    //                                     isSelected={selectedIds.has(n.id)}
+    //                                     isCableStart={interactionMode === 'DRAW_CABLE' && n.id === cableStartNode?.id}
+    //                                     isDragging={draggingNode?.isMultiSelect && selectedIds.has(n.id)}
+    //                                     onStart={handleStart}
+    //                                     onEnd={handleEnd}
+    //                                     onDoubleClick={handleNodeDoubleClick}
+    //                                     onOpen={(id) => {
+    //                                         setDetailId(id);
+    //                                         setSelectedIds(new Set([id]));
+    //                                     }}
+    //                                     onEdit={renameItem}
+    //                                     onDelete={deleteItem}
+    //                                     onSelect={(id) => {
+    //                                         setSelectedIds(new Set([id]));
+    //                                     }}
+    //                                     onFlyToMap={(n) => {
+    //                                         if (n.lat && n.lng) {
+    //                                             setViewMode('MAP');
+    //                                             setFlyToCoords({ coords: [n.lat, n.lng], id_solicitacao: Date.now() });
+    //                                         } else {
+    //                                             setAlertConfig({ title: 'Aviso', message: 'Este nó não possui localização geográfica definida no mapa.' });
+    //                                         }
+    //                                     }}
+    //                                 />
+    //                             ))}
+
+    //                             {/* Esta div é invisível e serve apenas como destino para os tooltips dos cabos saltarem para frente de tudo */}
+    //                             <div
+    //                                 id="cable-tooltips-layer"
+    //                                 className="absolute top-0 left-0 w-full h-full pointer-events-none"
+    //                                 style={{ zIndex: 9999 }} // Z-index altíssimo para garantir
+    //                             ></div>
+    //                         </div>
+    //                     </div>
+    //                 </div>
+    //             ) : (
+    //                 /* --- MODO MAPA --- */
+    //                 <div className={`w-full h-full relative overflow-hidden ${isDarkMode ? 'bg-slate-900' : 'bg-gray-200'}`}>
+    //                     <FiberMap
+    //                         items={visibleItems}
+    //                         allItems={items}
+    //                         onAlertRequest={openAlert}
+    //                         saveItem={saveItem}
+    //                         isDarkMode={isDarkMode}
+    //                         connections={visibleConnections}
+    //                         signalNames={signalNames}
+
+    //                         interactionMode={interactionMode}
+    //                         onMapClick={handleMapBgClick}
+    //                         onNodeClick={handleMapNodeClick}
+    //                         isPickingMode={interactionMode === 'DRAW_CABLE' || clientWizard.step === 'PICK_CTO'}
+    //                         flyToCoords={flyToCoords}
+    //                         onClearSearch={() => setFlyToCoords(null)}
+    //                         searchTerm={searchTerm}
+    //                         searchMode={searchMode}
+    //                         onEdit={renameItem}
+    //                         onDelete={deleteItem}
+    //                         onOpen={(id, coords) => {
+    //                             // GUARD: Bloqueia abertura do detail panel para itens restritos
+    //                             const targetItem = items.find(i => i.id === id);
+    //                             if (targetItem?._readOnly) return;
+    //                             setDetailId(id);
+    //                             if (coords && coords.lat != null) {
+    //                                 setLastCableClickCoords(coords);
+    //                             }
+    //                         }}
+    //                         onSplit={(id, coords) => {
+    //                             if (coords && coords.lat != null) {
+    //                                 setLastCableClickCoords(coords);
+    //                             }
+    //                             splitCable(id);
+    //                         }}
+    //                         onSwitchToCanvas={() => setViewMode('CANVAS')}
+    //                         cableStartNodeId={cableStartNode?.id}
+    //                         onLocationFound={(latlng) => setUserLocation({ lat: latlng.lat, lng: latlng.lng })}
+
+    //                     />
+    //                 </div>
+    //             )}
+    //         </div>
+
+    //         {/* 2. BARRA DE BUSCA */}
+    //         <div className="absolute top-2 left-4 md:left-8 z-[40] w-[90%] md:w-full max-w-[500px] flex flex-col items-start pointer-events-none">
+    //             <div className="w-full flex items-center justify-between gap-5 px-1 py-1 bg-white/40 dark:bg-black/60 border border-white/60 dark:border-black/60 backdrop-blur-xl rounded-full shadow-2xl transition-all relative z-20 pointer-events-auto">
+
+    //                 {/* Switch de Troca de Modo (Item vs Endereço) */}
+    //                 {viewMode === 'MAP' ? (
+    //                     <div
+    //                         onClick={(e) => {
+    //                             e.stopPropagation();
+    //                             setSearchMode(prev => prev === 'ITEMS' ? 'ADDRESS' : 'ITEMS');
+    //                             setSuggestions([]);
+    //                         }}
+    //                         className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-full p-0.5 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-all shrink-0"
+    //                         title={searchMode === 'ITEMS' ? "Mudar para Busca de Endereço" : "Mudar para Filtro de Itens"}
+    //                     >
+    //                         <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ${searchMode === 'ITEMS' ? 'bg-blue-600 shadow-md text-white' : 'text-gray-400'}`}>
+    //                             <Search size={20} />
+    //                         </div>
+    //                         <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ${searchMode === 'ADDRESS' ? 'bg-blue-600 shadow-md text-white' : 'text-gray-400'}`}>
+    //                             <MapPin size={20} />
+    //                         </div>
+    //                     </div>
+    //                 ) : (
+    //                     <div
+    //                         className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-full p-0.5 transition-all shrink-0"
+    //                     >
+    //                         <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 bg-blue-600 shadow-md text-white`}>
+    //                             <Search size={20} />
+    //                         </div>
+    //                     </div>
+    //                 )}
+
+    //                 {/* Input Otimizado (Debounced) */}
+    //                 <DebouncedInput
+    //                     className="ml-2 bg-transparent outline-none text-sm w-full text-black dark:text-white placeholder-black dark:placeholder-white"
+    //                     placeholder={viewMode === 'MAP' && searchMode === 'ADDRESS' ? "Pesquisar endereço" : "Pesquisar itens"}
+    //                     value={searchTerm}
+
+    //                     /* 1. MUDANÇA NO ONCHANGE: Recebe o valor direto (val) em vez do evento */
+    //                     onChange={(val) => {
+    //                         setSearchTerm(val);
+    //                         if (val === '') setShowSuggestions(false);
+    //                     }}
+
+    //                     onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+    //                     onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+
+    //                     onKeyDown={(e) => {
+    //                         if (e.key === 'Enter') {
+    //                             e.preventDefault();
+
+    //                             // Pega o texto ATUAL do input (mesmo que o searchTerm ainda não tenha atualizado)
+    //                             const currentText = e.target.value;
+
+    //                             // 1. Tenta pegar a primeira sugestão visível
+    //                             let target = suggestions.length > 0 ? suggestions[0] : null;
+
+    //                             // 2. Se não tem sugestão, busca pelo texto exato que está no input agora
+    //                             if (!target && searchMode === 'ITEMS' && currentText) {
+    //                                 const found = items.find(i => i.name.toLowerCase().includes(currentText.toLowerCase()));
+    //                                 if (found) {
+    //                                     target = { type: 'ITEM', data: found, display_name: found.name };
+    //                                 }
+    //                             }
+
+    //                             // 3. Ação Final
+    //                             if (target) {
+    //                                 handleSelectSuggestion(target);
+    //                                 setSearchTerm('');
+    //                                 setShowSuggestions(false);
+    //                             } else if (searchMode === 'ADDRESS') {
+    //                                 handleAddressSearch();
+    //                             }
+    //                         }
+    //                     }}
+    //                 />
+
+    //                 {/* Botão de Perfil (Sempre Visível) */}
+    //                 <button
+    //                     onClick={() => setIsProfileOpen(true)}
+    //                     className="mr-1 p-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors shadow-sm flex items-center justify-center shrink-0 w-10 h-10 overflow-hidden"
+    //                     title="Meu Perfil"
+    //                 >
+    //                     {user?.photoURL ? (
+    //                         <img src={user.photoURL} alt="Perfil" className="w-full h-full rounded-full object-cover" />
+    //                     ) : (
+    //                         <User size={20} />
+    //                     )}
+    //                 </button>
+    //             </div>
+
+    //             {/* Lista de Sugestões de Busca (Dropdown) */}
+    //             {showSuggestions && suggestions.length > 0 && (
+    //                 <div className="w-full bg-white/40 dark:bg-black/60 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/60 dark:border-black/60 overflow-hidden mt-2 z-10 animate-in fade-in slide-in-from-top-2 max-h-60 overflow-y-auto pointer-events-auto">
+
+    //                     {/* OTIMIZAÇÃO 1: Preparamos um "Dicionário" de projetos antes do loop.
+    //                        Isso é muuuito mais rápido do que procurar com .find() item por item.
+    //                     */}
+    //                     {(() => {
+    //                         // Cria um objeto rápido: { 'id_projeto': 'Nome do Projeto' }
+    //                         const projectMap = {};
+    //                         [...myProjects, ...sharedProjects].forEach(p => {
+    //                             projectMap[p.id] = p.name;
+    //                         });
+
+    //                         // OTIMIZAÇÃO 2: .slice(0, 50) 
+    //                         // Garante que só renderizamos no máximo 50 itens para não travar a tela
+    //                         return suggestions.slice(0, 50).map((item, index) => {
+
+    //                             const IconComponent = item.type === 'ADDRESS' ? MapPin : (ITEM_TYPES[item.data?.type]?.icon || Box);
+    //                             const iconColor = item.type === 'ADDRESS' ? "text-blue-500" : "text-orange-500";
+
+    //                             // Busca instantânea no mapa que criamos acima
+    //                             const projectName = (item.type === 'ITEM' && item.data?._projectId)
+    //                                 ? projectMap[item.data._projectId]
+    //                                 : null;
+
+    //                             return (
+    //                                 <div
+    //                                     key={index}
+    //                                     onClick={() => {
+    //                                         handleSelectSuggestion(item);
+    //                                         setSearchTerm('');
+    //                                         setShowSuggestions(false);
+    //                                     }}
+    //                                     className="px-4 py-2 text-xs border-b border-gray-300 dark:border-gray-700 last:border-0 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer text-black dark:text-white flex items-center gap-2"
+    //                                 >
+    //                                     <IconComponent size={12} className={`shrink-0 ${iconColor}`} />
+
+    //                                     {projectName && (
+    //                                         <span className="shrink-0 bg-gray-200 dark:bg-gray-600 text-black dark:text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">
+    //                                             {projectName}
+    //                                         </span>
+    //                                     )}
+
+    //                                     <span className="line-clamp-1 font-medium">{item.display_name}</span>
+    //                                 </div>
+    //                             );
+    //                         });
+    //                     })()}
+    //                 </div>
+    //             )}
+    //         </div>
+
+    //         {/* 3. PAINEL DE FILTROS FLUTUANTE (Novo Passo C) */}
+    //         {isFilterPanelOpen && (
+    //             <>
+    //                 {/* Overlay transparente para clique fora */}
+    //                 <div
+    //                     className="fixed inset-0 z-[44]"
+    //                     onClick={() => setIsFilterPanelOpen(false)}
+    //                 />
+    //                 <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[45] bg-white/40 dark:bg-black/70 border border-white/60 dark:border-white/20 backdrop-blur-xl rounded-2xl shadow-xl p-4 w-[90%] max-w-lg animate-in slide-in-from-bottom-2">
+    //                     <div className="flex justify-between items-center mb-2">
+    //                         <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Filtrar por Etiquetas</h3>
+    //                         <div className="flex justify-between items-right mb-2 gap-5">
+    //                             <button onClick={() => setFilterTags([])} className="text-xs text-red-500 hover:underline">Limpar</button>
+    //                             <button onClick={() => setIsFilterPanelOpen(false)} className="text-xs text-blue-500 hover:underline">Fechar</button>
+    //                         </div>
+    //                     </div>
+    //                     <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar">
+    //                         {availableTags.sort((a, b) => a.name.localeCompare(b.name)).map(tag => (
+    //                             <button
+    //                                 key={tag.id}
+    //                                 onClick={() => {
+    //                                     const newTags = filterTags.includes(tag.id) ? filterTags.filter(t => t !== tag.id) : [...filterTags, tag.id];
+    //                                     setFilterTags(newTags);
+    //                                 }}
+    //                                 className={`px-3 py-1 rounded-full text-xs font-bold transition-all border ${filterTags.includes(tag.id)
+    //                                     ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-300'
+    //                                     : 'bg-white/50 dark:bg-black/50 text-gray-700 dark:text-gray-300 border-white/60 dark:border-white/20 hover:bg-blue-600 dark:hover:bg-blue-300 hover:text-white dark:hover:text-white'
+    //                                     }`}
+    //                             >
+    //                                 {tag.name}
+    //                             </button>
+    //                         ))}
+    //                         {availableTags.length === 0 && <p className="text-xs text-gray-600 dark:text-gray-400">Nenhuma etiqueta criada.</p>}
+    //                     </div>
+    //                     <div className="flex gap-2 mt-3 pt-2 border-t border-white/60 dark:border-white/20">
+    //                         {['OR', 'AND', 'EXACT'].map(mode => (
+    //                             <button
+    //                                 key={mode}
+    //                                 onClick={() => setFilterMode(mode)}
+    //                                 className={`flex-1 py-1 text-[10px] font-bold rounded transition-colors ${filterMode === mode
+    //                                     ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/50'
+    //                                     : 'text-gray-600 dark:text-gray-400 bg-white/30 dark:bg-black/30 hover:bg-white/50 dark:hover:bg-black/50'
+    //                                     }`}
+    //                             >
+    //                                 {mode === 'OR' ? 'Qualquer (OU)' : mode === 'AND' ? 'Todas (E)' : 'Exato'}
+    //                             </button>
+    //                         ))}
+    //                     </div>
+    //                 </div>
+    //             </>
+    //         )}
+
+    //         {/* 4. DOCK (Substitui a Sidebar) */}
+    //         {userRole !== 'ATIVACAO' && (
+    //             <Dock
+    //                 activeTool={getActiveDockTool()}
+    //                 setActiveTool={handleDockChange}
+    //                 viewMode={viewMode}
+    //                 setViewMode={setViewMode}
+    //                 isDarkMode={isDarkMode}
+    //                 setIsDarkMode={setIsDarkMode}
+    //                 onOpenSettings={() => setIsSettingsOpen(true)}
+    //                 onNewClient={() => setInteractionMode('ADD_CLIENT')}
+    //                 toggleFilterPanel={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
+    //                 onManageProjects={() => setIsProjectManagerOpen(true)}
+    //             />
+    //         )}
+
+    //         {/* 5. SETTINGS MODAL (Novo Centralizador) */}
+    //         <SettingsModal
+    //             isOpen={isSettingsOpen}
+    //             onClose={() => setIsSettingsOpen(false)}
+    //             onExportKML={() => {
+    //                 setIsKMLExportModalOpen(true);
+    //             }}
+    //             onImportKML={() => {
+    //                 fileInputRef.current.click();
+    //             }}
+    //             onBackup={() => {
+    //                 setIsBackupModalOpen(true);
+    //             }}
+    //             onRestore={() => {
+    //                 backupInputRef.current.click();
+    //             }}
+    //             onManageTags={() => {
+    //                 setTagManagerOpen(true);
+    //             }}
+    //             onOpenNodeColors={() => { setNodeColorsModalOpen(true); }}
+    //             onOpenCableColors={() => { setStandardsModalOpen(true); }}
+    //             onOpenReport={() => { setReportOpen(true); }}
+    //             onManageProjects={() => { setIsProjectManagerOpen(true); }}
+    //         />
+
+    //         {/* Painel de Detalhes (Lógica existente) */}
+    //         {detailId && (() => {
+    //             const detailedItem = items.find(i => i.id === detailId);
+    //             if (!detailedItem) return null;
+    //             // GUARD: Bloqueia detail panel para itens de projetos restritos
+    //             if (detailedItem._readOnly) {
+    //                 setDetailId(null);
+    //                 return null;
+    //             }
+    //             if (detailedItem.type === 'POST' || detailedItem.type === 'OBJECT') {
+    //                 return (
+    //                     <GenericModal
+    //                         item={detailedItem}
+    //                         items={items}
+    //                         onClose={() => setDetailId(null)}
+    //                         onSave={(updatedItem) => saveItem(updatedItem)}
+    //                         onDelete={(id) => {
+    //                             deleteItem(id);
+    //                             setDetailId(null);
+    //                         }}
+    //                         onOpenPhotos={(item) => setPhotoModalData(item)}
+    //                         onConfirmRequest={openConfirm}
+    //                         onAlertRequest={openAlert}
+    //                     />
+    //                 );
+    //             }
+    //             return (
+    //                 <div className="fixed inset-0 bg-white dark:bg-gray-800 z-50 flex flex-col transition-transform overflow-hidden">
+    //                     <DetailPanel
+    //                         // onOTDR={handleOTDR}
+    //                         itemId={detailId}
+    //                         items={items}
+    //                         connections={connections}
+    //                         portLabels={portLabels}
+    //                         signalNames={signalNames}
+    //                         setConnections={setConnections}
+    //                         setItems={setItems}
+    //                         /*setPortLabels={setPortLabels}*/
+    //                         close={() => setDetailId(null)}
+    //                         openAddModal={setModalConfig}
+    //                         onEditRequest={renameItem}
+    //                         onGenericEditRequest={openEditModal}
+    //                         onConfirmRequest={openConfirm}
+    //                         onAlertRequest={openAlert}
+    //                         saveConnection={saveConnection}
+    //                         deleteConnectionDB={deleteConnectionDB}
+    //                         updateLabelDB={updateLabelDB}
+    //                         updateSignalDB={updateSignalDB}
+    //                         saveItem={saveItem}
+    //                         deleteItemDB={deleteItemDB}
+    //                         pendingConn={pendingConn}
+    //                         setPendingConn={setPendingConn}
+    //                         onInfoRequest={openInfoModal}
+    //                         onDelete={(id) => deleteItem(id)}
+    //                         onOpenPhotos={(item) => setPhotoModalData(item)}
+    //                         onAddSlotRequest={(item, type) => { const nextIndex = type === 'OLT' ? (item.interfaces?.length || 0) : (item.cards?.length || 0); setSlotModalConfig({ item, type, nextIndex }); }}
+    //                         onSplitCable={splitCable}
+    //                         onTraceRequest={handleTraceSignal}
+    //                         onOpenNotes={(item) => setNotesModalConfig({ itemId: item.id, title: `Nota: ${item.name}`, initialNotes: item.notes, onSave: (newText) => { saveItem({ ...item, notes: newText }); setNotesModalConfig(null); }, onClose: () => setNotesModalConfig(null) })} />
+    //                 </div>
+    //             );
+    //         })()}
+
+    //         {/* 6. MODAIS EXISTENTES E INPUTS INVISÍVEIS */}
+
+
+
+    //         {/* Controles de Zoom (Canvas) */}
+    //         {viewMode === 'CANVAS' && (
+    //             <div className="absolute bottom-24 right-2.5 z-20 flex flex-col gap-1 bg-white dark:bg-gray-800 p-1.5 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
+    //                 <button onClick={() => handleZoom(0.1)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-300"><ZoomIn size={18} /></button>
+    //                 <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
+    //                 <button onClick={() => handleZoom(-0.1)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-300"><ZoomOut size={18} /></button>
+    //             </div>
+    //         )}
+
+    //         {/* Barra de Múltipla Seleção */}
+    //         {selectedIds.size > 1 && (
+    //             <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 shadow-xl rounded-full px-4 py-2 flex items-center gap-4 animate-in slide-in-from-top-2">
+    //                 <span className="text-sm font-bold text-gray-700 dark:text-gray-200">{selectedIds.size} itens selecionados</span>
+    //                 <button onClick={deleteSelected} className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-3 py-1 rounded text-xs font-bold hover:bg-red-100 dark:hover:bg-red-900/40 flex items-center gap-1">
+    //                     <Trash2 size={14} /> Excluir Itens
+    //                 </button>
+    //                 <button onClick={() => setSelectedIds(new Set())} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+    //                     <X size={16} />
+    //                 </button>
+    //             </div>
+    //         )}
+
+
+
+    //         {/* Inputs de Arquivo */}
+    //         <input type="file" ref={backupInputRef} style={{ display: 'none' }} onChange={handleRestore} accept=".ftth,.json" />
+    //         <input type="file" accept=".kml,.xml" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileImport} />
+
+    //         {/* TELA DE CARREGAMENTO GLOBAL */}
+    //         {isProcessing && (
+    //             <div className="processing-overlay">
+    //                 <div className="processing-box flex flex-col items-center justify-center p-6 text-center">
+    //                     <LoadingFiber size={150} className="mb-4" />
+    //                     <h3 className="processing-title">Processando</h3>
+    //                     <p className="processing-text">{processingMessage}</p>
+    //                 </div>
+    //             </div>
+    //         )}
+
+    //         {/* Modais de Lógica */}
+    //         {modalConfig && <ItemModal mode="create" config={modalConfig} standards={cableColorStandards} nodeColorSettings={nodeColorSettings} favoriteColors={favoriteColors} availableTags={availableTags} onManageTags={() => setTagManagerOpen(true)} onConfirm={handleModalSubmit} onCancel={() => { setModalConfig(null); cableStartNodeRef.current = null; setCableStartNode(null); }} />}
+    //         {editModalConfig && <ItemModal mode="edit" {...editModalConfig} standards={cableColorStandards} nodeColorSettings={nodeColorSettings} favoriteColors={favoriteColors} availableTags={availableTags} onManageTags={() => setTagManagerOpen(true)} onCancel={() => setEditModalConfig(null)} />}
+    //         {standardsModalOpen && <StandardsModal standards={cableColorStandards} onClose={() => setStandardsModalOpen(false)} onSave={(newStds) => { updateStandardsDB(newStds); setStandardsModalOpen(false); }} />}
+    //         {nodeColorsModalOpen &&
+    //             <NodeColorsModal
+    //                 nodeSettings={nodeColorSettings}
+    //                 favoriteColors={favoriteColors}
+    //                 onClose={() => setNodeColorsModalOpen(false)}
+    //                 onSave={(settings, favorites) => { updateNodeColorsDB(settings, favorites); }}
+    //             />
+    //         }
+    //         {infoModalConfig && <InfoModal {...infoModalConfig} />}
+    //         {confirmConfig && <ConfirmModal {...confirmConfig} />}
+    //         {alertConfig && <AlertModal {...alertConfig} />}
+    //         {reportOpen && (<ReportModal items={items} connections={connections} onAlertRequest={openAlert} onClose={() => setReportOpen(false)} />)}
+
+    //         {/* Wizard Cliente */}
+    //         {clientWizard.step === 'NAME' && <ClientNameModal onConfirm={(name) => { setClientWizard({ step: 'PICK_CTO', data: { name } }); openAlert("Selecione a CTO", "Agora clique na CTO onde o cliente será conectado."); }} onCancel={() => setClientWizard({ step: null, data: {} })} />}
+    //         {clientWizard.step === 'PICK_PORT' && <PortPickerModal ctoName={clientWizard.data.ctoNode.name} availablePorts={clientWizard.data.freePorts} onSelect={handleClientFinish} onCancel={() => setClientWizard({ step: null, data: {} })} />}
+
+    //         {/* Outros Modais */}
+    //         {photoModalData &&
+    //             <PhotoGalleryModal
+    //                 item={photoModalData}
+    //                 onClose={() => setPhotoModalData(null)}
+    //                 onUpload={handlePhotoUpload}
+    //                 onDelete={handlePhotoDelete}
+    //                 onBatchDelete={handleBatchPhotoDelete}
+    //                 uploading={uploadingPhoto}
+    //             />
+    //         }
+    //         {slotModalConfig && <AddSlotModal config={slotModalConfig} onConfirm={handleAddSlotConfirm} onCancel={() => setSlotModalConfig(null)} />}
+    //         {splitModalData && <SplitModal data={splitModalData} onConfirm={executeSplitCable} onCancel={() => setSplitModalData(null)} />}
+    //         {isProfileOpen && auth.currentUser && <ProfileModal user={auth.currentUser} onClose={() => setIsProfileOpen(false)} onUpdateName={handleUpdateProfileName} onUpdatePassword={handleUpdatePassword} onDeleteAccount={handleDeleteAccountFull} onLogout={handleLogout} onUpdatePhoto={handleUpdatePhoto} onDeletePhoto={handleDeletePhoto} />}
+    //         {traceModalData && <TraceModal path={traceModalData} onClose={() => setTraceModalData(null)} />}
+    //         <BackupModal
+    //             isOpen={isBackupModalOpen}
+    //             onClose={() => setIsBackupModalOpen(false)}
+    //             projects={myProjects}
+    //             onConfirm={(selectedProjects) => {
+    //                 generateBackupFile(
+    //                     { items, connections, availableTags, signalNames, portLabels, nodeColorSettings },
+    //                     selectedProjects
+    //                 );
+    //                 setIsBackupModalOpen(false);
+    //             }}
+    //         />
+
+    //         <KMLExportModal
+    //             isOpen={isKMLExportModalOpen}
+    //             onClose={() => setIsKMLExportModalOpen(false)}
+    //             projects={myProjects}
+    //             onConfirm={async (selectedProjects) => {
+    //                 setIsKMLExportModalOpen(false);
+    //                 setIsProcessing(true);
+    //                 setProcessingMessage(`Gerando KML de ${selectedProjects.length} projeto(s)...`);
+    //                 try {
+    //                     await downloadKML(
+    //                         selectedProjects,
+    //                         { items, connections },
+    //                         signalNames
+    //                     );
+    //                     openAlert("Sucesso", `${selectedProjects.length} arquivo(s) KML gerado(s) com sucesso!`);
+    //                 } catch (e) {
+    //                     openAlert("Erro", "Falha ao gerar KML. Tente novamente.");
+    //                 } finally {
+    //                     setIsProcessing(false);
+    //                     setProcessingMessage('');
+    //                 }
+    //             }}
+    //         />
+
+    //         {duplicatesData && <DuplicatesModal conflicts={duplicatesData} onCancel={() => { setDuplicatesData(null); setTempCleanItems([]); }} onConfirm={handleDuplicatesResolved} />}
+    //         {importModalData && <ImportModal colors={importModalData.colors} itemCount={importModalData.items.length} onClose={() => setImportModalData(null)} onConfirm={processImportConfiguration} />}
+    //         {fixConnectionsData && <FixConnectionsModal items={fixConnectionsData} onClose={() => setFixConnectionsData(null)} onConfirm={saveImportedData} />}
+    //         {tagManagerOpen &&
+    //             <TagManagerModal
+    //                 tags={availableTags}
+    //                 onClose={() => setTagManagerOpen(false)}
+    //                 onSaveTag={saveTagDefinition}
+    //                 onDeleteTag={deleteTagDefinition}
+    //             />
+    //         }
+    //         {notesModalConfig && <NotesModal title={notesModalConfig.title} initialNotes={notesModalConfig.initialNotes} onSave={notesModalConfig.onSave} onClose={notesModalConfig.onClose} />}
+    //         {isProjectManagerOpen && (
+    //             <ProjectManagerModal
+    //                 myProjects={myProjects}
+    //                 sharedProjects={sharedProjects}
+    //                 pendingInvites={pendingInvites}
+    //                 outgoingInvites={outgoingInvites}
+    //                 onRevokeShare={handleRevokeShare}
+    //                 onUpdateSharePermission={handleUpdateSharePermission}
+    //                 activeProjectId={activeProjectId}
+    //                 visibleProjectIds={visibleProjectIds}
+    //                 currentUserEmail={user.email}
+    //                 onCreateProject={handleCreateProject}
+    //                 onDeleteProject={handleDeleteProject}
+    //                 onRenameProject={handleRenameProject}
+    //                 onToggleVisibility={handleToggleProjectVisibility}
+    //                 onSetActive={handleSetActiveProject}
+    //                 onShareProject={handleShareProject}
+    //                 onBulkShare={handleBulkShare}
+    //                 onBulkTransfer={handleBulkTransfer}
+    //                 onBulkDelete={handleBulkDeleteProject}
+    //                 onBulkToggleVisibility={handleBulkToggleProjectVisibility}
+    //                 onRespondInvite={handleRespondInvite}
+    //                 incomingTransfers={incomingTransfers}
+    //                 onAcceptTransfer={handleAcceptTransfer}
+    //                 onFocusProject={handleFocusProject}
+    //                 onAlertRequest={openAlert}
+    //                 onConfirmRequest={openConfirm}
+    //                 onClose={() => setIsProjectManagerOpen(false)}
+    //             />
+    //         )}
+
+    //         {/* Crédito de Versão (Centralizado na Margem Inferior) */}
+    //         <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-1.5 text-[9px] dark:text-gray-800 text-gray-400 font-medium select-none pointer-events-none opacity-100">
+    //             {/* <img src={VERSAO.LOGO_URL} alt="" className="w-3 h-3" /> */}
+    //             <span>{VERSAO.NUMERO_VERSAO}</span>
+    //         </div>
+    //     </div>
+    // );
+
+    return (
+        <div className={`h-[100dvh] w-screen flex flex-row overflow-hidden ${isDarkMode ? 'dark bg-black text-white' : 'bg-white text-black'}`}>
             <InstallPwaPopup />
 
+            <ProjectManagerModal
+                isOpen={isProjectManagerOpen}
+                myProjects={myProjects}
+                sharedProjects={sharedProjects}
+                pendingInvites={pendingInvites}
+                outgoingInvites={outgoingInvites}
+                onRevokeShare={handleRevokeShare}
+                onUpdateSharePermission={handleUpdateSharePermission}
+                activeProjectId={activeProjectId}
+                visibleProjectIds={visibleProjectIds}
+                currentUserEmail={user.email}
+                onCreateProject={handleCreateProject}
+                onDeleteProject={handleDeleteProject}
+                onRenameProject={handleRenameProject}
+                onToggleVisibility={handleToggleProjectVisibility}
+                onSetActive={handleSetActiveProject}
+                onShareProject={handleShareProject}
+                onBulkShare={handleBulkShare}
+                onBulkTransfer={handleBulkTransfer}
+                onBulkDelete={handleBulkDeleteProject}
+                onBulkToggleVisibility={handleBulkToggleProjectVisibility}
+                onRespondInvite={handleRespondInvite}
+                incomingTransfers={incomingTransfers}
+                onAcceptTransfer={handleAcceptTransfer}
+                onFocusProject={handleFocusProject}
+                onAlertRequest={openAlert}
+                onConfirmRequest={openConfirm}
+                onClose={() => setIsProjectManagerOpen(false)}
+                isDarkMode={isDarkMode}
+            />
+
             {/* 1. ÁREA PRINCIPAL (MAPA OU CANVAS) - Ocupa toda a tela (z-0) */}
-            <div className="flex-1 relative z-0 overflow-hidden">
-                {viewMode === 'CANVAS' ? (
-                    /* --- MODO CANVAS --- */
-                    <div
-                        ref={canvasRef}
-                        className={`w-full h-full relative overflow-hidden bg-[#ddd] dark:bg-[#222] ${interactionMode === 'SELECT' ? (isDraggingCanvas ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-crosshair'} touch-none`}
-                        onMouseDown={(e) => handleStart(e, null)}
-                        onMouseMove={handleMove}
-                        onMouseUp={(e) => handleEnd(e, null)}
-                        onClick={handleCanvasClick}
-                        onTouchStart={(e) => handleStart(e, null)}
-                        onTouchMove={handleMove}
-                        onTouchEnd={(e) => handleEnd(e, null)}
-                        onWheel={handleWheel}
-                        style={{ backgroundImage: isDarkMode ? 'radial-gradient(#333 1px, transparent 1px)' : 'radial-gradient(#bbb 1px, transparent 1px)', backgroundSize: `${20 * scale}px ${20 * scale}px`, backgroundPosition: `${pan.x}px ${pan.y}px` }}
-                    >
-                        <div className="origin-top-left absolute top-0 left-0 w-full h-full pointer-events-none" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})` }}>
-                            <svg className="absolute top-0 left-0 w-[5000px] h-[5000px] pointer-events-none overflow-visible">
-                                {/* 1. Cabos Otimizados */}
-                                {visibleItems.filter(i => i.type === 'CABLE').map(c => {
-                                    const nodeA = items.find(n => n.id === c.fromNode);
-                                    const nodeB = items.find(n => n.id === c.toNode);
-                                    if (!nodeA || !nodeB) return null;
+            <div className="flex-1 relative flex flex-col overflow-hidden">
 
-                                    // Recupera dados do grupo (topoologia)
-                                    const [n1, n2] = [c.fromNode, c.toNode].sort();
-                                    const group = cableGroups[`${n1}-${n2}`] || [c];
-                                    const index = group.findIndex(g => g.id === c.id);
-                                    const count = group.length;
+                {/* Renderização do Mapa ou Canvas */}
+                <div className="flex-1 relative z-0 overflow-hidden bg-[#e5e5e5] dark:bg-[#121212]">
+                    {viewMode === 'CANVAS' ? (
+                        /* --- MODO CANVAS --- */
+                        <div
+                            ref={canvasRef}
+                            className={`w-full h-full relative overflow-hidden bg-[#ddd] dark:bg-[#222] ${interactionMode === 'SELECT' ? (isDraggingCanvas ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-crosshair'} touch-none`}
+                            onMouseDown={(e) => handleStart(e, null)}
+                            onMouseMove={handleMove}
+                            onMouseUp={(e) => handleEnd(e, null)}
+                            onClick={handleCanvasClick}
+                            onTouchStart={(e) => handleStart(e, null)}
+                            onTouchMove={handleMove}
+                            onTouchEnd={(e) => handleEnd(e, null)}
+                            onWheel={handleWheel}
+                            style={{ backgroundImage: isDarkMode ? 'radial-gradient(#333 1px, transparent 1px)' : 'radial-gradient(#bbb 1px, transparent 1px)', backgroundSize: `${20 * scale}px ${20 * scale}px`, backgroundPosition: `${pan.x}px ${pan.y}px` }}
+                        >
+                            <div className="origin-top-left absolute top-0 left-0 w-full h-full pointer-events-none" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})` }}>
+                                <svg className="absolute top-0 left-0 w-[5000px] h-[5000px] pointer-events-none overflow-visible">
+                                    {/* 1. Cabos Otimizados */}
+                                    {visibleItems.filter(i => i.type === 'CABLE').map(c => {
+                                        const nodeA = items.find(n => n.id === c.fromNode);
+                                        const nodeB = items.find(n => n.id === c.toNode);
+                                        if (!nodeA || !nodeB) return null;
 
-                                    return (
-                                        <CableLine
-                                            key={c.id}
-                                            cable={c}
-                                            nodeA={nodeA} // Passamos o nó inteiro
-                                            nodeB={nodeB}
-                                            index={index} // Passamos a posição já calculada
-                                            count={count}
-                                            itemTypes={ITEM_TYPES}
-                                            onSelect={(id) => setSelectedIds(new Set([id]))}
-                                            onOpen={setDetailId}
-                                            onSplit={splitCable}
-                                            onDelete={deleteItem}
-                                            onEdit={renameItem}
-                                            isSelected={selectedIds.has(c.id)}
-                                        />
-                                    );
-                                })}
+                                        // Recupera dados do grupo (topoologia)
+                                        const [n1, n2] = [c.fromNode, c.toNode].sort();
+                                        const group = cableGroups[`${n1}-${n2}`] || [c];
+                                        const index = group.findIndex(g => g.id === c.id);
+                                        const count = group.length;
 
-                                {/* 2. Drops Otimizados */}
-                                {/* {visibleConnections.filter(c => c.type === 'DROP').map(c => {
+                                        return (
+                                            <CableLine
+                                                key={c.id}
+                                                cable={c}
+                                                nodeA={nodeA} // Passamos o nó inteiro
+                                                nodeB={nodeB}
+                                                index={index} // Passamos a posição já calculada
+                                                count={count}
+                                                itemTypes={ITEM_TYPES}
+                                                onSelect={(id) => setSelectedIds(new Set([id]))}
+                                                onOpen={setDetailId}
+                                                onSplit={splitCable}
+                                                onDelete={deleteItem}
+                                                onEdit={renameItem}
+                                                isSelected={selectedIds.has(c.id)}
+                                            />
+                                        );
+                                    })}
+
+                                    {/* 2. Drops Otimizados */}
+                                    {/* {visibleConnections.filter(c => c.type === 'DROP').map(c => {
                                     const client = items.find(i => i.id === c.toId);
                                     let sourceItem = items.find(i => i.id === c.fromId);
                                     if (!client) return null;
@@ -5203,567 +5870,541 @@ const App = () => {
                                     return <DropLine key={c.id} x1={x1} y1={y1} x2={x2} y2={y2} />;
                                 })} */}
 
-                                {/* Linha de desenho (Mantém igual) */}
-                                {interactionMode === 'DRAW_CABLE' && cableStartNode && <line x1={cableStartNode.x + ITEM_TYPES[cableStartNode.type].width / 2} y1={cableStartNode.y + 30} x2={draggingNode ? draggingNode.x : 0} y2={0} stroke={isDarkMode ? "white" : "black"} strokeDasharray="4" />}
-                            </svg>
+                                    {/* Linha de desenho (Mantém igual) */}
+                                    {interactionMode === 'DRAW_CABLE' && cableStartNode && <line x1={cableStartNode.x + ITEM_TYPES[cableStartNode.type].width / 2} y1={cableStartNode.y + 30} x2={draggingNode ? draggingNode.x : 0} y2={0} stroke={isDarkMode ? "white" : "black"} strokeDasharray="4" />}
+                                </svg>
 
-                            {/* Caixa de Seleção */}
-                            {selectionBox && <div style={{ position: 'absolute', left: selectionBox.x, top: selectionBox.y, width: selectionBox.w, height: selectionBox.h, border: '1px dashed #3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', pointerEvents: 'none' }}></div>}
+                                {/* Caixa de Seleção */}
+                                {selectionBox && <div style={{ position: 'absolute', left: selectionBox.x, top: selectionBox.y, width: selectionBox.w, height: selectionBox.h, border: '1px dashed #3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', pointerEvents: 'none' }}></div>}
 
-                            {/* Nós (Caixas e Clientes) */}
-                            <div className="pointer-events-auto">
-                                {visibleItems.filter(i => !i.parentId && ITEM_TYPES[i.type].category === 'NODE').map(n => (
-                                    <CanvasNodes
-                                        key={n.id}
-                                        node={n}
-                                        config={ITEM_TYPES[n.type]}
-                                        isSelected={selectedIds.has(n.id)}
-                                        isCableStart={interactionMode === 'DRAW_CABLE' && n.id === cableStartNode?.id}
-                                        isDragging={draggingNode?.isMultiSelect && selectedIds.has(n.id)}
-                                        onStart={handleStart}
-                                        onEnd={handleEnd}
-                                        onDoubleClick={handleNodeDoubleClick}
-                                        onOpen={(id) => {
-                                            setDetailId(id);
-                                            setSelectedIds(new Set([id]));
-                                        }}
-                                        onEdit={renameItem}
-                                        onDelete={deleteItem}
-                                        onSelect={(id) => {
-                                            setSelectedIds(new Set([id]));
-                                        }}
-                                        onFlyToMap={(n) => {
-                                            if (n.lat && n.lng) {
-                                                setViewMode('MAP');
-                                                setFlyToCoords({ coords: [n.lat, n.lng], id_solicitacao: Date.now() });
-                                            } else {
-                                                setAlertConfig({ title: 'Aviso', message: 'Este nó não possui localização geográfica definida no mapa.' });
-                                            }
-                                        }}
-                                    />
-                                ))}
+                                {/* Nós (Caixas e Clientes) */}
+                                <div className="pointer-events-auto">
+                                    {visibleItems.filter(i => !i.parentId && ITEM_TYPES[i.type].category === 'NODE').map(n => (
+                                        <CanvasNodes
+                                            key={n.id}
+                                            node={n}
+                                            config={ITEM_TYPES[n.type]}
+                                            isSelected={selectedIds.has(n.id)}
+                                            isCableStart={interactionMode === 'DRAW_CABLE' && n.id === cableStartNode?.id}
+                                            isDragging={draggingNode?.isMultiSelect && selectedIds.has(n.id)}
+                                            onStart={handleStart}
+                                            onEnd={handleEnd}
+                                            onDoubleClick={handleNodeDoubleClick}
+                                            onOpen={(id) => {
+                                                setDetailId(id);
+                                                setSelectedIds(new Set([id]));
+                                            }}
+                                            onEdit={renameItem}
+                                            onDelete={deleteItem}
+                                            onSelect={(id) => {
+                                                setSelectedIds(new Set([id]));
+                                            }}
+                                            onFlyToMap={(n) => {
+                                                if (n.lat && n.lng) {
+                                                    setViewMode('MAP');
+                                                    setFlyToCoords({ coords: [n.lat, n.lng], id_solicitacao: Date.now() });
+                                                } else {
+                                                    setAlertConfig({ title: 'Aviso', message: 'Este nó não possui localização geográfica definida no mapa.' });
+                                                }
+                                            }}
+                                        />
+                                    ))}
 
-                                {/* Esta div é invisível e serve apenas como destino para os tooltips dos cabos saltarem para frente de tudo */}
-                                <div
-                                    id="cable-tooltips-layer"
-                                    className="absolute top-0 left-0 w-full h-full pointer-events-none"
-                                    style={{ zIndex: 9999 }} // Z-index altíssimo para garantir
-                                ></div>
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    /* --- MODO MAPA --- */
-                    <div className={`w-full h-full relative overflow-hidden ${isDarkMode ? 'bg-slate-900' : 'bg-gray-200'}`}>
-                        <FiberMap
-                            items={visibleItems}
-                            allItems={items}
-                            onAlertRequest={openAlert}
-                            saveItem={saveItem}
-                            isDarkMode={isDarkMode}
-                            connections={visibleConnections}
-                            signalNames={signalNames}
-
-                            interactionMode={interactionMode}
-                            onMapClick={handleMapBgClick}
-                            onNodeClick={handleMapNodeClick}
-                            isPickingMode={interactionMode === 'DRAW_CABLE' || clientWizard.step === 'PICK_CTO'}
-                            flyToCoords={flyToCoords}
-                            onClearSearch={() => setFlyToCoords(null)}
-                            searchTerm={searchTerm}
-                            searchMode={searchMode}
-                            onEdit={renameItem}
-                            onDelete={deleteItem}
-                            onOpen={(id, coords) => {
-                                // GUARD: Bloqueia abertura do detail panel para itens restritos
-                                const targetItem = items.find(i => i.id === id);
-                                if (targetItem?._readOnly) return;
-                                setDetailId(id);
-                                if (coords && coords.lat != null) {
-                                    setLastCableClickCoords(coords);
-                                }
-                            }}
-                            onSplit={(id, coords) => {
-                                if (coords && coords.lat != null) {
-                                    setLastCableClickCoords(coords);
-                                }
-                                splitCable(id);
-                            }}
-                            onSwitchToCanvas={() => setViewMode('CANVAS')}
-                            cableStartNodeId={cableStartNode?.id}
-                            onLocationFound={(latlng) => setUserLocation({ lat: latlng.lat, lng: latlng.lng })}
-
-                        />
-                    </div>
-                )}
-            </div>
-
-            {/* 2. BARRA DE BUSCA */}
-            <div className="absolute top-2 left-4 md:left-8 z-[40] w-[90%] md:w-full max-w-[500px] flex flex-col items-start pointer-events-none">
-                <div className="w-full flex items-center justify-between gap-5 px-1 py-1 bg-white/40 dark:bg-black/60 border border-white/60 dark:border-black/60 backdrop-blur-xl rounded-full shadow-2xl transition-all relative z-20 pointer-events-auto">
-
-                    {/* Switch de Troca de Modo (Item vs Endereço) */}
-                    {viewMode === 'MAP' ? (
-                        <div
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setSearchMode(prev => prev === 'ITEMS' ? 'ADDRESS' : 'ITEMS');
-                                setSuggestions([]);
-                            }}
-                            className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-full p-0.5 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-all shrink-0"
-                            title={searchMode === 'ITEMS' ? "Mudar para Busca de Endereço" : "Mudar para Filtro de Itens"}
-                        >
-                            <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ${searchMode === 'ITEMS' ? 'bg-blue-600 shadow-md text-white' : 'text-gray-400'}`}>
-                                <Search size={20} />
-                            </div>
-                            <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ${searchMode === 'ADDRESS' ? 'bg-blue-600 shadow-md text-white' : 'text-gray-400'}`}>
-                                <MapPin size={20} />
+                                    {/* Esta div é invisível e serve apenas como destino para os tooltips dos cabos saltarem para frente de tudo */}
+                                    <div
+                                        id="cable-tooltips-layer"
+                                        className="absolute top-0 left-0 w-full h-full pointer-events-none"
+                                        style={{ zIndex: 9999 }} // Z-index altíssimo para garantir
+                                    ></div>
+                                </div>
                             </div>
                         </div>
                     ) : (
-                        <div
-                            className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-full p-0.5 transition-all shrink-0"
-                        >
-                            <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 bg-blue-600 shadow-md text-white`}>
-                                <Search size={20} />
-                            </div>
+                        /* --- MODO MAPA --- */
+                        <div className={`w-full h-full relative overflow-hidden ${isDarkMode ? 'bg-slate-900' : 'bg-gray-200'}`}>
+                            <FiberMap
+                                items={visibleItems}
+                                allItems={items}
+                                onAlertRequest={openAlert}
+                                saveItem={saveItem}
+                                isDarkMode={isDarkMode}
+                                connections={visibleConnections}
+                                signalNames={signalNames}
+
+                                interactionMode={interactionMode}
+                                onMapClick={handleMapBgClick}
+                                onNodeClick={handleMapNodeClick}
+                                isPickingMode={interactionMode === 'DRAW_CABLE' || clientWizard.step === 'PICK_CTO'}
+                                flyToCoords={flyToCoords}
+                                onClearSearch={() => setFlyToCoords(null)}
+                                searchTerm={searchTerm}
+                                searchMode={searchMode}
+                                onEdit={renameItem}
+                                onDelete={deleteItem}
+                                onOpen={(id, coords) => {
+                                    // GUARD: Bloqueia abertura do detail panel para itens restritos
+                                    const targetItem = items.find(i => i.id === id);
+                                    if (targetItem?._readOnly) return;
+                                    setDetailId(id);
+                                    if (coords && coords.lat != null) {
+                                        setLastCableClickCoords(coords);
+                                    }
+                                }}
+                                onSplit={(id, coords) => {
+                                    if (coords && coords.lat != null) {
+                                        setLastCableClickCoords(coords);
+                                    }
+                                    splitCable(id);
+                                }}
+                                onSwitchToCanvas={() => setViewMode('CANVAS')}
+                                cableStartNodeId={cableStartNode?.id}
+                                onLocationFound={(latlng) => setUserLocation({ lat: latlng.lat, lng: latlng.lng })}
+
+                            />
                         </div>
                     )}
+                </div>
 
-                    {/* Input Otimizado (Debounced) */}
-                    <DebouncedInput
-                        className="ml-2 bg-transparent outline-none text-sm w-full text-black dark:text-white placeholder-black dark:placeholder-white"
-                        placeholder={viewMode === 'MAP' && searchMode === 'ADDRESS' ? "Pesquisar endereço" : "Pesquisar itens"}
-                        value={searchTerm}
+                {/* 2. BARRA DE BUSCA */}
+                <div className="absolute top-2 left-4 md:left-8 z-[40] w-[90%] md:w-full max-w-[500px] flex flex-col items-start pointer-events-none">
+                    <div className="w-full flex items-center justify-between gap-5 px-1 py-1 bg-white/40 dark:bg-black/60 border border-white/60 dark:border-black/60 backdrop-blur-xl rounded-full shadow-2xl transition-all relative z-20 pointer-events-auto">
 
-                        /* 1. MUDANÇA NO ONCHANGE: Recebe o valor direto (val) em vez do evento */
-                        onChange={(val) => {
-                            setSearchTerm(val);
-                            if (val === '') setShowSuggestions(false);
-                        }}
+                        {/* Switch de Troca de Modo (Item vs Endereço) */}
+                        {viewMode === 'MAP' ? (
+                            <div
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSearchMode(prev => prev === 'ITEMS' ? 'ADDRESS' : 'ITEMS');
+                                    setSuggestions([]);
+                                }}
+                                className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-full p-0.5 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-all shrink-0"
+                                title={searchMode === 'ITEMS' ? "Mudar para Busca de Endereço" : "Mudar para Filtro de Itens"}
+                            >
+                                <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ${searchMode === 'ITEMS' ? 'bg-blue-600 shadow-md text-white' : 'text-gray-400'}`}>
+                                    <Search size={20} />
+                                </div>
+                                <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ${searchMode === 'ADDRESS' ? 'bg-blue-600 shadow-md text-white' : 'text-gray-400'}`}>
+                                    <MapPin size={20} />
+                                </div>
+                            </div>
+                        ) : (
+                            <div
+                                className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-full p-0.5 transition-all shrink-0"
+                            >
+                                <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 bg-blue-600 shadow-md text-white`}>
+                                    <Search size={20} />
+                                </div>
+                            </div>
+                        )}
 
-                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                        onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+                        {/* Input Otimizado (Debounced) */}
+                        <DebouncedInput
+                            className="ml-2 bg-transparent outline-none text-sm w-full text-black dark:text-white placeholder-black dark:placeholder-white"
+                            placeholder={viewMode === 'MAP' && searchMode === 'ADDRESS' ? "Pesquisar endereço/coordenadas" : "Pesquisar itens"}
+                            value={searchTerm}
 
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                                e.preventDefault();
+                            /* 1. MUDANÇA NO ONCHANGE: Recebe o valor direto (val) em vez do evento */
+                            onChange={(val) => {
+                                setSearchTerm(val);
+                                if (val === '') setShowSuggestions(false);
+                            }}
 
-                                // Pega o texto ATUAL do input (mesmo que o searchTerm ainda não tenha atualizado)
-                                const currentText = e.target.value;
+                            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                            onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
 
-                                // 1. Tenta pegar a primeira sugestão visível
-                                let target = suggestions.length > 0 ? suggestions[0] : null;
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
 
-                                // 2. Se não tem sugestão, busca pelo texto exato que está no input agora
-                                if (!target && searchMode === 'ITEMS' && currentText) {
-                                    const found = items.find(i => i.name.toLowerCase().includes(currentText.toLowerCase()));
-                                    if (found) {
-                                        target = { type: 'ITEM', data: found, display_name: found.name };
+                                    // Pega o texto ATUAL do input (mesmo que o searchTerm ainda não tenha atualizado)
+                                    const currentText = e.target.value;
+
+                                    // 1. Tenta pegar a primeira sugestão visível
+                                    let target = suggestions.length > 0 ? suggestions[0] : null;
+
+                                    // 2. Se não tem sugestão, busca pelo texto exato que está no input agora
+                                    if (!target && searchMode === 'ITEMS' && currentText) {
+                                        const found = items.find(i => i.name.toLowerCase().includes(currentText.toLowerCase()));
+                                        if (found) {
+                                            target = { type: 'ITEM', data: found, display_name: found.name };
+                                        }
+                                    }
+
+                                    // 3. Ação Final
+                                    if (target) {
+                                        handleSelectSuggestion(target);
+                                        setSearchTerm('');
+                                        setShowSuggestions(false);
+                                    } else if (searchMode === 'ADDRESS') {
+                                        handleAddressSearch();
                                     }
                                 }
+                            }}
+                        />
 
-                                // 3. Ação Final
-                                if (target) {
-                                    handleSelectSuggestion(target);
-                                    setSearchTerm('');
-                                    setShowSuggestions(false);
-                                } else if (searchMode === 'ADDRESS') {
-                                    handleAddressSearch();
-                                }
-                            }
-                        }}
-                    />
+                        {/* Botão de Perfil (Sempre Visível) */}
+                        <button
+                            onClick={() => setIsProfileOpen(true)}
+                            className="mr-1 p-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors shadow-sm flex items-center justify-center shrink-0 w-10 h-10 overflow-hidden"
+                            title="Meu Perfil"
+                        >
+                            {user?.photoURL ? (
+                                <img src={user.photoURL} alt="Perfil" className="w-full h-full rounded-full object-cover" />
+                            ) : (
+                                <User size={20} />
+                            )}
+                        </button>
+                    </div>
 
-                    {/* Botão de Perfil (Sempre Visível) */}
-                    <button
-                        onClick={() => setIsProfileOpen(true)}
-                        className="mr-1 p-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors shadow-sm flex items-center justify-center shrink-0 w-10 h-10 overflow-hidden"
-                        title="Meu Perfil"
-                    >
-                        {user?.photoURL ? (
-                            <img src={user.photoURL} alt="Perfil" className="w-full h-full rounded-full object-cover" />
-                        ) : (
-                            <User size={20} />
-                        )}
-                    </button>
-                </div>
+                    {/* Lista de Sugestões de Busca (Dropdown) */}
+                    {showSuggestions && suggestions.length > 0 && (
+                        <div className="w-full bg-white/40 dark:bg-black/60 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/60 dark:border-black/60 overflow-hidden mt-2 z-10 animate-in fade-in slide-in-from-top-2 max-h-60 overflow-y-auto pointer-events-auto">
 
-                {/* Lista de Sugestões de Busca (Dropdown) */}
-                {showSuggestions && suggestions.length > 0 && (
-                    <div className="w-full bg-white/40 dark:bg-black/60 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/60 dark:border-black/60 overflow-hidden mt-2 z-10 animate-in fade-in slide-in-from-top-2 max-h-60 overflow-y-auto pointer-events-auto">
-
-                        {/* OTIMIZAÇÃO 1: Preparamos um "Dicionário" de projetos antes do loop.
+                            {/* OTIMIZAÇÃO 1: Preparamos um "Dicionário" de projetos antes do loop.
                            Isso é muuuito mais rápido do que procurar com .find() item por item.
                         */}
-                        {(() => {
-                            // Cria um objeto rápido: { 'id_projeto': 'Nome do Projeto' }
-                            const projectMap = {};
-                            [...myProjects, ...sharedProjects].forEach(p => {
-                                projectMap[p.id] = p.name;
-                            });
+                            {(() => {
+                                // Cria um objeto rápido: { 'id_projeto': 'Nome do Projeto' }
+                                const projectMap = {};
+                                [...myProjects, ...sharedProjects].forEach(p => {
+                                    projectMap[p.id] = p.name;
+                                });
 
-                            // OTIMIZAÇÃO 2: .slice(0, 50) 
-                            // Garante que só renderizamos no máximo 50 itens para não travar a tela
-                            return suggestions.slice(0, 50).map((item, index) => {
+                                // OTIMIZAÇÃO 2: .slice(0, 50) 
+                                // Garante que só renderizamos no máximo 50 itens para não travar a tela
+                                return suggestions.slice(0, 50).map((item, index) => {
 
-                                const IconComponent = item.type === 'ADDRESS' ? MapPin : (ITEM_TYPES[item.data?.type]?.icon || Box);
-                                const iconColor = item.type === 'ADDRESS' ? "text-blue-500" : "text-orange-500";
+                                    const IconComponent = item.type === 'ADDRESS' ? MapPin : (ITEM_TYPES[item.data?.type]?.icon || Box);
+                                    const iconColor = item.type === 'ADDRESS' ? "text-blue-500" : "text-orange-500";
 
-                                // Busca instantânea no mapa que criamos acima
-                                const projectName = (item.type === 'ITEM' && item.data?._projectId)
-                                    ? projectMap[item.data._projectId]
-                                    : null;
+                                    // Busca instantânea no mapa que criamos acima
+                                    const projectName = (item.type === 'ITEM' && item.data?._projectId)
+                                        ? projectMap[item.data._projectId]
+                                        : null;
 
-                                return (
-                                    <div
-                                        key={index}
+                                    return (
+                                        <div
+                                            key={index}
+                                            onClick={() => {
+                                                handleSelectSuggestion(item);
+                                                setSearchTerm('');
+                                                setShowSuggestions(false);
+                                            }}
+                                            className="px-4 py-2 text-xs border-b border-gray-300 dark:border-gray-700 last:border-0 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer text-black dark:text-white flex items-center gap-2"
+                                        >
+                                            <IconComponent size={12} className={`shrink-0 ${iconColor}`} />
+
+                                            {projectName && (
+                                                <span className="shrink-0 bg-gray-200 dark:bg-gray-600 text-black dark:text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                                    {projectName}
+                                                </span>
+                                            )}
+
+                                            <span className="line-clamp-1 font-medium">{item.display_name}</span>
+                                        </div>
+                                    );
+                                });
+                            })()}
+                        </div>
+                    )}
+                </div>
+
+                {/* 3. PAINEL DE FILTROS FLUTUANTE (Novo Passo C) */}
+                {isFilterPanelOpen && (
+                    <>
+                        {/* Overlay transparente para clique fora */}
+                        <div
+                            className="fixed inset-0 z-[44]"
+                            onClick={() => setIsFilterPanelOpen(false)}
+                        />
+                        <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[45] bg-white/40 dark:bg-black/70 border border-white/60 dark:border-white/20 backdrop-blur-xl rounded-2xl shadow-xl p-4 w-[90%] max-w-lg animate-in slide-in-from-bottom-2">
+                            <div className="flex justify-between items-center mb-2">
+                                <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Filtrar por Etiquetas</h3>
+                                <div className="flex justify-between items-right mb-2 gap-5">
+                                    <button onClick={() => setFilterTags([])} className="text-xs text-red-500 hover:underline">Limpar</button>
+                                    <button onClick={() => setIsFilterPanelOpen(false)} className="text-xs text-blue-500 hover:underline">Fechar</button>
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar">
+                                {availableTags.sort((a, b) => a.name.localeCompare(b.name)).map(tag => (
+                                    <button
+                                        key={tag.id}
                                         onClick={() => {
-                                            handleSelectSuggestion(item);
-                                            setSearchTerm('');
-                                            setShowSuggestions(false);
+                                            const newTags = filterTags.includes(tag.id) ? filterTags.filter(t => t !== tag.id) : [...filterTags, tag.id];
+                                            setFilterTags(newTags);
                                         }}
-                                        className="px-4 py-2 text-xs border-b border-gray-300 dark:border-gray-700 last:border-0 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer text-black dark:text-white flex items-center gap-2"
+                                        className={`px-3 py-1 rounded-full text-xs font-bold transition-all border ${filterTags.includes(tag.id)
+                                            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-300'
+                                            : 'bg-white/50 dark:bg-black/50 text-gray-700 dark:text-gray-300 border-white/60 dark:border-white/20 hover:bg-blue-600 dark:hover:bg-blue-300 hover:text-white dark:hover:text-white'
+                                            }`}
                                     >
-                                        <IconComponent size={12} className={`shrink-0 ${iconColor}`} />
-
-                                        {projectName && (
-                                            <span className="shrink-0 bg-gray-200 dark:bg-gray-600 text-black dark:text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">
-                                                {projectName}
-                                            </span>
-                                        )}
-
-                                        <span className="line-clamp-1 font-medium">{item.display_name}</span>
-                                    </div>
-                                );
-                            });
-                        })()}
-                    </div>
-                )}
-            </div>
-
-            {/* 3. PAINEL DE FILTROS FLUTUANTE (Novo Passo C) */}
-            {isFilterPanelOpen && (
-                <>
-                    {/* Overlay transparente para clique fora */}
-                    <div
-                        className="fixed inset-0 z-[44]"
-                        onClick={() => setIsFilterPanelOpen(false)}
-                    />
-                    <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[45] bg-white/40 dark:bg-black/70 border border-white/60 dark:border-white/20 backdrop-blur-xl rounded-2xl shadow-xl p-4 w-[90%] max-w-lg animate-in slide-in-from-bottom-2">
-                        <div className="flex justify-between items-center mb-2">
-                            <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Filtrar por Etiquetas</h3>
-                            <div className="flex justify-between items-right mb-2 gap-5">
-                                <button onClick={() => setFilterTags([])} className="text-xs text-red-500 hover:underline">Limpar</button>
-                                <button onClick={() => setIsFilterPanelOpen(false)} className="text-xs text-blue-500 hover:underline">Fechar</button>
+                                        {tag.name}
+                                    </button>
+                                ))}
+                                {availableTags.length === 0 && <p className="text-xs text-gray-600 dark:text-gray-400">Nenhuma etiqueta criada.</p>}
+                            </div>
+                            <div className="flex gap-2 mt-3 pt-2 border-t border-white/60 dark:border-white/20">
+                                {['OR', 'AND', 'EXACT'].map(mode => (
+                                    <button
+                                        key={mode}
+                                        onClick={() => setFilterMode(mode)}
+                                        className={`flex-1 py-1 text-[10px] font-bold rounded transition-colors ${filterMode === mode
+                                            ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/50'
+                                            : 'text-gray-600 dark:text-gray-400 bg-white/30 dark:bg-black/30 hover:bg-white/50 dark:hover:bg-black/50'
+                                            }`}
+                                    >
+                                        {mode === 'OR' ? 'Qualquer (OU)' : mode === 'AND' ? 'Todas (E)' : 'Exato'}
+                                    </button>
+                                ))}
                             </div>
                         </div>
-                        <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar">
-                            {availableTags.sort((a, b) => a.name.localeCompare(b.name)).map(tag => (
-                                <button
-                                    key={tag.id}
-                                    onClick={() => {
-                                        const newTags = filterTags.includes(tag.id) ? filterTags.filter(t => t !== tag.id) : [...filterTags, tag.id];
-                                        setFilterTags(newTags);
-                                    }}
-                                    className={`px-3 py-1 rounded-full text-xs font-bold transition-all border ${filterTags.includes(tag.id)
-                                        ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-300'
-                                        : 'bg-white/50 dark:bg-black/50 text-gray-700 dark:text-gray-300 border-white/60 dark:border-white/20 hover:bg-blue-600 dark:hover:bg-blue-300 hover:text-white dark:hover:text-white'
-                                        }`}
-                                >
-                                    {tag.name}
-                                </button>
-                            ))}
-                            {availableTags.length === 0 && <p className="text-xs text-gray-600 dark:text-gray-400">Nenhuma etiqueta criada.</p>}
-                        </div>
-                        <div className="flex gap-2 mt-3 pt-2 border-t border-white/60 dark:border-white/20">
-                            {['OR', 'AND', 'EXACT'].map(mode => (
-                                <button
-                                    key={mode}
-                                    onClick={() => setFilterMode(mode)}
-                                    className={`flex-1 py-1 text-[10px] font-bold rounded transition-colors ${filterMode === mode
-                                        ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/50'
-                                        : 'text-gray-600 dark:text-gray-400 bg-white/30 dark:bg-black/30 hover:bg-white/50 dark:hover:bg-black/50'
-                                        }`}
-                                >
-                                    {mode === 'OR' ? 'Qualquer (OU)' : mode === 'AND' ? 'Todas (E)' : 'Exato'}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </>
-            )}
+                    </>
+                )}
 
-            {/* 4. DOCK (Substitui a Sidebar) */}
-            {userRole !== 'ATIVACAO' && (
-                <Dock
-                    activeTool={getActiveDockTool()}
-                    setActiveTool={handleDockChange}
-                    viewMode={viewMode}
-                    setViewMode={setViewMode}
-                    isDarkMode={isDarkMode}
-                    setIsDarkMode={setIsDarkMode}
-                    onOpenSettings={() => setIsSettingsOpen(true)}
-                    onNewClient={() => setInteractionMode('ADD_CLIENT')}
-                    toggleFilterPanel={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-                    onManageProjects={() => setIsProjectManagerOpen(true)}
+                {/* 4. DOCK (Substitui a Sidebar) */}
+                {userRole !== 'ATIVACAO' && (
+                    <Dock
+                        activeTool={getActiveDockTool()}
+                        setActiveTool={handleDockChange}
+                        viewMode={viewMode}
+                        setViewMode={setViewMode}
+                        isDarkMode={isDarkMode}
+                        setIsDarkMode={setIsDarkMode}
+                        onOpenSettings={() => setIsSettingsOpen(true)}
+                        onNewClient={() => setInteractionMode('ADD_CLIENT')}
+                        toggleFilterPanel={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
+                        onManageProjects={() => setIsProjectManagerOpen(true)}
+                    />
+                )}
+
+                {/* 5. SETTINGS MODAL (Novo Centralizador) */}
+                <SettingsModal
+                    isOpen={isSettingsOpen}
+                    onClose={() => setIsSettingsOpen(false)}
+                    onExportKML={() => {
+                        setIsKMLExportModalOpen(true);
+                    }}
+                    onImportKML={() => {
+                        fileInputRef.current.click();
+                    }}
+                    onBackup={() => {
+                        setIsBackupModalOpen(true);
+                    }}
+                    onRestore={() => {
+                        backupInputRef.current.click();
+                    }}
+                    onManageTags={() => {
+                        setTagManagerOpen(true);
+                    }}
+                    onOpenNodeColors={() => { setNodeColorsModalOpen(true); }}
+                    onOpenCableColors={() => { setStandardsModalOpen(true); }}
+                    onOpenReport={() => { setReportOpen(true); }}
+                    onManageProjects={() => { setIsProjectManagerOpen(true); }}
                 />
-            )}
 
-            {/* 5. SETTINGS MODAL (Novo Centralizador) */}
-            <SettingsModal
-                isOpen={isSettingsOpen}
-                onClose={() => setIsSettingsOpen(false)}
-                onExportKML={() => {
-                    setIsKMLExportModalOpen(true);
-                }}
-                onImportKML={() => {
-                    fileInputRef.current.click();
-                }}
-                onBackup={() => {
-                    setIsBackupModalOpen(true);
-                }}
-                onRestore={() => {
-                    backupInputRef.current.click();
-                }}
-                onManageTags={() => {
-                    setTagManagerOpen(true);
-                }}
-                onOpenNodeColors={() => { setNodeColorsModalOpen(true); }}
-                onOpenCableColors={() => { setStandardsModalOpen(true); }}
-                onOpenReport={() => { setReportOpen(true); }}
-                onManageProjects={() => { setIsProjectManagerOpen(true); }}
-            />
-
-            {/* Painel de Detalhes (Lógica existente) */}
-            {detailId && (() => {
-                const detailedItem = items.find(i => i.id === detailId);
-                if (!detailedItem) return null;
-                // GUARD: Bloqueia detail panel para itens de projetos restritos
-                if (detailedItem._readOnly) {
-                    setDetailId(null);
-                    return null;
-                }
-                if (detailedItem.type === 'POST' || detailedItem.type === 'OBJECT') {
-                    return (
-                        <GenericModal
-                            item={detailedItem}
-                            items={items}
-                            onClose={() => setDetailId(null)}
-                            onSave={(updatedItem) => saveItem(updatedItem)}
-                            onDelete={(id) => {
-                                deleteItem(id);
-                                setDetailId(null);
-                            }}
-                            onOpenPhotos={(item) => setPhotoModalData(item)}
-                            onConfirmRequest={openConfirm}
-                            onAlertRequest={openAlert}
-                        />
-                    );
-                }
-                return (
-                    <div className="fixed inset-0 bg-white dark:bg-gray-800 z-50 flex flex-col transition-transform overflow-hidden">
-                        <DetailPanel
-                            // onOTDR={handleOTDR}
-                            itemId={detailId}
-                            items={items}
-                            connections={connections}
-                            portLabels={portLabels}
-                            signalNames={signalNames}
-                            setConnections={setConnections}
-                            setItems={setItems}
-                            /*setPortLabels={setPortLabels}*/
-                            close={() => setDetailId(null)}
-                            openAddModal={setModalConfig}
-                            onEditRequest={renameItem}
-                            onGenericEditRequest={openEditModal}
-                            onConfirmRequest={openConfirm}
-                            onAlertRequest={openAlert}
-                            saveConnection={saveConnection}
-                            deleteConnectionDB={deleteConnectionDB}
-                            updateLabelDB={updateLabelDB}
-                            updateSignalDB={updateSignalDB}
-                            saveItem={saveItem}
-                            deleteItemDB={deleteItemDB}
-                            pendingConn={pendingConn}
-                            setPendingConn={setPendingConn}
-                            onInfoRequest={openInfoModal}
-                            onDelete={(id) => deleteItem(id)}
-                            onOpenPhotos={(item) => setPhotoModalData(item)}
-                            onAddSlotRequest={(item, type) => { const nextIndex = type === 'OLT' ? (item.interfaces?.length || 0) : (item.cards?.length || 0); setSlotModalConfig({ item, type, nextIndex }); }}
-                            onSplitCable={splitCable}
-                            onTraceRequest={handleTraceSignal}
-                            onOpenNotes={(item) => setNotesModalConfig({ itemId: item.id, title: `Nota: ${item.name}`, initialNotes: item.notes, onSave: (newText) => { saveItem({ ...item, notes: newText }); setNotesModalConfig(null); }, onClose: () => setNotesModalConfig(null) })} />
-                    </div>
-                );
-            })()}
-
-            {/* 6. MODAIS EXISTENTES E INPUTS INVISÍVEIS */}
-
-
-
-            {/* Controles de Zoom (Canvas) */}
-            {viewMode === 'CANVAS' && (
-                <div className="absolute bottom-24 right-2.5 z-20 flex flex-col gap-1 bg-white dark:bg-gray-800 p-1.5 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
-                    <button onClick={() => handleZoom(0.1)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-300"><ZoomIn size={18} /></button>
-                    <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
-                    <button onClick={() => handleZoom(-0.1)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-300"><ZoomOut size={18} /></button>
-                </div>
-            )}
-
-            {/* Barra de Múltipla Seleção */}
-            {selectedIds.size > 1 && (
-                <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 shadow-xl rounded-full px-4 py-2 flex items-center gap-4 animate-in slide-in-from-top-2">
-                    <span className="text-sm font-bold text-gray-700 dark:text-gray-200">{selectedIds.size} itens selecionados</span>
-                    <button onClick={deleteSelected} className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-3 py-1 rounded text-xs font-bold hover:bg-red-100 dark:hover:bg-red-900/40 flex items-center gap-1">
-                        <Trash2 size={14} /> Excluir Itens
-                    </button>
-                    <button onClick={() => setSelectedIds(new Set())} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                        <X size={16} />
-                    </button>
-                </div>
-            )}
-
-
-
-            {/* Inputs de Arquivo */}
-            <input type="file" ref={backupInputRef} style={{ display: 'none' }} onChange={handleRestore} accept=".ftth,.json" />
-            <input type="file" accept=".kml,.xml" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileImport} />
-
-            {/* TELA DE CARREGAMENTO GLOBAL */}
-            {isProcessing && (
-                <div className="processing-overlay">
-                    <div className="processing-box flex flex-col items-center justify-center p-6 text-center">
-                        <LoadingFiber size={150} className="mb-4" />
-                        <h3 className="processing-title">Processando</h3>
-                        <p className="processing-text">{processingMessage}</p>
-                    </div>
-                </div>
-            )}
-
-            {/* Modais de Lógica */}
-            {modalConfig && <ItemModal mode="create" config={modalConfig} standards={cableColorStandards} nodeColorSettings={nodeColorSettings} favoriteColors={favoriteColors} availableTags={availableTags} onManageTags={() => setTagManagerOpen(true)} onConfirm={handleModalSubmit} onCancel={() => { setModalConfig(null); cableStartNodeRef.current = null; setCableStartNode(null); }} />}
-            {editModalConfig && <ItemModal mode="edit" {...editModalConfig} standards={cableColorStandards} nodeColorSettings={nodeColorSettings} favoriteColors={favoriteColors} availableTags={availableTags} onManageTags={() => setTagManagerOpen(true)} onCancel={() => setEditModalConfig(null)} />}
-            {standardsModalOpen && <StandardsModal standards={cableColorStandards} onClose={() => setStandardsModalOpen(false)} onSave={(newStds) => { updateStandardsDB(newStds); setStandardsModalOpen(false); }} />}
-            {nodeColorsModalOpen &&
-                <NodeColorsModal
-                    nodeSettings={nodeColorSettings}
-                    favoriteColors={favoriteColors}
-                    onClose={() => setNodeColorsModalOpen(false)}
-                    onSave={(settings, favorites) => { updateNodeColorsDB(settings, favorites); }}
-                />
-            }
-            {infoModalConfig && <InfoModal {...infoModalConfig} />}
-            {confirmConfig && <ConfirmModal {...confirmConfig} />}
-            {alertConfig && <AlertModal {...alertConfig} />}
-            {reportOpen && (<ReportModal items={items} connections={connections} onAlertRequest={openAlert} onClose={() => setReportOpen(false)} />)}
-
-            {/* Wizard Cliente */}
-            {clientWizard.step === 'NAME' && <ClientNameModal onConfirm={(name) => { setClientWizard({ step: 'PICK_CTO', data: { name } }); openAlert("Selecione a CTO", "Agora clique na CTO onde o cliente será conectado."); }} onCancel={() => setClientWizard({ step: null, data: {} })} />}
-            {clientWizard.step === 'PICK_PORT' && <PortPickerModal ctoName={clientWizard.data.ctoNode.name} availablePorts={clientWizard.data.freePorts} onSelect={handleClientFinish} onCancel={() => setClientWizard({ step: null, data: {} })} />}
-
-            {/* Outros Modais */}
-            {photoModalData &&
-                <PhotoGalleryModal
-                    item={photoModalData}
-                    onClose={() => setPhotoModalData(null)}
-                    onUpload={handlePhotoUpload}
-                    onDelete={handlePhotoDelete}
-                    onBatchDelete={handleBatchPhotoDelete}
-                    uploading={uploadingPhoto}
-                />
-            }
-            {slotModalConfig && <AddSlotModal config={slotModalConfig} onConfirm={handleAddSlotConfirm} onCancel={() => setSlotModalConfig(null)} />}
-            {splitModalData && <SplitModal data={splitModalData} onConfirm={executeSplitCable} onCancel={() => setSplitModalData(null)} />}
-            {isProfileOpen && auth.currentUser && <ProfileModal user={auth.currentUser} onClose={() => setIsProfileOpen(false)} onUpdateName={handleUpdateProfileName} onUpdatePassword={handleUpdatePassword} onDeleteAccount={handleDeleteAccountFull} onLogout={handleLogout} onUpdatePhoto={handleUpdatePhoto} onDeletePhoto={handleDeletePhoto} />}
-            {traceModalData && <TraceModal path={traceModalData} onClose={() => setTraceModalData(null)} />}
-            <BackupModal
-                isOpen={isBackupModalOpen}
-                onClose={() => setIsBackupModalOpen(false)}
-                projects={myProjects}
-                onConfirm={(selectedProjects) => {
-                    generateBackupFile(
-                        { items, connections, availableTags, signalNames, portLabels, nodeColorSettings },
-                        selectedProjects
-                    );
-                    setIsBackupModalOpen(false);
-                }}
-            />
-
-            <KMLExportModal
-                isOpen={isKMLExportModalOpen}
-                onClose={() => setIsKMLExportModalOpen(false)}
-                projects={myProjects}
-                onConfirm={async (selectedProjects) => {
-                    setIsKMLExportModalOpen(false);
-                    setIsProcessing(true);
-                    setProcessingMessage(`Gerando KML de ${selectedProjects.length} projeto(s)...`);
-                    try {
-                        await downloadKML(
-                            selectedProjects,
-                            { items, connections },
-                            signalNames
-                        );
-                        openAlert("Sucesso", `${selectedProjects.length} arquivo(s) KML gerado(s) com sucesso!`);
-                    } catch (e) {
-                        openAlert("Erro", "Falha ao gerar KML. Tente novamente.");
-                    } finally {
-                        setIsProcessing(false);
-                        setProcessingMessage('');
+                {/* Painel de Detalhes (Lógica existente) */}
+                {detailId && (() => {
+                    const detailedItem = items.find(i => i.id === detailId);
+                    if (!detailedItem) return null;
+                    // GUARD: Bloqueia detail panel para itens de projetos restritos
+                    if (detailedItem._readOnly) {
+                        setDetailId(null);
+                        return null;
                     }
-                }}
-            />
+                    if (detailedItem.type === 'POST' || detailedItem.type === 'OBJECT') {
+                        return (
+                            <GenericModal
+                                item={detailedItem}
+                                items={items}
+                                onClose={() => setDetailId(null)}
+                                onSave={(updatedItem) => saveItem(updatedItem)}
+                                onDelete={(id) => {
+                                    deleteItem(id);
+                                    setDetailId(null);
+                                }}
+                                onOpenPhotos={(item) => setPhotoModalData(item)}
+                                onConfirmRequest={openConfirm}
+                                onAlertRequest={openAlert}
+                            />
+                        );
+                    }
+                    return (
+                        <div className="fixed inset-0 bg-white dark:bg-gray-800 z-50 flex flex-col transition-transform overflow-hidden">
+                            <DetailPanel
+                                // onOTDR={handleOTDR}
+                                itemId={detailId}
+                                items={items}
+                                connections={connections}
+                                portLabels={portLabels}
+                                signalNames={signalNames}
+                                setConnections={setConnections}
+                                setItems={setItems}
+                                /*setPortLabels={setPortLabels}*/
+                                close={() => setDetailId(null)}
+                                openAddModal={setModalConfig}
+                                onEditRequest={renameItem}
+                                onGenericEditRequest={openEditModal}
+                                onConfirmRequest={openConfirm}
+                                onAlertRequest={openAlert}
+                                saveConnection={saveConnection}
+                                deleteConnectionDB={deleteConnectionDB}
+                                updateLabelDB={updateLabelDB}
+                                updateSignalDB={updateSignalDB}
+                                saveItem={saveItem}
+                                deleteItemDB={deleteItemDB}
+                                pendingConn={pendingConn}
+                                setPendingConn={setPendingConn}
+                                onInfoRequest={openInfoModal}
+                                onDelete={(id) => deleteItem(id)}
+                                onOpenPhotos={(item) => setPhotoModalData(item)}
+                                onAddSlotRequest={(item, type) => { const nextIndex = type === 'OLT' ? (item.interfaces?.length || 0) : (item.cards?.length || 0); setSlotModalConfig({ item, type, nextIndex }); }}
+                                onSplitCable={splitCable}
+                                onTraceRequest={handleTraceSignal}
+                                onOpenNotes={(item) => setNotesModalConfig({ itemId: item.id, title: `Nota: ${item.name}`, initialNotes: item.notes, onSave: (newText) => { saveItem({ ...item, notes: newText }); setNotesModalConfig(null); }, onClose: () => setNotesModalConfig(null) })} />
+                        </div>
+                    );
+                })()}
 
-            {duplicatesData && <DuplicatesModal conflicts={duplicatesData} onCancel={() => { setDuplicatesData(null); setTempCleanItems([]); }} onConfirm={handleDuplicatesResolved} />}
-            {importModalData && <ImportModal colors={importModalData.colors} itemCount={importModalData.items.length} onClose={() => setImportModalData(null)} onConfirm={processImportConfiguration} />}
-            {fixConnectionsData && <FixConnectionsModal items={fixConnectionsData} onClose={() => setFixConnectionsData(null)} onConfirm={saveImportedData} />}
-            {tagManagerOpen &&
-                <TagManagerModal
-                    tags={availableTags}
-                    onClose={() => setTagManagerOpen(false)}
-                    onSaveTag={saveTagDefinition}
-                    onDeleteTag={deleteTagDefinition}
-                />
-            }
-            {notesModalConfig && <NotesModal title={notesModalConfig.title} initialNotes={notesModalConfig.initialNotes} onSave={notesModalConfig.onSave} onClose={notesModalConfig.onClose} />}
-            {isProjectManagerOpen && (
-                <ProjectManagerModal
-                    myProjects={myProjects}
-                    sharedProjects={sharedProjects}
-                    pendingInvites={pendingInvites}
-                    outgoingInvites={outgoingInvites}
-                    onRevokeShare={handleRevokeShare}
-                    onUpdateSharePermission={handleUpdateSharePermission}
-                    activeProjectId={activeProjectId}
-                    visibleProjectIds={visibleProjectIds}
-                    currentUserEmail={user.email}
-                    onCreateProject={handleCreateProject}
-                    onDeleteProject={handleDeleteProject}
-                    onRenameProject={handleRenameProject}
-                    onToggleVisibility={handleToggleProjectVisibility}
-                    onSetActive={handleSetActiveProject}
-                    onShareProject={handleShareProject}
-                    onBulkShare={handleBulkShare}
-                    onBulkTransfer={handleBulkTransfer}
-                    onBulkDelete={handleBulkDeleteProject}
-                    onBulkToggleVisibility={handleBulkToggleProjectVisibility}
-                    onRespondInvite={handleRespondInvite}
-                    incomingTransfers={incomingTransfers}
-                    onAcceptTransfer={handleAcceptTransfer}
-                    onFocusProject={handleFocusProject}
-                    onAlertRequest={openAlert}
-                    onConfirmRequest={openConfirm}
-                    onClose={() => setIsProjectManagerOpen(false)}
-                />
-            )}
+                {/* 6. MODAIS EXISTENTES E INPUTS INVISÍVEIS */}
 
-            {/* Crédito de Versão (Centralizado na Margem Inferior) */}
-            <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-1.5 text-[9px] dark:text-gray-800 text-gray-400 font-medium select-none pointer-events-none opacity-100">
-                {/* <img src={VERSAO.LOGO_URL} alt="" className="w-3 h-3" /> */}
-                <span>{VERSAO.NUMERO_VERSAO}</span>
+
+
+                {/* Controles de Zoom (Canvas) */}
+                {viewMode === 'CANVAS' && (
+                    <div className="absolute bottom-24 right-2.5 z-20 flex flex-col gap-1 bg-white dark:bg-gray-800 p-1.5 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
+                        <button onClick={() => handleZoom(0.1)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-300"><ZoomIn size={18} /></button>
+                        <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
+                        <button onClick={() => handleZoom(-0.1)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-300"><ZoomOut size={18} /></button>
+                    </div>
+                )}
+
+                {/* Barra de Múltipla Seleção */}
+                {selectedIds.size > 1 && (
+                    <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 shadow-xl rounded-full px-4 py-2 flex items-center gap-4 animate-in slide-in-from-top-2">
+                        <span className="text-sm font-bold text-gray-700 dark:text-gray-200">{selectedIds.size} itens selecionados</span>
+                        <button onClick={deleteSelected} className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-3 py-1 rounded text-xs font-bold hover:bg-red-100 dark:hover:bg-red-900/40 flex items-center gap-1">
+                            <Trash2 size={14} /> Excluir Itens
+                        </button>
+                        <button onClick={() => setSelectedIds(new Set())} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                            <X size={16} />
+                        </button>
+                    </div>
+                )}
+
+
+
+                {/* Inputs de Arquivo */}
+                <input type="file" ref={backupInputRef} style={{ display: 'none' }} onChange={handleRestore} accept=".ftth,.json" />
+                <input type="file" accept=".kml,.xml" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileImport} />
+
+                {/* TELA DE CARREGAMENTO GLOBAL */}
+                {isProcessing && (
+                    <div className="processing-overlay">
+                        <div className="processing-box flex flex-col items-center justify-center p-6 text-center">
+                            <LoadingFiber size={150} className="mb-4" />
+                            <h3 className="processing-title">Processando</h3>
+                            <p className="processing-text">{processingMessage}</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Modais de Lógica */}
+                {modalConfig && <ItemModal mode="create" config={modalConfig} standards={cableColorStandards} nodeColorSettings={nodeColorSettings} favoriteColors={favoriteColors} availableTags={availableTags} onManageTags={() => setTagManagerOpen(true)} onConfirm={handleModalSubmit} onCancel={() => { setModalConfig(null); cableStartNodeRef.current = null; setCableStartNode(null); }} />}
+                {editModalConfig && <ItemModal mode="edit" {...editModalConfig} standards={cableColorStandards} nodeColorSettings={nodeColorSettings} favoriteColors={favoriteColors} availableTags={availableTags} onManageTags={() => setTagManagerOpen(true)} onCancel={() => setEditModalConfig(null)} />}
+                {standardsModalOpen && <StandardsModal standards={cableColorStandards} onClose={() => setStandardsModalOpen(false)} onSave={(newStds) => { updateStandardsDB(newStds); setStandardsModalOpen(false); }} />}
+                {nodeColorsModalOpen &&
+                    <NodeColorsModal
+                        nodeSettings={nodeColorSettings}
+                        favoriteColors={favoriteColors}
+                        onClose={() => setNodeColorsModalOpen(false)}
+                        onSave={(settings, favorites) => { updateNodeColorsDB(settings, favorites); }}
+                    />
+                }
+                {infoModalConfig && <InfoModal {...infoModalConfig} />}
+                {confirmConfig && <ConfirmModal {...confirmConfig} />}
+                {alertConfig && <AlertModal {...alertConfig} />}
+                {reportOpen && (<ReportModal items={items} connections={connections} onAlertRequest={openAlert} onClose={() => setReportOpen(false)} />)}
+
+                {/* Wizard Cliente */}
+                {clientWizard.step === 'NAME' && <ClientNameModal onConfirm={(name) => { setClientWizard({ step: 'PICK_CTO', data: { name } }); openAlert("Selecione a CTO", "Agora clique na CTO onde o cliente será conectado."); }} onCancel={() => setClientWizard({ step: null, data: {} })} />}
+                {clientWizard.step === 'PICK_PORT' && <PortPickerModal ctoName={clientWizard.data.ctoNode.name} availablePorts={clientWizard.data.freePorts} onSelect={handleClientFinish} onCancel={() => setClientWizard({ step: null, data: {} })} />}
+
+                {/* Outros Modais */}
+                {photoModalData &&
+                    <PhotoGalleryModal
+                        item={photoModalData}
+                        onClose={() => setPhotoModalData(null)}
+                        onUpload={handlePhotoUpload}
+                        onDelete={handlePhotoDelete}
+                        onBatchDelete={handleBatchPhotoDelete}
+                        uploading={uploadingPhoto}
+                    />
+                }
+                {slotModalConfig && <AddSlotModal config={slotModalConfig} onConfirm={handleAddSlotConfirm} onCancel={() => setSlotModalConfig(null)} />}
+                {splitModalData && <SplitModal data={splitModalData} onConfirm={executeSplitCable} onCancel={() => setSplitModalData(null)} />}
+                {isProfileOpen && auth.currentUser && <ProfileModal user={auth.currentUser} onClose={() => setIsProfileOpen(false)} onUpdateName={handleUpdateProfileName} onUpdatePassword={handleUpdatePassword} onDeleteAccount={handleDeleteAccountFull} onLogout={handleLogout} onUpdatePhoto={handleUpdatePhoto} onDeletePhoto={handleDeletePhoto} />}
+                {traceModalData && <TraceModal path={traceModalData} onClose={() => setTraceModalData(null)} />}
+                <BackupModal
+                    isOpen={isBackupModalOpen}
+                    onClose={() => setIsBackupModalOpen(false)}
+                    projects={myProjects}
+                    onConfirm={(selectedProjects) => {
+                        generateBackupFile(
+                            { items, connections, availableTags, signalNames, portLabels, nodeColorSettings },
+                            selectedProjects
+                        );
+                        setIsBackupModalOpen(false);
+                    }}
+                />
+
+                <KMLExportModal
+                    isOpen={isKMLExportModalOpen}
+                    onClose={() => setIsKMLExportModalOpen(false)}
+                    projects={myProjects}
+                    onConfirm={async (selectedProjects) => {
+                        setIsKMLExportModalOpen(false);
+                        setIsProcessing(true);
+                        setProcessingMessage(`Gerando KML de ${selectedProjects.length} projeto(s)...`);
+                        try {
+                            await downloadKML(
+                                selectedProjects,
+                                { items, connections },
+                                signalNames
+                            );
+                            openAlert("Sucesso", `${selectedProjects.length} arquivo(s) KML gerado(s) com sucesso!`);
+                        } catch (e) {
+                            openAlert("Erro", "Falha ao gerar KML. Tente novamente.");
+                        } finally {
+                            setIsProcessing(false);
+                            setProcessingMessage('');
+                        }
+                    }}
+                />
+
+                {duplicatesData && <DuplicatesModal conflicts={duplicatesData} onCancel={() => { setDuplicatesData(null); setTempCleanItems([]); }} onConfirm={handleDuplicatesResolved} />}
+                {importModalData && <ImportModal colors={importModalData.colors} itemCount={importModalData.items.length} onClose={() => setImportModalData(null)} onConfirm={processImportConfiguration} />}
+                {fixConnectionsData && <FixConnectionsModal items={fixConnectionsData} onClose={() => setFixConnectionsData(null)} onConfirm={saveImportedData} />}
+                {tagManagerOpen &&
+                    <TagManagerModal
+                        tags={availableTags}
+                        onClose={() => setTagManagerOpen(false)}
+                        onSaveTag={saveTagDefinition}
+                        onDeleteTag={deleteTagDefinition}
+                    />
+                }
+                {notesModalConfig && <NotesModal title={notesModalConfig.title} initialNotes={notesModalConfig.initialNotes} onSave={notesModalConfig.onSave} onClose={notesModalConfig.onClose} />}
+
+
+                {/* Crédito de Versão (Centralizado na Margem Inferior) */}
+                <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-1.5 text-[9px] dark:text-gray-800 text-gray-400 font-medium select-none pointer-events-none opacity-100">
+                    {/* <img src={VERSAO.LOGO_URL} alt="" className="w-3 h-3" /> */}
+                    <span>{VERSAO.NUMERO_VERSAO}</span>
+                </div>
             </div>
         </div>
     );
+
+
 };
 // FIM CANVAS (PRINCIPAL)--------------------------------------------------
 

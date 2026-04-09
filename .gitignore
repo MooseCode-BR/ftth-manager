@@ -32,3 +32,5 @@ dist-ssr
 .dist
 .functions
 correcoes_melhorias.md
+src/components/_ProjectManagerModal copy/styles.css
+src/components/_ProjectManagerModal copy/index.jsx
