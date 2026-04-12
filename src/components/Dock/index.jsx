@@ -118,7 +118,7 @@ const Dock = ({
             {/* --- DOCK PRINCIPAL --- */}
             <div className="dock-main-bar">
                 {/* 5.5 Gerenciador de Projetos (APENAS MOBILE E TABLET ATÉ 1100px) */}
-                <div className="min-[1100px]:hidden contents">
+                <div className="lg:hidden contents">
                     <DockBtn
                         icon={FolderClosed}
                         hoverIcon={FolderOpen}
