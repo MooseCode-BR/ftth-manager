@@ -5,7 +5,8 @@ import {
     Box, Cross, Flag, AlertTriangle, Star,
     Shell,
     Diamond,
-    MessageCircleMore
+    MessageCircleMore,
+    Scissors
 } from 'lucide-react';
 
 import { CEOIcon, CTOIcon, SplitterIcon, PostIcon } from './icons.jsx';
@@ -33,7 +34,7 @@ export const ITEM_TYPES = {
     CTO: { label: 'CTO (Terminação)', icon: CTOIcon, category: 'NODE', defaultPorts: 0, defaultColor: '#16a34a', width: 160 }, // Green
     TOWER: { label: 'Torre', icon: RadioTower, category: 'NODE', defaultPorts: 0, defaultColor: '#8888ff', width: 160 }, // Tipo azul
     POST: { label: 'Poste', icon: PostIcon, category: 'NODE', defaultPorts: 0, defaultColor: '#0000ff', width: 160 },
-    OBJECT: { label: 'Objeto', icon: MapPin, category: 'NODE', defaultPorts: 0, defaultColor: '#587ad8', width: 160 },
+    OBJECT: { label: 'Objeto', icon: MapPin, category: 'NODE', defaultPorts: 0, defaultColor: '#ff0000', width: 160 },
     CABLE: { label: 'Cabo Externo', icon: Route, category: 'LINK', defaultPorts: 12, color: 'stroke-slate-800' },
     // CLIENT: { label: 'Cliente Final', icon: User, category: 'NODE', defaultPorts: 1, defaultColor: '#db2777', width: 160 }, // Pink
     // FLAG: { label: 'Marcador', icon: MapPin, category: 'FLAG', defaultColor: '#8888ff', width: 160 }, // Tipo azul
@@ -58,12 +59,13 @@ export const OBJECT_ICONS = [
     { id: 'Diamond', icon: Diamond, label: 'Losango' },
     { id: 'Flag', icon: Flag, label: 'Bandeira' },
     { id: 'AlertTriangle', icon: AlertTriangle, label: 'Alerta' },
-    { id: 'Star', icon: Star, label: 'Destaque' }
+    { id: 'Star', icon: Star, label: 'Destaque' },
+    { id: 'Scissors', icon: Scissors, label: 'Tesoura' }
 ];
 
 export const ICON_MAP = {
     MapPin, Home, MessageCircleMore, Shell,
-    Box, Diamond, Flag, AlertTriangle, Star
+    Box, Diamond, Flag, AlertTriangle, Star, Scissors
 };
 
 // Valores de Referência (Atenuação em dB)
@@ -83,5 +85,5 @@ export const ATTENUATION = {
 
 export const VERSAO = {
     // LOGO_URL: "favicon.svg",
-    NUMERO_VERSAO: "FTTH Manager Cloud v0.8.1 Beta"
+    NUMERO_VERSAO: "FTTH Manager Cloud v0.8.2 Beta"
 }

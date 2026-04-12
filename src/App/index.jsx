@@ -697,7 +697,7 @@ const App = () => {
                 // Se deslogou, limpa tudo
                 setProjectOwnerId(null);
                 setMyProjects([]);
-                setSharedProjects([]);
+                // setSharedProjects([]);
                 setActiveProjectId(null);
             }
         });
@@ -4848,6 +4848,8 @@ const App = () => {
                 const newEndpointNode = {
                     id: finalNodeId,
                     type: 'OBJECT',
+                    iconType: 'Scissors',
+                    color: '#ff0000',
                     name: `Fim de Cabo Importado (${endpointCounter}/${totalEndpoints})`,
                     lat: fix.coords.lat,
                     lng: fix.coords.lng,
@@ -6087,7 +6089,7 @@ const App = () => {
 
                         {/* Input Otimizado (Debounced) */}
                         <DebouncedInput
-                            className="ml-2 bg-transparent outline-none text-sm w-full text-black dark:text-white placeholder-black dark:placeholder-white"
+                            className="ml-2 bg-transparent outline-none text-base w-full text-black dark:text-white placeholder-black dark:placeholder-white"
                             placeholder={viewMode === 'MAP' && searchMode === 'ADDRESS' ? "Pesquisar endereço/coordenadas" : "Pesquisar itens"}
                             value={searchTerm}
 

@@ -32,15 +32,16 @@ const NodeColorsModal = ({ nodeSettings, favoriteColors, onClose, onSave }) => {
         CEO: '#ea580c',
         CTO: '#16a34a',
         TOWER: '#8888FF',
-        POST: '#0654AF'
+        POST: '#0654AF',
+        OBJECT: '#ff0000'
     });
     const [localFavorites, setLocalFavorites] = useState(favoriteColors || []);
-    const [newFavoriteColor, setNewFavoriteColor] = useState('#3b82f6');
+    const [newFavoriteColor, setNewFavoriteColor] = useState('#000000');
 
     const addFavorite = () => {
         if (newFavoriteColor && !localFavorites.includes(newFavoriteColor)) {
             setLocalFavorites([...localFavorites, newFavoriteColor]);
-            setNewFavoriteColor('#3b82f6');
+            setNewFavoriteColor('#000000');
         }
     };
 
@@ -67,7 +68,7 @@ const NodeColorsModal = ({ nodeSettings, favoriteColors, onClose, onSave }) => {
                     {/* Cores padrão por tipo */}
                     <div className="section-group">
                         <h4 className="section-title">Cores Padrão por Tipo</h4>
-                        {['POP', 'CEO', 'CTO', 'TOWER', 'POST'].map(type => (
+                        {['POP', 'CEO', 'CTO', 'TOWER', 'POST', 'OBJECT'].map(type => (
                             <div key={type} className="default-color-row">
                                 <span className="row-label">{type}</span>
 

@@ -325,10 +325,10 @@ const ProjectManagerModal = ({
                     <Search size={14} className="absolute left-3 text-gray-400 dark:text-gray-500" />
                     <input
                         type="text"
-                        placeholder="Buscar projetos..."
+                        placeholder="Buscar projetos"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 text-sm lg:text-xs rounded-lg outline-none transition-colors
+                        className="w-full pl-9 pr-3 py-2 text-base lg:text-xs rounded-lg outline-none transition-colors
                                    bg-gray-100 text-black border border-transparent focus:border-gray-300
                                    dark:bg-neutral-900 dark:text-white dark:focus:border-neutral-700"
                     />

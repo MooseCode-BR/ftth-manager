@@ -504,12 +504,12 @@ const kmlColorToHex = (kmlColor) => {
 // 1. Função que tenta adivinhar o tipo do item pelo nome
 const guessTypeByName = (name) => {
     const n = name.toUpperCase();
-    if (n.includes('CTO')) return 'CTO';
+    if (n.includes('CTO') || n.includes('ATENDIMENTO')) return 'CTO';
     if (n.includes('CEO') || n.includes('EMENDA')) return 'CEO';
     if (n.includes('POP') || n.includes('OLT') || n.includes('DATA CENTER')) return 'POP';
     if (n.includes('CLIENTE') || n.includes('CASA')) return 'CLIENT';
-    if (n.includes('TORRE')) return 'TOWER';
-    if (n.includes('POSTE')) return 'POST';
+    if (n.includes('TORRE') || n.includes('BASE')) return 'TOWER';
+    if (n.includes('POSTE') || n.includes('POSTEAMENTO')) return 'POST';
     return 'OBJECT'; // Padrão se não soubermos (melhor assumir caixa de emenda)
 };
 // 2. Função principal de processamento do texto KML

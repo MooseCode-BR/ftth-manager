@@ -16,7 +16,7 @@ const messaging = getMessaging();
 async function getUserTokensByEmail(email) {
     // CAMINHO CORRETO: artifacts/ftth-production/users
     const usersRef = db.collection('artifacts').doc('ftth-production').collection('users');
-    
+
     // Busca pelo campo 'email' que adicionamos no Frontend
     const q = usersRef.where('email', '==', email).limit(1);
     const userSnap = await q.get();
@@ -128,7 +128,7 @@ exports.sendTransferNotification = onDocumentCreated("ftth_transfers/{transferId
 // ============================================================================
 
 // Campos permitidos para READ_ONLY_GEOMETRY
-const GEOMETRY_ONLY_FIELDS = ['id', 'color', 'lat', 'lng', 'name', 'lastEditor', 'tagIds', 'type', 'fromNode', 'toNode', 'waypoints', 'parentId', 'fiberCount'];
+const GEOMETRY_ONLY_FIELDS = ['id', 'color', 'lat', 'lng', 'x', 'y', 'w', 'h', 'width', 'height', 'name', 'lastEditor', 'tagIds', 'type', 'fromNode', 'toNode', 'waypoints', 'parentId', 'fiberCount'];
 
 /**
  * Função auxiliar: Verifica o nível de permissão de um usuário em um projeto
@@ -141,9 +141,9 @@ async function checkUserPermission(userEmail, projectId) {
         .where('projectId', '==', projectId)
         .where('status', '==', 'accepted')
         .limit(1);
-    
+
     const snap = await q.get();
-    
+
     if (snap.empty) {
         return { hasAccess: false, permission: null, invite: null };
     }
@@ -189,7 +189,7 @@ exports.getRestrictedProjectItems = onCall(async (request) => {
 
     // 3. Verificar permissão do convite
     const access = await checkUserPermission(userEmail, projectId);
-    
+
     if (!access.hasAccess) {
         throw new HttpsError('permission-denied', 'Você não tem acesso a este projeto.');
     }
@@ -201,7 +201,7 @@ exports.getRestrictedProjectItems = onCall(async (request) => {
     // 5. DATA SCRUBBING para READ_ONLY_GEOMETRY: Apenas CTOs com campos de geometria
     if (access.permission === 'READ_ONLY_GEOMETRY') {
         items = items
-            .filter(item => item.type === 'CTO') // SOMENTE CTOs
+            .filter(item => ['CTO'].includes(item.type))
             .map(item => {
                 const filtered = {};
                 GEOMETRY_ONLY_FIELDS.forEach(field => {
@@ -209,8 +209,14 @@ exports.getRestrictedProjectItems = onCall(async (request) => {
                         filtered[field] = item[field];
                     }
                 });
+
+                // ATUALIZAÇÃO 2: Prevenção contra o erro de NaN!
+                // Se o nó acabou de ser importado pelo KML e ainda não tem X/Y, forçamos um número (0)
+                filtered.x = filtered.x || 0;
+                filtered.y = filtered.y || 0;
+
                 return filtered;
-        });
+            });
     }
 
     return {
