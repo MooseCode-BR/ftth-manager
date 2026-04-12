@@ -117,29 +117,26 @@ const Dock = ({
 
             {/* --- DOCK PRINCIPAL --- */}
             <div className="dock-main-bar">
-                {/* 5.5 Gerenciador de Projetos */}
-                <div className="lg:hidden flex items-center gap-5">
+                {/* 5.5 Gerenciador de Projetos (APENAS MOBILE E TABLET ATÉ 1100px) */}
+                <div className="min-[1100px]:hidden contents">
                     <DockBtn
                         icon={FolderClosed}
                         hoverIcon={FolderOpen}
                         label="Projetos"
                         isActive={false}
                         onClick={() => { onManageProjects(); setActiveCategory(null); }}
-                    //colorClass="text-blue-600 dark:text-blue-400"
                     />
-
-                    <Divider />
                 </div>
 
-                {/* 1. Categorias Expansíveis (MOBILE) vs Itens Individuais (DESKTOP) */}
+                {/* 1. Categorias Expansíveis (ATÉ 1100px) vs Itens Individuais (DESKTOP LARGO) */}
                 {categories.map((cat, catIdx) => (
                     <React.Fragment key={cat.id}>
-                        {/* Mobile: Botão da Categoria */}
-                        <div className="lg:hidden">
+                        {/* Compacto: Botão da Categoria (Some a partir de 1100px) */}
+                        <div className="min-[1100px]:hidden contents">
                             {(() => {
                                 const activeItem = cat.items.find(item => item.id === activeTool);
                                 const currentIcon = activeItem ? activeItem.icon : cat.defaultIcon;
-                                const currentColor = activeItem ? "text-blue-600 dark:text-blue-600" : undefined;
+                                const currentColor = activeItem ? "text-blue-600 dark:text-blue-500" : undefined;
                                 return (
                                     <DockBtn
                                         icon={currentIcon}
@@ -153,8 +150,8 @@ const Dock = ({
                             })()}
                         </div>
 
-                        {/* Desktop: Todos os itens da Categoria diretamente */}
-                        <div className="hidden lg:flex items-center gap-2">
+                        {/* Expandido: Todos os itens da Categoria diretamente (Aparece a partir de 1100px) */}
+                        <div className="hidden min-[1100px]:flex items-center gap-2">
                             {cat.items.map(item => (
                                 <DockBtn
                                     key={item.id}
@@ -167,26 +164,12 @@ const Dock = ({
                             ))}
                         </div>
 
-                        {/* Divisor entre categorias no Desktop */}
-                        {catIdx < categories.length - 1 && <div className="hidden lg:block"><Divider /></div>}
+                        {/* Divisor entre categorias no formato Expandido */}
+                        {catIdx < categories.length - 1 && <div className="hidden min-[1100px]:block"><Divider /></div>}
                     </React.Fragment>
                 ))}
 
                 <Divider />
-
-                {/* 2. Novo Cliente */}
-                {/* <DockBtn
-                    icon={UserPlus}
-                    label="Novo Cliente"
-                    isActive={activeTool === 'ADD_CLIENT'}
-                    onClick={() => {
-                        setActiveTool(activeTool === 'ADD_CLIENT' ? 'SELECT' : 'ADD_CLIENT');
-                        setActiveCategory(null);
-                    }}
-                    colorClass="text-emerald-600 dark:text-emerald-400"
-                />
-
-                <Divider /> */}
 
                 {/* 3. Filtro */}
                 <DockBtn
@@ -210,7 +193,7 @@ const Dock = ({
                     label="Tema"
                     isActive={false}
                     onClick={() => setIsDarkMode(!isDarkMode)}
-                    colorClass="text-black dark:text-yellow-400"
+                    colorClass="text-gray-800 dark:text-yellow-400"
                 />
 
                 <Divider />
@@ -221,7 +204,6 @@ const Dock = ({
                     label="Configurações"
                     isActive={false}
                     onClick={() => { onOpenSettings(); setActiveCategory(null); }}
-                    colorClass="text-black dark:text-white"
                 />
             </div>
         </div>
