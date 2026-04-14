@@ -575,7 +575,7 @@ const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames
                 <button onClick={() => setScale(s => Math.min(s + 0.1, 3))} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded" title="Zoom In"><ZoomIn size={16} /></button>
                 <button onClick={() => setScale(s => Math.max(s - 0.1, 0.5))} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded" title="Zoom Out"><ZoomOut size={16} /></button>
                 <div className="h-px bg-gray-200 dark:bg-gray-700 my-0.5"></div>
-                <button onClick={fitAllToScreen} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 rounded" title="Encaixar tudo na tela (F4)"><ScanLine size={16} /></button>
+                <button onClick={fitAllToScreen} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 rounded" title="Ajustar conteúdo na tela"><ScanLine size={16} /></button>
                 <div className="h-px bg-gray-200 dark:bg-gray-700 my-0.5"></div>
                 <button onClick={() => setShowTags(!showTags)} className={`p-1 rounded ${showTags ? 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300' : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'}`} title="Mostrar/Ocultar Sinais"><Tag size={16} /></button>
                 <div className="h-px bg-gray-200 dark:bg-gray-700 my-0.5"></div>

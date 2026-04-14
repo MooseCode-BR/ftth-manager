@@ -54,7 +54,7 @@ import { findConnection, downloadKML, parseKMLImport, analyzeDuplicates } from '
 // Sistema de Backup
 // generateBackupFile: Cria arquivo de backup completo do projeto
 // restoreFromBackup: Restaura projeto a partir de arquivo de backup
-import { generateBackupFile, restoreFromBackup } from '../backupSystem';
+import { generateBackupFile, restoreFromBackup } from '../components/BackupModal/backupSystem';
 import JSZip from 'jszip';
 
 // ============================================================================
@@ -522,7 +522,7 @@ const DebouncedInput = ({ value, onChange, ...props }) => {
             if (localValue !== value) {
                 onChange(localValue); // Passamos o VALOR direto, não o evento 'e'
             }
-        }, 200);
+        }, 10);
 
         return () => clearTimeout(handler);
     }, [localValue]);

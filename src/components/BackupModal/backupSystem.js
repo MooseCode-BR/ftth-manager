@@ -1,9 +1,9 @@
 import { writeBatch, doc, collection, getDocs, query, getDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import { db, storage } from './firebaseConfig';
+import { db, storage } from '../../firebaseConfig';
 import JSZip from 'jszip';
 
-import { saveFile } from './utils/fileDownloader';
+import { saveFile } from '../../utils/fileDownloader';
 
 // ─────────────────────────────────────────────────────────
 //  HELPERS INTERNOS

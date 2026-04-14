@@ -2,7 +2,7 @@
 /* Alterado bottom-6 para bottom-4 para dar mais espaço no mobile,
    e ajustado o max-w para garantir que não passe da tela */
 .dock-wrapper {
-    @apply absolute bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 z-[50] flex flex-col items-center gap-2 w-full max-w-[96%] md:w-fit md:max-w-none px-2 md:px-0;
+    @apply absolute bottom-6 md:bottom-6 left-1/2 -translate-x-1/2 z-[50] flex flex-col items-center gap-2 w-full max-w-[96%] md:w-fit md:max-w-none px-2 md:px-0;
 }
 
 /* --- Submenu (Barra superior) --- */

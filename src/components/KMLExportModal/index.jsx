@@ -37,6 +37,16 @@ const KMLExportModal = ({ isOpen, onClose, projects, onConfirm }) => {
         onConfirm(selectedProjects);
     };
 
+    const formatDate = (dateString) => {
+        if (!dateString) return '';
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('pt-BR');
+        } catch {
+            return dateString;
+        }
+    };
+
     const allSelected = projects.length > 0 && selectedIds.size === projects.length;
 
     return (
@@ -44,7 +54,7 @@ const KMLExportModal = ({ isOpen, onClose, projects, onConfirm }) => {
             <div className="backup-modal-content" onClick={(e) => e.stopPropagation()}>
                 <div className="backup-modal-header">
                     <div className="backup-modal-title">
-                        <Map size={20} className="text-green-500" />
+                        <Map size={20} className="text-white" />
                         Exportar KML
                     </div>
                     <button className="backup-modal-close" onClick={onClose} title="Fechar">
@@ -65,7 +75,7 @@ const KMLExportModal = ({ isOpen, onClose, projects, onConfirm }) => {
                                 className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mb-3 transition-colors"
                             >
                                 {allSelected
-                                    ? <CheckSquare size={14} className="text-green-500" />
+                                    ? <CheckSquare size={14} className="text-blue-500" />
                                     : <Square size={14} />
                                 }
                                 {allSelected ? 'Desmarcar todos' : 'Selecionar todos'}
@@ -82,7 +92,7 @@ const KMLExportModal = ({ isOpen, onClose, projects, onConfirm }) => {
                                         >
                                             <div className="flex items-center justify-center">
                                                 {isSelected ? (
-                                                    <CheckSquare size={18} className="text-green-500" />
+                                                    <CheckSquare size={18} className="text-blue-500" />
                                                 ) : (
                                                     <Square size={18} className="text-gray-400 dark:text-gray-500" />
                                                 )}
@@ -90,6 +100,12 @@ const KMLExportModal = ({ isOpen, onClose, projects, onConfirm }) => {
                                             <Map size={18} className="text-gray-400 dark:text-gray-500 shrink-0" />
                                             <div className="flex flex-col flex-1 min-w-0">
                                                 <span className="backup-project-name">{project.name || 'Projeto sem nome'}</span>
+                                                {project.createdAt && (
+                                                    <span className="backup-project-date">Criado em: {formatDate(project.createdAt)}</span>
+                                                )}
+                                                {project.updatedAt && (
+                                                    <span className="backup-project-date">Última modificação: {formatDate(project.updatedAt)}</span>
+                                                )}
                                             </div>
                                         </div>
                                     );
@@ -109,7 +125,6 @@ const KMLExportModal = ({ isOpen, onClose, projects, onConfirm }) => {
                     </button>
                     <button
                         className="backup-btn-confirm"
-                        style={{ backgroundColor: selectedIds.size > 0 ? '#16a34a' : undefined }}
                         onClick={handleConfirm}
                         disabled={selectedIds.size === 0}
                     >
