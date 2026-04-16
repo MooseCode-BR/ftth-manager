@@ -1,4 +1,35 @@
-# Logs
+# ==========================================
+# 1. DEPENDÊNCIAS (O mais pesado)
+# ==========================================
+node_modules/
+functions/node_modules/
+/.pnp
+.pnp.js
+
+# ==========================================
+# 2. PASTAS DE BUILD E COMPILAÇÃO (Descartáveis)
+# ==========================================
+dist/
+dist-ssr/
+dev-dist/
+build/
+.vercel/
+
+# ==========================================
+# 3. VARIÁVEIS DE AMBIENTE (Seus segredos)
+# ==========================================
+.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+# DEIXAR O EXEMPLO PASSAR:
+!.env.example
+
+# ==========================================
+# 4. LOGS E ERROS
+# ==========================================
 logs
 *.log
 npm-debug.log*
@@ -6,17 +37,11 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+firebase-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Environment variables (chaves de API)
-.env
-.env.*
-
-# Editor directories and files
+# ==========================================
+# 5. ARQUIVOS DE EDITOR / SO
+# ==========================================
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -27,10 +52,10 @@ dist-ssr
 *.sln
 *.sw?
 
-.vercel
-.android
-.dist
-.functions
+# ==========================================
+# 6. CACHES ESPECÍFICOS DE MOBILE/FIREBASE
+# ==========================================
+.firebase/
+capacitor.config.json.orig
+
 correcoes_melhorias.md
-src/components/_ProjectManagerModal copy/styles.css
-src/components/_ProjectManagerModal copy/index.jsx
