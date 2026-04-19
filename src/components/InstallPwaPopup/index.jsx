@@ -1,4 +1,8 @@
-// src/components/InstallPwaPopup/index.jsx
+/*
+ * Componente responsável por exibir um popup para instalar o PWA.
+ * Substitui o popup nativo do navegador, por esse modelo personalizado.
+ */
+
 import React, { useState, useEffect } from 'react';
 import './styles.css'; // Importando nosso visual Glassmorphism
 

@@ -1,6 +1,10 @@
+/*
+ * Ponto de entrada da aplicação.
+ */
+
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App/index.jsx'
+import App from './pages/App/index.jsx'
 import './index.css' // <--- Importante: Isso carrega o Tailwind
 import { Analytics } from '@vercel/analytics/react'
 

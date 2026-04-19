@@ -1,4 +1,6 @@
-// Seletor de Etiquetas - DropDown
+/*
+ * Componente responsável por exibir um seletor de etiquetas (Dropdown).
+ */
 
 import './styles.css';
 import React, { useState } from 'react';
@@ -44,7 +46,7 @@ const TagSelector = ({ availableTags = [], selectedTagIds = [], onChange, onMana
                 className="selector-input-area"
                 onClick={() => setIsOpen(!isOpen)}
             >
-                {selectedTagIds.length === 0 && <span className="placeholder-text">Nenhuma etiqueta...</span>}
+                {selectedTagIds.length === 0 && <span className="placeholder-text">Nenhuma etiqueta</span>}
 
                 {selectedTagIds.map(id => {
                     const tag = availableTags.find(t => t.id === id);

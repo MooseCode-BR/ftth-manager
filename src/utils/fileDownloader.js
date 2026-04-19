@@ -1,9 +1,12 @@
+/*
+ * Utilitário para salvar arquivos de forma segura para qualquer tamanho no Android/iOS e Web.
+ * Atualmente está sendo utilizado para salvar arquivos no momento em que o usuário salva um projeto FTTH.
+ */
+
 import { Capacitor } from '@capacitor/core';
 import { saveAs } from 'file-saver';
 
 /**
- * Salva arquivos de forma segura para qualquer tamanho no Android/iOS e Web.
- *
  * Problema resolvido: Filesystem.writeFile do Capacitor serializa o arquivo inteiro
  * como Base64 pela ponte JS→Native. Acima de ~36 MB o heap da WebView estoura e
  * o app fecha. O capacitor-blob-writer resolve isso fazendo streaming do arquivo

@@ -1,4 +1,4 @@
-import { ATTENUATION } from '../constants';
+import { ATTENUATION } from '../config/constants';
 import { saveFile } from './fileDownloader';
 //import tokml from 'tokml';
 
@@ -353,7 +353,7 @@ export const downloadKML = async (selectedProjects, data, signalConfigs) => {
 
     // Imports feitos uma vez fora do loop
     const { getDocs, getDoc, query, collection, doc } = await import('firebase/firestore');
-    const { db } = await import('../firebaseConfig');
+    const { db } = await import('../config/firebaseConfig');
 
     for (const project of selectedProjects) {
         try {

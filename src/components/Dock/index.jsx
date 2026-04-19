@@ -10,7 +10,7 @@ import {
     Route,
     MapPin
 } from 'lucide-react';
-import { CEOIcon, CTOIcon, PostIcon } from '../../icons'; //Importação de Ícones
+import { CEOIcon, CTOIcon, PostIcon } from '../icons'; //Importação de Ícones
 
 // Botão Genérico do Dock (Compacto)
 const DockBtn = ({ icon: Icon, hoverIcon: HoverIcon, label, isActive, onClick, onMouseEnter, onMouseLeave, colorClass = "dock-icon-default" }) => {

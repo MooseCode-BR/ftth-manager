@@ -1,8 +1,11 @@
-// Hook para buscar informações de usuário a partir de um UID
-// Funciona com o formato "novo" (uid string) e o "antigo" (objeto { uid, email, displayName })
+/*
+ * Hook responsável por buscar informações de usuário a partir de um UID.
+ * Funciona com o formato "novo" (uid string) e o "antigo" (objeto { uid, email, displayName }).
+ */
+
 import { useState, useEffect } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '../firebaseConfig';
+import { db } from '../config/firebaseConfig';
 
 // Cache em memória para evitar múltiplas buscas ao mesmo UID
 const userCache = new Map();

@@ -1,3 +1,5 @@
+//Popup que mostra informações sobre criação e ultima modificação do item.
+
 import './styles.css';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
