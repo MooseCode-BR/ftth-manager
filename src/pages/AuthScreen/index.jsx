@@ -12,6 +12,7 @@ import {
 } from "firebase/auth";
 import { auth } from '../../config/firebaseConfig';
 import { Mail, Lock, Loader2, AlertCircle, CheckCircle2, ChevronLeft, Eye, EyeOff } from 'lucide-react';
+import { App as CapacitorApp } from '@capacitor/app';
 import { VERSAO } from '../../config/constants';
 import ThemeToggleButton from '../../components/ThemeToggleButton';
 
@@ -60,22 +61,73 @@ const AuthScreen = ({ onLogin }) => {
     }, [isDarkMode]);
 
     // 3. Verifica se veio do e-mail de recuperação
+    // useEffect(() => {
+    //     const urlParams = new URLSearchParams(window.location.search);
+    //     const mode = urlParams.get('mode');
+    //     const code = urlParams.get('oobCode');
+
+    //     if (mode === 'resetPassword' && code) {
+    //         setOobCode(code);
+    //         setIsPasswordChangeMode(true);
+    //         setIsLogin(false);
+    //         setIsResetting(false);
+
+    //         // Valida o link silenciosamente
+    //         verifyPasswordResetCode(auth, code).catch(() => {
+    //             setError('Este link de recuperação expirou ou é inválido. Solicite um novo.');
+    //         });
+    //     }
+    // }, []);
+
+    // 3. Verifica a URL (AGORA COM SUPORTE A PWA E DEEP LINKS MOBILE)
     useEffect(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const mode = urlParams.get('mode');
-        const code = urlParams.get('oobCode');
+        const processResetLink = (urlStr) => {
+            try {
+                // Monta a URL de forma segura para não quebrar se o formato vier estranho
+                const url = new URL(urlStr, window.location.origin);
+                const mode = url.searchParams.get('mode');
+                const code = url.searchParams.get('oobCode');
 
-        if (mode === 'resetPassword' && code) {
-            setOobCode(code);
-            setIsPasswordChangeMode(true);
-            setIsLogin(false);
-            setIsResetting(false);
+                if (mode === 'resetPassword' && code) {
+                    setOobCode(code);
+                    setIsPasswordChangeMode(true);
+                    setIsLogin(false);
+                    setIsResetting(false);
 
-            // Valida o link silenciosamente
-            verifyPasswordResetCode(auth, code).catch(() => {
-                setError('Este link de recuperação expirou ou é inválido. Solicite um novo.');
-            });
-        }
+                    // Valida o link no Google silenciosamente
+                    verifyPasswordResetCode(auth, code).catch(() => {
+                        setError('Este link de recuperação expirou ou é inválido. Solicite um novo.');
+                    });
+                }
+            } catch (error) {
+                console.error("Erro ao processar URL de recuperação:", error);
+            }
+        };
+
+        // A) Checagem inicial: Roda quando o app abre do zero (Nova aba/Recarregamento)
+        processResetLink(window.location.href);
+
+        // B) Checagem PWA: Ouve mudanças de histórico se o navegador reaproveitar a aba
+        const handlePopState = () => processResetLink(window.location.href);
+        window.addEventListener('popstate', handlePopState);
+
+        // C) Checagem Mobile Nativo: Captura o clique no email se o app Capacitor interceptar o link
+        let deepLinkListener = null;
+        const setupCapacitor = async () => {
+            try {
+                deepLinkListener = await CapacitorApp.addListener('appUrlOpen', (data) => {
+                    processResetLink(data.url);
+                });
+            } catch (e) {
+                // Falha silenciosa segura caso esteja rodando apenas no navegador web
+            }
+        };
+        setupCapacitor();
+
+        return () => {
+            window.removeEventListener('popstate', handlePopState);
+            if (deepLinkListener) deepLinkListener.remove();
+        };
     }, []);
 
     // 4. Função do botão de toggle
