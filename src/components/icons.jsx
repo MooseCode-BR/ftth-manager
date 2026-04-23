@@ -175,3 +175,155 @@ export const ProjetosIcone = ({ size, className }) => (
         <path d="M 12 10.5 v 2.5 M 8 15.5 v -1.5 h 8 v 1.5" />
     </svg>
 );
+
+export const NetworkSwitchIcon = ({ size, className }) => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={className}
+    >
+        {/* Corpo centralizado */}
+        <rect width="20" height="8" x="2" y="8" rx="2" />
+
+        {/* 4 Portas alinhadas perfeitamente e espaçadas */}
+        <path d="M6.01 12H6" />
+        <path d="M10.01 12H10" />
+        <path d="M14.01 12H14" />
+        <path d="M18.01 12H18" />
+    </svg>
+);
+
+/* CONJUNTO DE ÍCONES: Wi-Fi Direcional (Rosa dos Ventos)
+  -----------------------------------------------------
+  Nota técnica: O viewBox foi ajustado de "0 0 24 24" para "-3 -3 30 30" 
+  e o strokeWidth de "2" para "2.5". Isso garante que a ponta da seta, 
+  que "foge" do círculo, não seja cortada nas direções cardeais (N, S, L, O), 
+  mantendo a escala e peso visual originais perfeitamente idênticos.
+*/
+
+export const WifiDirectionNorth = ({ size, className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="-3 -3 30 30" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <g transform="rotate(315 12 12)">
+            <path d="M22 12A10 10 0 1 1 12 2" />
+            <path d="M22 2 18 6" />
+            <path d="M16 2h6v6" />
+        </g>
+        <g>
+            <path d="M12 16h.01" />
+            <path d="M9 13a4 4 0 0 1 6 0" />
+            <path d="M6 10a8.5 8.5 0 0 1 12 0" />
+        </g>
+    </svg>
+);
+
+export const WifiDirectionNorthEast = ({ size, className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="-3 -3 30 30" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <g>
+            <path d="M22 12A10 10 0 1 1 12 2" />
+            <path d="M22 2 18 6" />
+            <path d="M16 2h6v6" />
+        </g>
+        <g transform="rotate(45 12 12)">
+            <path d="M12 16h.01" />
+            <path d="M9 13a4 4 0 0 1 6 0" />
+            <path d="M6 10a8.5 8.5 0 0 1 12 0" />
+        </g>
+    </svg>
+);
+
+export const WifiDirectionEast = ({ size, className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="-3 -3 30 30" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <g transform="rotate(45 12 12)">
+            <path d="M22 12A10 10 0 1 1 12 2" />
+            <path d="M22 2 18 6" />
+            <path d="M16 2h6v6" />
+        </g>
+        <g transform="rotate(90 12 12)">
+            <path d="M12 16h.01" />
+            <path d="M9 13a4 4 0 0 1 6 0" />
+            <path d="M6 10a8.5 8.5 0 0 1 12 0" />
+        </g>
+    </svg>
+);
+
+export const WifiDirectionSouthEast = ({ size, className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="-3 -3 30 30" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <g transform="rotate(90 12 12)">
+            <path d="M22 12A10 10 0 1 1 12 2" />
+            <path d="M22 2 18 6" />
+            <path d="M16 2h6v6" />
+        </g>
+        <g transform="rotate(135 12 12)">
+            <path d="M12 16h.01" />
+            <path d="M9 13a4 4 0 0 1 6 0" />
+            <path d="M6 10a8.5 8.5 0 0 1 12 0" />
+        </g>
+    </svg>
+);
+
+export const WifiDirectionSouth = ({ size, className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="-3 -3 30 30" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <g transform="rotate(135 12 12)">
+            <path d="M22 12A10 10 0 1 1 12 2" />
+            <path d="M22 2 18 6" />
+            <path d="M16 2h6v6" />
+        </g>
+        <g transform="rotate(180 12 12)">
+            <path d="M12 16h.01" />
+            <path d="M9 13a4 4 0 0 1 6 0" />
+            <path d="M6 10a8.5 8.5 0 0 1 12 0" />
+        </g>
+    </svg>
+);
+
+export const WifiDirectionSouthWest = ({ size, className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="-3 -3 30 30" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <g transform="rotate(180 12 12)">
+            <path d="M22 12A10 10 0 1 1 12 2" />
+            <path d="M22 2 18 6" />
+            <path d="M16 2h6v6" />
+        </g>
+        <g transform="rotate(225 12 12)">
+            <path d="M12 16h.01" />
+            <path d="M9 13a4 4 0 0 1 6 0" />
+            <path d="M6 10a8.5 8.5 0 0 1 12 0" />
+        </g>
+    </svg>
+);
+
+export const WifiDirectionWest = ({ size, className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="-3 -3 30 30" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <g transform="rotate(225 12 12)">
+            <path d="M22 12A10 10 0 1 1 12 2" />
+            <path d="M22 2 18 6" />
+            <path d="M16 2h6v6" />
+        </g>
+        <g transform="rotate(270 12 12)">
+            <path d="M12 16h.01" />
+            <path d="M9 13a4 4 0 0 1 6 0" />
+            <path d="M6 10a8.5 8.5 0 0 1 12 0" />
+        </g>
+    </svg>
+);
+
+export const WifiDirectionNorthWest = ({ size, className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="-3 -3 30 30" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <g transform="rotate(270 12 12)">
+            <path d="M22 12A10 10 0 1 1 12 2" />
+            <path d="M22 2 18 6" />
+            <path d="M16 2h6v6" />
+        </g>
+        <g transform="rotate(315 12 12)">
+            <path d="M12 16h.01" />
+            <path d="M9 13a4 4 0 0 1 6 0" />
+            <path d="M6 10a8.5 8.5 0 0 1 12 0" />
+        </g>
+    </svg>
+);

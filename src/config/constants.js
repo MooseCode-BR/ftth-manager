@@ -4,16 +4,12 @@
 
 // Import de Ícones da Biblioteca e Ícones Personalizados
 import {
-    Network, User, ChevronsLeftRightEllipsis, Server, Router, Video, HouseWifi, RadioTower, Zap, Route,
-    MapPin, Building, Home, Radio, Wifi,
-    Box, Cross, Flag, AlertTriangle, Star,
-    Shell,
-    Diamond,
-    MessageCircleMore,
-    Scissors
+    Network, User, ChevronsLeftRightEllipsis, Server, Router, Video, HouseWifi, RadioTower, Zap,
+    MapPin, Building, Home, Radio, Wifi, Box, Cross, Flag, AlertTriangle, Star, Shell, Diamond,
+    Route, MessageCircleMore, Scissors, EthernetPort
 } from 'lucide-react';
 
-import { CEOIcon, CTOIcon, SplitterIcon, PostIcon } from '../components/icons.jsx';
+import { CEOIcon, CTOIcon, SplitterIcon, PostIcon, NetworkSwitchIcon, WifiDirectionNorth, WifiDirectionNorthEast, WifiDirectionNorthWest, WifiDirectionEast, WifiDirectionWest, WifiDirectionSouthEast, WifiDirectionSouth, WifiDirectionSouthWest } from '../components/icons.jsx';
 
 
 // --- CONSTANTES ---
@@ -64,12 +60,26 @@ export const OBJECT_ICONS = [
     { id: 'Flag', icon: Flag, label: 'Bandeira' },
     { id: 'AlertTriangle', icon: AlertTriangle, label: 'Alerta' },
     { id: 'Star', icon: Star, label: 'Destaque' },
-    { id: 'Scissors', icon: Scissors, label: 'Tesoura' }
+    { id: 'Scissors', icon: Scissors, label: 'Tesoura' },
+    { id: 'Router', icon: Router, label: 'Roteador' },
+    { id: 'NetworkSwitchIcon', icon: NetworkSwitchIcon, label: 'Switch' },
+    { id: 'EthernetPort', icon: EthernetPort, label: 'Porta Ethernet' },
+    { id: 'Wifi', icon: Wifi, label: 'Wifi' },
+    { id: 'Video', icon: Video, label: 'Câmera IP' },
+    { id: 'WifiDirectionNorth', icon: WifiDirectionNorth, label: 'Wifi Direcional Norte' },
+    { id: 'WifiDirectionNorthEast', icon: WifiDirectionNorthEast, label: 'Wifi Direcional Nordeste' },
+    { id: 'WifiDirectionNorthWest', icon: WifiDirectionNorthWest, label: 'Wifi Direcional Noroeste' },
+    { id: 'WifiDirectionEast', icon: WifiDirectionEast, label: 'Wifi Direcional Leste' },
+    { id: 'WifiDirectionWest', icon: WifiDirectionWest, label: 'Wifi Direcional Oeste' },
+    { id: 'WifiDirectionSouthEast', icon: WifiDirectionSouthEast, label: 'Wifi Direcional Sudeste' },
+    { id: 'WifiDirectionSouth', icon: WifiDirectionSouth, label: 'Wifi Direcional Sul' },
+    { id: 'WifiDirectionSouthWest', icon: WifiDirectionSouthWest, label: 'Wifi Direcional Sudoeste' },
 ];
 
 export const ICON_MAP = {
     MapPin, Home, MessageCircleMore, Shell,
-    Box, Diamond, Flag, AlertTriangle, Star, Scissors
+    Box, Diamond, Flag, AlertTriangle, Star, Scissors, Router, NetworkSwitchIcon, EthernetPort, Wifi, Video,
+    WifiDirectionNorth, WifiDirectionNorthEast, WifiDirectionNorthWest, WifiDirectionEast, WifiDirectionWest, WifiDirectionSouthEast, WifiDirectionSouth, WifiDirectionSouthWest
 };
 
 // Valores de Referência (Atenuação em dB)
@@ -89,5 +99,5 @@ export const ATTENUATION = {
 
 export const VERSAO = {
     // LOGO_URL: "favicon.svg",
-    NUMERO_VERSAO: "FTTH Manager Cloud v0.8.3 Beta"
+    NUMERO_VERSAO: "FTTH Manager Cloud v0.9.1 Beta"
 }
