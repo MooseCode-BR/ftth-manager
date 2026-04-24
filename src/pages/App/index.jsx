@@ -5606,10 +5606,10 @@ const App = () => {
 
 
                 {/* Crédito de Versão (Centralizado na Margem Inferior) */}
-                <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-1.5 text-[9px] dark:text-gray-800 text-gray-400 font-medium select-none pointer-events-none opacity-100">
-                    {/* <img src={VERSAO.LOGO_URL} alt="" className="w-3 h-3" /> */}
+                {/* <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-1.5 text-[9px] dark:text-gray-800 text-gray-400 font-medium select-none pointer-events-none opacity-100">
+                    <img src={VERSAO.LOGO_URL} alt="" className="w-3 h-3" />
                     <span>{VERSAO.NUMERO_VERSAO}</span>
-                </div>
+                </div> */}
             </div>
         </div>
     );

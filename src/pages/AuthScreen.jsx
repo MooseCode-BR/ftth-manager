@@ -10,11 +10,11 @@ import {
     verifyPasswordResetCode,
     confirmPasswordReset
 } from "firebase/auth";
-import { auth } from '../../config/firebaseConfig';
+import { auth } from '../config/firebaseConfig';
 import { Mail, Lock, Loader2, AlertCircle, CheckCircle2, ChevronLeft, Eye, EyeOff } from 'lucide-react';
 import { App as CapacitorApp } from '@capacitor/app';
-import { VERSAO } from '../../config/constants';
-import ThemeToggleButton from '../../components/ThemeToggleButton';
+import { VERSAO } from '../config/constants';
+import ThemeToggleButton from '../components/ThemeToggleButton';
 
 const AuthScreen = ({ onLogin }) => {
     // Estados de Controle de Tela
@@ -161,7 +161,7 @@ const AuthScreen = ({ onLogin }) => {
                 }
 
                 await confirmPasswordReset(auth, oobCode, password);
-                setSuccessMsg("Senha alterada com sucesso! Redirecionando...");
+                setSuccessMsg("Senha alterada com sucesso! Redirecionando..."); //Trocar essa mensagem de sucesso por uma tela com botão para voltar a tela de login
 
                 // Limpa a tela após 3 segundos
                 setTimeout(() => {
@@ -428,7 +428,7 @@ const AuthScreen = ({ onLogin }) => {
 
             {/* Copyright */}
             <div className="absolute bottom-4 text-xs font-medium text-gray-400 dark:text-gray-500 text-center w-full flex items-center justify-center gap-1">
-                &copy; 2026 {VERSAO.NUMERO_VERSAO}. Todos os direitos reservados.
+                &copy; 2026 FTTH Manager Cloud v{VERSAO.NUMERO_VERSAO} Beta. Todos os direitos reservados.
             </div>
         </div>
     );

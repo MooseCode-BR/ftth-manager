@@ -7,6 +7,7 @@ import ReactDOM from 'react-dom/client'
 import App from './pages/App/index.jsx'
 import './index.css' // <--- Importante: Isso carrega o Tailwind
 import { Analytics } from '@vercel/analytics/react'
+import ForceUpdateController from './components/ForceUpdateController'
 
 // 1. Importa o Leaflet
 import L from 'leaflet';
@@ -25,7 +26,10 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
-    <Analytics />
+    {/* O ForceUpdateController agora "abraça" o resto do sistema */}
+    <ForceUpdateController>
+      <App />
+      <Analytics />
+    </ForceUpdateController>
   </React.StrictMode>,
 )
