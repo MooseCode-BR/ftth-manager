@@ -61,6 +61,28 @@ const MapStateController = () => {
     return null;
 };
 
+// Novo "Olheiro" de tamanho do mapa
+const MapSizeObserver = () => {
+    const map = useMap();
+
+    useEffect(() => {
+        // Observa mudanças REAIS de largura/altura na div HTML
+        const resizeObserver = new ResizeObserver(() => {
+            // O requestAnimationFrame espera o CSS terminar de empurrar a tela
+            requestAnimationFrame(() => {
+                map.invalidateSize();
+            });
+        });
+
+        // Gruda o olheiro no contêiner raiz do Leaflet
+        resizeObserver.observe(map.getContainer());
+
+        return () => resizeObserver.disconnect();
+    }, [map]);
+
+    return null;
+};
+
 let DefaultIcon = L.icon({
     iconUrl: icon,
     shadowUrl: iconShadow,
@@ -701,6 +723,35 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
         if (!isSelected) setIsUnlocked(false);
     }, [isSelected]);
 
+    // --- BLINDAGEM NATIVA DO ARRASTE (CORRIGIDA PARA CLUSTERS) ---
+    useEffect(() => {
+        const marker = markerRef.current;
+        if (!marker) return;
+
+        // Função isolada que verifica a regra de ferro
+        const enforceDragState = () => {
+            if (marker.dragging) {
+                if (isUnlocked && isSelected && !item._readOnly) {
+                    marker.dragging.enable();
+                } else {
+                    marker.dragging.disable();
+                }
+            }
+        };
+
+        // 1. Aplica a regra imediatamente quando você clica no cadeado ou seleciona/deseleciona
+        enforceDragState();
+
+        // 2. O SEGREDO: Aplica a regra automaticamente toda vez que o cluster devolver o nó para a tela
+        marker.on('add', enforceDragState);
+
+        // Limpeza de memória para evitar vazamentos
+        return () => {
+            marker.off('add', enforceDragState);
+        };
+    }, [isUnlocked, isSelected, item._readOnly]);
+    // --------------------------------------------------------------
+
     const icon = useMemo(() => {
         const typeInfo = ITEM_TYPES[item.type];
         const color = item.color || typeInfo?.defaultColor || '#000';
@@ -759,7 +810,7 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
     return (
         <Marker
             ref={markerRef}
-            draggable={isUnlocked && !item._readOnly}
+            draggable={isUnlocked && isSelected && !item._readOnly}
             eventHandlers={eventHandlers}
             position={position}
             icon={icon}
@@ -1307,6 +1358,7 @@ const FiberMap = ({
                 rotateControl={false}
             >
                 <MapStateController /> {/* Componente que salva e restaura a posição do mapa*/}
+                <MapSizeObserver /> {/* Componente que observa o tamanho do mapa*/}
 
                 {/* Botão de Toggle do Cluster */}
                 <button

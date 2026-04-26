@@ -25,6 +25,7 @@ import {
     EyeOff,
     ImageIcon
 } from 'lucide-react';
+import { VERSAO } from '../../../config/constants';
 
 // Configurações de Perfil
 export const ProfileModal = ({ user, onClose, onUpdateName, onUpdatePassword, onDeleteAccount, onLogout, onUpdatePhoto, onDeletePhoto }) => { // <--- Adicionamos onUpdatePhoto aqui
@@ -220,6 +221,7 @@ export const ProfileModal = ({ user, onClose, onUpdateName, onUpdatePassword, on
                                     >
                                         <LogOut size={16} /> Sair da Conta
                                     </button>
+                                    <span className="flex justify-center mt-5 text-xs text-gray-500 dark:text-gray-400">FTTH Manager Cloud v{VERSAO.NUMERO_VERSAO} Beta</span>
                                 </div>
                                 {/* ------------------------ */}
                             </div>
