@@ -563,7 +563,7 @@ export const parseKMLImport = (kmlText) => {
     const rawLines = [];
 
     const processPlacemark = (p, currentFolders) => {
-        const name = p.getElementsByTagName("name")[0]?.textContent || "Item Desconhecido";
+        const name = p.getElementsByTagName("name")[0]?.textContent || "";
 
         // --- NOVO: Extrair Descrição ---
         // O textContent pega o texto cru, ignorando tags HTML se não estiverem em CDATA.
