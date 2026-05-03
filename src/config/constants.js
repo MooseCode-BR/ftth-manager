@@ -99,5 +99,5 @@ export const ATTENUATION = {
 
 export const VERSAO = {
     // LOGO_URL: "favicon.svg",
-    NUMERO_VERSAO: '0.9.5'
+    NUMERO_VERSAO: '0.10.0'
 }

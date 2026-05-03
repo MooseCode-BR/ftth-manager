@@ -12,12 +12,7 @@
           "package_name": "com.ftthmanager.app"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "235638910340-ngnglqpqocelcmetc36lv8cv32pu7n8d.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
           "current_key": "AIzaSyBfF0kj14gYZpB7dy9glGgXsfGrh4fwiwI"
@@ -25,12 +20,7 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "235638910340-ngnglqpqocelcmetc36lv8cv32pu7n8d.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }
