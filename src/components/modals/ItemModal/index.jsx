@@ -486,12 +486,12 @@ const ItemModal = ({
                     )}
 
                     {/* ── TAGS ── */}
-                    <TagSelector
+                    {/*<TagSelector
                         availableTags={availableTags}
                         selectedTagIds={selectedTags}
                         onChange={setSelectedTags}
                         onManageTags={onManageTags}
-                    />
+                    />*/}
 
                 </div>
 
