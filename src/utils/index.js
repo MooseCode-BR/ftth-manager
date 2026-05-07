@@ -478,27 +478,20 @@ export const downloadKML = async (selectedProjects, data, signalConfigs) => {
 // IMPORTAÇÃO KML =================================//
 // Converte cor KML (aabbggrr) para Hex Web (#rrggbb)
 const kmlColorToHex = (kmlColor) => {
-    if (!kmlColor) return '#000000'; // Preto padrão
-
-    // Remove espaços e quebras de linha
+    if (!kmlColor) return '#000000';
     let c = kmlColor.trim();
 
-    // O KML pode vir como aabbggrr ou só bbggrr. Geralmente são 8 chars.
     if (c.length === 8) {
-        // Ignora os 2 primeiros (Alpha - Transparência)
         const blue = c.substring(2, 4);
         const green = c.substring(4, 6);
         const red = c.substring(6, 8);
         return `#${red}${green}${blue}`;
-    }
-    // Caso raro de vir sem alpha (6 chars: bbggrr)
-    else if (c.length === 6) {
+    } else if (c.length === 6) {
         const blue = c.substring(0, 2);
         const green = c.substring(2, 4);
         const red = c.substring(4, 6);
         return `#${red}${green}${blue}`;
     }
-
     return '#000000';
 };
 // 1. Função que tenta adivinhar o tipo do item pelo nome
@@ -510,7 +503,7 @@ const guessTypeByName = (name) => {
     if (n.includes('CLIENTE') || n.includes('CASA')) return 'CLIENT';
     if (n.includes('TORRE') || n.includes('BASE')) return 'TOWER';
     if (n.includes('POSTE') || n.includes('POSTEAMENTO')) return 'POST';
-    return 'OBJECT'; // Padrão se não soubermos (melhor assumir caixa de emenda)
+    return 'OBJECT';
 };
 // 2. Função principal de processamento do texto KML
 export const parseKMLImport = (kmlText) => {
@@ -557,20 +550,14 @@ export const parseKMLImport = (kmlText) => {
         }
     }
 
-    // 2. TRAVESSIA RECURSIVA
+    // 2. TRAVESSIA RECURSIVA OTIMIZADA (Sem lógica de pastas)
     let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
     const rawPoints = [];
     const rawLines = [];
 
-    const processPlacemark = (p, currentFolders) => {
+    const processPlacemark = (p) => {
         const name = p.getElementsByTagName("name")[0]?.textContent || "";
-
-        // --- NOVO: Extrair Descrição ---
-        // O textContent pega o texto cru, ignorando tags HTML se não estiverem em CDATA.
-        // Se estiver em CDATA (comum no Google Earth), virá com HTML. 
-        // Se quiser remover HTML, teríamos que usar regex, mas geralmente é útil manter.
         const description = p.getElementsByTagName("description")[0]?.textContent?.trim() || "";
-        // -------------------------------
 
         let itemColor = null;
         const styleUrl = p.getElementsByTagName("styleUrl")[0]?.textContent?.trim();
@@ -590,76 +577,48 @@ export const parseKMLImport = (kmlText) => {
         const line = p.getElementsByTagName("LineString")[0];
 
         if (point) {
-            const coords = point.getElementsByTagName("coordinates")[0]?.textContent.trim();
+            const coords = point.getElementsByTagName("coordinates")[0]?.textContent;
             if (coords) {
-                const [lng, lat] = coords.split(',').map(parseFloat);
+                const [lng, lat] = coords.trim().split(',').map(parseFloat);
                 if (!isNaN(lat) && !isNaN(lng)) {
                     minLat = Math.min(minLat, lat);
                     maxLat = Math.max(maxLat, lat);
                     minLng = Math.min(minLng, lng);
                     maxLng = Math.max(maxLng, lng);
 
-                    rawPoints.push({
-                        name,
-                        lat,
-                        lng,
-                        color: itemColor,
-                        kmlFolders: [...currentFolders],
-                        notes: description // <--- Passamos a descrição para cá
-                    });
+                    rawPoints.push({ name, lat, lng, color: itemColor, notes: description });
                 }
             }
         }
         else if (line) {
-            const coordsStr = line.getElementsByTagName("coordinates")[0]?.textContent.trim();
+            const coordsStr = line.getElementsByTagName("coordinates")[0]?.textContent;
             if (coordsStr) {
-                const points = coordsStr.split(/\s+/).map(pair => {
+                const points = coordsStr.trim().split(/\s+/).map(pair => {
                     const [lng, lat] = pair.split(',').map(parseFloat);
                     return { lat, lng };
                 }).filter(p => !isNaN(p.lat));
 
                 if (points.length > 1) {
-                    rawLines.push({
-                        name,
-                        points,
-                        color: itemColor,
-                        kmlFolders: [...currentFolders],
-                        notes: description // <--- Passamos a descrição para cá
-                    });
+                    rawLines.push({ name, points, color: itemColor, notes: description });
                 }
             }
         }
     };
 
-    const traverse = (node, folderStack) => {
-        let currentStack = [...folderStack];
-
-        if (node.nodeName === 'Folder' || node.nodeName === 'Document') {
-            let folderName = null;
-            for (let i = 0; i < node.children.length; i++) {
-                if (node.children[i].nodeName === 'name') {
-                    folderName = node.children[i].textContent.trim();
-                    break;
-                }
-            }
-            if (folderName) {
-                currentStack.push(folderName);
-            }
-        }
-
+    // Função de travessia limpa que apenas vasculha a árvore XML
+    const traverse = (node) => {
         if (node.nodeName === 'Placemark') {
-            processPlacemark(node, currentStack);
+            processPlacemark(node);
         }
-
         for (let i = 0; i < node.children.length; i++) {
             const child = node.children[i];
             if (['Folder', 'Document', 'Placemark', 'kml'].includes(child.nodeName)) {
-                traverse(child, currentStack);
+                traverse(child);
             }
         }
     };
 
-    traverse(xmlDoc.documentElement, []);
+    traverse(xmlDoc.documentElement);
 
     // 3. GERAÇÃO DOS ITENS
     if (rawPoints.length === 0 && rawLines.length === 0) return [];
@@ -688,22 +647,10 @@ export const parseKMLImport = (kmlText) => {
             lng: pt.lng,
             ports: 0,
             parentId: null,
-            kmlFolders: pt.kmlFolders,
-            notes: pt.notes // <--- Copiamos para o item final
+            notes: pt.notes
         };
         createdNodes.push(newNode);
         newItems.push(newNode);
-
-        // if (type === 'CTO') {
-        //     newItems.push({
-        //         id: `imp_split_${Date.now()}_${index}`,
-        //         type: 'SPLITTER',
-        //         name: 'Splitter 1:8',
-        //         parentId: nodeId, 
-        //         ports: 9, 
-        //         kmlFolders: pt.kmlFolders 
-        //     });
-        // }
     });
 
     // Cabos
@@ -738,8 +685,7 @@ export const parseKMLImport = (kmlText) => {
             color: line.color || '#000000',
             _startCoords: startPt,
             _endCoords: endPt,
-            kmlFolders: line.kmlFolders,
-            notes: line.notes // <--- Copiamos para o item final
+            notes: line.notes
         });
     });
 

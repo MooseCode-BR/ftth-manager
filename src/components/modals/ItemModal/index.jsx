@@ -10,8 +10,6 @@ import React, { useState, useEffect } from 'react';
 import { Trash2, Settings2, Layers, PenLine } from 'lucide-react';
 
 import { ITEM_TYPES, OBJECT_ICONS } from '../../../config/constants';
-import TagSelector from '../../TagSelector';
-
 
 // =============================================================================
 
@@ -28,7 +26,6 @@ const ItemModal = ({
     title,
     initialValue,
     initialColor,
-    initialTagIds = [],
     initialIcon,
     initialType,
     initialPorts = 0,
@@ -38,8 +35,6 @@ const ItemModal = ({
 
     // --- Props compartilhadas ---
     favoriteColors = [],
-    availableTags = [],
-    onManageTags,
     onConfirm,
     onCancel,
 }) => {
@@ -94,10 +89,6 @@ const ItemModal = ({
             ? [{ name: 'Card 1', portCount: 12 }]
             : [{ name: 'Slot 0', portCount: 16 }];
     });
-
-    const [selectedTags, setSelectedTags] = useState(
-        isCreate ? [] : (initialTagIds || [])
-    );
 
     // Cor unificada (usada tanto para nó quanto para cabo na edição)
     const [color, setColor] = useState(() => {
@@ -163,7 +154,6 @@ const ItemModal = ({
                 manualInterfaces,
                 cableColor,
                 nodeColor: color,
-                tagIds: selectedTags,
                 iconType: isObject ? selectedIcon : null,
             });
         } else {
@@ -171,7 +161,7 @@ const ItemModal = ({
             // + args extras: ports, uplinks, manualInterfaces
             const resolvedColor = isCable ? cableColor : color;
             const iconToSave = isObject ? selectedIcon : null;
-            onConfirm(name, resolvedColor, selectedTags, iconToSave, type, ports, uplinks, manualInterfaces);
+            onConfirm(name, resolvedColor, iconToSave, type, ports, uplinks, manualInterfaces);
         }
     };
 
@@ -484,15 +474,6 @@ const ItemModal = ({
                             />
                         </div>
                     )}
-
-                    {/* ── TAGS ── */}
-                    <TagSelector
-                        availableTags={availableTags}
-                        selectedTagIds={selectedTags}
-                        onChange={setSelectedTags}
-                        onManageTags={onManageTags}
-                    />
-
                 </div>
 
                 {/* Rodapé */}

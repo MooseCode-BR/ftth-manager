@@ -7,7 +7,7 @@ import './styles.css';
 import React, { useEffect } from 'react';
 import {
     X, FileText, Download, Upload, Database,
-    Palette, Tags, User, Users, Settings
+    Palette, Settings
 } from 'lucide-react';
 
 const SettingsModal = ({
@@ -15,7 +15,7 @@ const SettingsModal = ({
     onExportKML, onImportKML,
     onBackup, onRestore,
     onOpenNodeColors, onOpenCableColors,
-    onManageTags, onOpenReport
+    onOpenReport
 }) => {
     if (!isOpen) return null;
 
@@ -93,7 +93,6 @@ const SettingsModal = ({
                         <p className="section-title">Personalização</p>
                     </div>
 
-                    <SettingsOptionButton icon={Tags} label="Gerenciar Tags" onClick={onManageTags} />
                     <SettingsOptionButton icon={Palette} label="Cores dos Nós" onClick={onOpenNodeColors} />
                     <SettingsOptionButton icon={Palette} label="Cores dos Cabos" onClick={onOpenCableColors} />
                 </div>

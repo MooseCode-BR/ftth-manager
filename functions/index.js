@@ -128,7 +128,7 @@ exports.sendTransferNotification = onDocumentCreated("ftth_transfers/{transferId
 // ============================================================================
 
 // Campos permitidos para READ_ONLY_GEOMETRY
-const GEOMETRY_ONLY_FIELDS = ['id', 'color', 'lat', 'lng', 'x', 'y', 'w', 'h', 'width', 'height', 'name', 'lastEditor', 'tagIds', 'type', 'fromNode', 'toNode', 'waypoints', 'parentId', 'fiberCount'];
+const GEOMETRY_ONLY_FIELDS = ['id', 'color', 'lat', 'lng', 'x', 'y', 'w', 'h', 'width', 'height', 'name', 'lastEditor', 'type', 'fromNode', 'toNode', 'waypoints', 'parentId', 'fiberCount'];
 
 /**
  * Função auxiliar: Verifica o nível de permissão de um usuário em um projeto

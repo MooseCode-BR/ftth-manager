@@ -82,7 +82,6 @@ import SettingsModal from '../../components/modals/SettingsModal'; // Configura�
 import BackupModal from '../../components/modals/BackupModal'; // Novo modal de seleção de projetos para salvar
 import KMLExportModal from '../../components/modals/KMLExportModal'; // Modal de seleção de projetos para exportar KML
 import StandardsModal from '../../components/modals/StandardModal'; // Padrões de cores de cabos
-import TagManagerModal from '../../components/modals/TagManagerModal'; // Gerenciamento de tags
 import TraceModal from '../../components/modals/TraceModal'; // Rastreamento de sinal óptico
 import DetailPanel from '../DetailPanel'; // Painel lateral de detalhes
 import { LoadScreen } from '../../components/LoadScreen';
@@ -109,9 +108,6 @@ import DraggableToolbar from '../../components/DraggableToolbar'; // Toolbar arr
 import { useProjectNotifications } from '../../hooks/useProjectNotifications';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 import { ProfileModal } from '../../components/modals/ProfileModal';
-// import SignalModal from '../components/SignalModal'; // Configuração de sinais
-// import TagSelector from '../components/TagSelector'; // Seletor de tags para filtros
-// import ConnectionWorkbench from '../itemsProp/ConnectionWorkbench'; // Bancada de conexões
 // FIM IMPORTS ========================================================================
 
 
@@ -638,20 +634,6 @@ const App = () => {
     const [fixConnectionsData, setFixConnectionsData] = useState(null);
     const [duplicatesData, setDuplicatesData] = useState(null);    // Estado para controlar os conflitos de duplicidade
     const [tempCleanItems, setTempCleanItems] = useState([]);    // Precisamos guardar os itens "limpos" temporariamente enquanto o usuário decide sobre os "sujos"
-    const [myTags, setMyTags] = useState([]);           // Tags do próprio usuário logado
-    const [sharedOwnerTags, setSharedOwnerTags] = useState([]); // Tags do dono do projeto compartilhado
-    // Merge das duas fontes: owner vem primeiro, as do usuário têm prioridade (sobrescrevem)
-    const availableTags = useMemo(() => {
-        const tagMap = {};
-        sharedOwnerTags.forEach(t => { if (t?.id) tagMap[t.id] = t; });
-        myTags.forEach(t => { if (t?.id) tagMap[t.id] = t; });
-        return Object.values(tagMap);
-    }, [myTags, sharedOwnerTags]);
-    const [tagManagerOpen, setTagManagerOpen] = useState(false); // Modal de gestão
-
-    // --- ESTADOS DE FILTRO (TAGS)---
-    const [filterTags, setFilterTags] = useState([]); // IDs selecionados
-    const [filterMode, setFilterMode] = useState('OR'); // 'OR', 'AND', 'EXACT'
 
     const [notesModalConfig, setNotesModalConfig] = useState(null);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -796,7 +778,7 @@ const App = () => {
 
         // A. Carregar dados ESPECÍFICOS DE CADA PROJETO (Itens, Conexões, Sinais, Labels)
         // Campos permitidos para projetos com permissão READ_ONLY_GEOMETRY
-        const GEOMETRY_ONLY_FIELDS = ['id', 'color', 'lat', 'lng', 'name', 'lastEditor', 'tagIds', 'type', 'fromNode', 'toNode', 'waypoints', 'parentId', 'fiberCount'];
+        const GEOMETRY_ONLY_FIELDS = ['id', 'color', 'lat', 'lng', 'name', 'lastEditor', 'type', 'fromNode', 'toNode', 'waypoints', 'parentId', 'fiberCount'];
 
         visibleProjectIds.forEach(pid => {
             const projMeta = allAvailableProjects.find(p => p.id === pid);
@@ -857,7 +839,7 @@ const App = () => {
         };
     }, [user, JSON.stringify(visibleProjectIds), myProjects.length, sharedProjects.length]);
 
-    // Carrega CONFIGURAÇÕES GLOBAIS DO USUÁRIO (Tags, Cores, Padrões)
+    // Carrega CONFIGURAÇÕES GLOBAIS DO USUÁRIO (Cores, Padrões)
     // IMPORTANTE: Depende de `user` (não de `projectOwnerId`) pois essas configurações
     // pertencem ao usuário logado e devem estar disponíveis desde o login,
     // independentemente de qualquer projeto estar ativo.
@@ -868,7 +850,6 @@ const App = () => {
         const globalSettingsRef = collection(db, `artifacts/ftth-production/users/${user.uid}/settings`);
 
         const unsubGlobal = onSnapshot(globalSettingsRef, (snap) => {
-            let mergedTags = [];
             let mergedColors = {};
             let mergedFavorites = [];
             let mergedStandards = {};
@@ -876,11 +857,6 @@ const App = () => {
             snap.docs.forEach(doc => {
                 const data = doc.data();
 
-                if (doc.id === 'tags') {
-                    // Transforma o objeto { id: data } em array
-                    const tagsArray = Object.values(data).filter(v => typeof v === 'object' && v.id);
-                    mergedTags = tagsArray;
-                }
                 if (doc.id === 'nodeColors') {
                     if (data.settings) {
                         mergedColors = { ...data.settings };
@@ -899,7 +875,6 @@ const App = () => {
                 }
             });
 
-            setMyTags(mergedTags);
             setNodeColorSettings(mergedColors);
             setFavoriteColors(mergedFavorites);
             setCableColorStandards(mergedStandards);
@@ -908,30 +883,6 @@ const App = () => {
         return () => unsubGlobal();
 
     }, [user]); // Depende do usuário logado — recarrega ao logar/deslogar
-
-    // Carrega tags do DONO do projeto compartilhado (para merge de visibilidade)
-    // Só ativo quando o projeto aberto pertence a OUTRO usuário.
-    useEffect(() => {
-        setSharedOwnerTags([]); // Sempre limpa ao mudar de contexto
-
-        if (!user || !projectOwnerId || projectOwnerId === user.uid) return;
-
-        // Escuta apenas o documento de tags do dono do projeto compartilhado
-        const ownerTagsRef = doc(db, `artifacts/ftth-production/users/${projectOwnerId}/settings`, 'tags');
-
-        const unsubOwnerTags = onSnapshot(ownerTagsRef, (snap) => {
-            if (snap.exists()) {
-                const data = snap.data();
-                const tagsArray = Object.values(data).filter(v => typeof v === 'object' && v.id);
-                setSharedOwnerTags(tagsArray);
-            } else {
-                setSharedOwnerTags([]);
-            }
-        });
-
-        return () => unsubOwnerTags();
-
-    }, [user, projectOwnerId]); // Recarrega ao mudar o dono do projeto ativo
 
     // 3. Unifica e Processa o Cache (Apenas Itens, Conexões e Configs Locais)
     useEffect(() => {
@@ -947,7 +898,6 @@ const App = () => {
         setConnections(allConns);
 
         // 2. Processar Settings LOCAIS (Sinais, PortLabels)
-        // Tags e Cores agora são tratadas no useEffect global acima
         let mergedSignals = {};
         let mergedPortLabels = {};
 
@@ -962,7 +912,6 @@ const App = () => {
                         const { id, _migrated, _projectId, ...labels } = doc;
                         mergedPortLabels = { ...mergedPortLabels, ...labels };
                     }
-                    // Ignoramos tags, nodeColors e standards aqui pois vêm do Global agora
                 });
             }
         });
@@ -970,7 +919,6 @@ const App = () => {
         setSignalNames(mergedSignals);
         setPortLabels(mergedPortLabels);
 
-        // availableTags, nodeColorSettings, etc já foram setados no listener global
 
         setLoading(false);
 
@@ -1166,7 +1114,54 @@ const App = () => {
         };
     }, [viewMode]);
 
+
+
     // COMPONENTES -----------
+
+    /**
+     * Derivação dos itens visíveis no mapa.
+     * Atualmente atua como um "pass-through" (passa tudo direto), 
+     * mas está estruturado para receber novos filtros de texto ou status sem quebrar o JSX.
+     */
+    const visibleItems = useMemo(() => {
+        // Garantia de segurança: se a base não existir, retornamos um array vazio para não quebrar o map/filter
+        if (!items || !Array.isArray(items)) return [];
+
+        return items.filter(item => {
+            // 1. Defina aqui filtros futuros (ex: busca de nome)
+            // const matchesSearch = item.nome ? item.nome.toLowerCase().includes(busca.toLowerCase()) : true;
+
+            // 2. Retornamos a condição. Como não há filtros ativos por enquanto, retornamos true.
+            return true;
+        });
+    }, [items]); // A matriz de dependência garante que só recalcula se 'items' mudar
+
+    /**
+     * Derivação das conexões visíveis no mapa.
+     * Garante que não ocorram erros de renderização caso a matriz de conexões seja indefinida.
+     */
+    const visibleConnections = useMemo(() => {
+        // 1. Tratamento de segurança: se a base de conexões ainda não foi carregada da API/Banco, retorna array vazio.
+        if (!connections || !Array.isArray(connections)) return [];
+
+        // 2. Como removemos o filtro de tags, no momento todas as conexões devem ser renderizadas.
+        // Retornamos a matriz original limpa.
+        return connections;
+
+        /* 
+         * NOTA ESTRATÉGICA PARA O FUTURO:
+         * Quando você voltar a ter filtros (ex: esconder CTOs com defeito no visibleItems),
+         * você não pode renderizar conexões cujos nós não estão na tela. 
+         * Você fará isso substituindo o "return connections;" pela lógica abaixo:
+         * 
+         * const visibleItemIds = new Set(visibleItems.map(item => item.id));
+         * return connections.filter(conn => 
+         *    visibleItemIds.has(conn.fromNode) && visibleItemIds.has(conn.toNode)
+         * );
+         */
+    }, [connections]); // Se no futuro for usar a lógica do Set acima, lembre-se de adicionar 'visibleItems' aqui neste array de dependências.
+
+
     // OTIMIZAÇÃO: Agrupar cabos (Bundles) para curvatura
     // Isso evita rodar um .filter() dentro de cada cabo no render (O(N^2) -> O(N))
     const cableGroups = useMemo(() => {
@@ -1239,42 +1234,6 @@ const App = () => {
         );
     };
 
-    // --- GERENCIAMENTO DE TAGS (Settings) ---
-    // REGRA DE ESCRITA:
-    //   - Usa `projectOwnerId` como destino (igual a todos os outros dados do projeto).
-    //   - Assim, tags criadas num projeto compartilhado ficam no espaço do DONO
-    //     e são imediatamente visíveis para ele.
-    //   - Fallback para `user.uid` caso nenhum projeto esteja ativo.
-    const saveTagDefinition = async (tag) => {
-        if (!user) return;
-        const targetOwner = projectOwnerId || user.uid;
-
-        try {
-            const tagId = tag.id || `tag_${Date.now()}`;
-            const finalTag = { ...tag, id: tagId };
-
-            const docRef = doc(db, `artifacts/ftth-production/users/${targetOwner}/settings`, 'tags');
-            await setDoc(docRef, { [tagId]: finalTag }, { merge: true });
-
-        } catch (error) {
-            console.error("Erro ao salvar tag:", error);
-            openAlert("Erro", "Falha ao salvar etiqueta.");
-        }
-    };
-    const deleteTagDefinition = async (tagId) => {
-        if (!user) return;
-        const targetOwner = projectOwnerId || user.uid;
-
-        try {
-            const docRef = doc(db, `artifacts/ftth-production/users/${targetOwner}/settings`, 'tags');
-            await updateDoc(docRef, { [tagId]: deleteField() });
-
-        } catch (error) {
-            console.error("Erro ao excluir tag:", error);
-            openAlert("Erro", "Falha ao excluir etiqueta.");
-        }
-    };
-
     // Sugestão na barra de pesquisa com centralização no item
     const handleSelectSuggestion = (suggestion) => {
         // ATUALIZA O TEXTO DA BARRA
@@ -1345,7 +1304,6 @@ const App = () => {
     // --- LÓGICA DE SUBMISSÃO (COM PROJEÇÃO AUTOMÁTICA CANVAS -> MAPA) ---
     const handleModalSubmit = (data) => {
         const id = Date.now().toString();
-        const tagIds = data.tagIds || [];
 
         // 1. DEFINIÇÃO DO PONTO ZERO (ÂNCORA)
         // Se tivermos uma config de mapa salva, usamos ela. Se não, usamos o centro de SP como fallback.
@@ -1394,7 +1352,6 @@ const App = () => {
                 ports: 0,
                 color: data.nodeColor,
                 parentId: null,
-                tagIds: tagIds,
                 iconType: data.iconType
 
                 // Nó raiz usa o projeto ativo padrão (saveItem lida com isso se não passarmos _projectId)
@@ -1413,7 +1370,6 @@ const App = () => {
                 color: data.cableColor || '#334155',
                 fromNode: modalConfig.fromNode.id,
                 toNode: modalConfig.toNode.id,
-                tagIds: tagIds,
                 _projectId: cableProjectId // <--- FORÇA O PROJETO DO NÓ DE ORIGEM
             });
         }
@@ -1421,16 +1377,16 @@ const App = () => {
             // Equipamentos internos (OLT/DIO) não precisam de Lat/Lng pois herdam do Pai (POP/Caixa)
             if (modalConfig.itemType === 'OLT') {
                 const interfaces = data.manualInterfaces.map((iface, i) => ({ id: Date.now() + i, name: iface.name, portCount: parseInt(iface.portCount) }));
-                saveItem({ id, type: 'OLT', name: data.name, uplinkCount: parseInt(data.uplinks), interfaces, parentId: modalConfig.parentId, tagIds: tagIds, _projectId: inheritedProjectId }); //_projectId: inheritedProjectId  <--- Força o projeto do pai
+                saveItem({ id, type: 'OLT', name: data.name, uplinkCount: parseInt(data.uplinks), interfaces, parentId: modalConfig.parentId, _projectId: inheritedProjectId }); //_projectId: inheritedProjectId  <--- Força o projeto do pai
             } else if (modalConfig.itemType === 'DIO') {
                 const cards = data.manualInterfaces.map((iface, i) => ({ id: Date.now() + i, name: iface.name, portCount: parseInt(iface.portCount) }));
-                saveItem({ id, type: 'DIO', name: data.name, cards, parentId: modalConfig.parentId, ports: 0, tagIds: tagIds, _projectId: inheritedProjectId }); //_projectId: inheritedProjectId  <--- Força o projeto do pai
+                saveItem({ id, type: 'DIO', name: data.name, cards, parentId: modalConfig.parentId, ports: 0, _projectId: inheritedProjectId }); //_projectId: inheritedProjectId  <--- Força o projeto do pai
             } else {
-                saveItem({ id, type: modalConfig.itemType, name: data.name, ports: parseInt(data.ports), parentId: modalConfig.parentId, tagIds: tagIds, _projectId: inheritedProjectId }); //_projectId: inheritedProjectId  <--- Força o projeto do pai
+                saveItem({ id, type: modalConfig.itemType, name: data.name, ports: parseInt(data.ports), parentId: modalConfig.parentId, _projectId: inheritedProjectId }); //_projectId: inheritedProjectId  <--- Força o projeto do pai
             }
         }
         else if (modalConfig.mode === 'SPLITTER') {
-            saveItem({ id, type: 'SPLITTER', name: data.name, ports: parseInt(data.ports) + 1, parentId: modalConfig.parentId, tagIds: tagIds, _projectId: inheritedProjectId }); //_projectId: inheritedProjectId  <--- Força o projeto do pai
+            saveItem({ id, type: 'SPLITTER', name: data.name, ports: parseInt(data.ports) + 1, parentId: modalConfig.parentId, _projectId: inheritedProjectId }); //_projectId: inheritedProjectId  <--- Força o projeto do pai
         }
 
         setModalConfig(null);
@@ -2156,150 +2112,6 @@ const App = () => {
         });
     };
 
-    const handleAcceptTransfer = async (transfer) => {
-        setLoading(true);
-        try {
-            const oldOwnerId = transfer.fromUid;
-            const projectId = transfer.projectId;
-
-            // 1. Referências
-            const oldProjRef = doc(db, `artifacts/ftth-production/users/${oldOwnerId}/projects`, projectId);
-            const oldItemsRef = collection(db, `artifacts/ftth-production/users/${oldOwnerId}/projects/${projectId}/items`);
-            const oldConnsRef = collection(db, `artifacts/ftth-production/users/${oldOwnerId}/projects/${projectId}/connections`);
-            const oldSettingsRef = collection(db, `artifacts/ftth-production/users/${oldOwnerId}/projects/${projectId}/settings`);
-
-            // Referências de TAGS (Origem e Destino)
-            const oldGlobalTagsRef = doc(db, `artifacts/ftth-production/users/${oldOwnerId}/settings/tags`);
-            const myGlobalTagsRef = doc(db, `artifacts/ftth-production/users/${user.uid}/settings/tags`);
-
-            // 2. Buscar tudo (incluindo as SUAS tags atuais)
-            const projSnap = await getDoc(oldProjRef);
-
-            if (!projSnap.exists()) {
-                openAlert("Erro", "O projeto original não existe mais.");
-                await deleteDoc(doc(db, 'ftth_transfers', transfer.id));
-                setLoading(false);
-                return;
-            }
-
-            // Promise.all expandido
-            const [itemsSnap, connsSnap, settingsSnap, sourceTagsSnap, myTagsSnap] = await Promise.all([
-                getDocs(oldItemsRef),
-                getDocs(oldConnsRef),
-                getDocs(oldSettingsRef),
-                getDoc(oldGlobalTagsRef), // Tags dele
-                getDoc(myGlobalTagsRef)   // Tags suas
-            ]);
-
-            // 3. Preparar Operações
-            const allOperations = [];
-            const newProjectId = projectId;
-            const usedTagIds = new Set(); // Rastrear quais tags o projeto usa
-
-            // A. Criar Projeto
-            allOperations.push({
-                type: 'SET',
-                ref: doc(db, `artifacts/ftth-production/users/${user.uid}/projects`, newProjectId),
-                data: { ...projSnap.data(), transferredAt: new Date().toISOString() }
-            });
-
-            // B. Itens (e rastrear tags)
-            itemsSnap.forEach(d => {
-                const itemData = d.data();
-                if (itemData.tags && Array.isArray(itemData.tags)) {
-                    itemData.tags.forEach(tagId => usedTagIds.add(tagId));
-                }
-                allOperations.push({
-                    type: 'SET',
-                    ref: doc(db, `artifacts/ftth-production/users/${user.uid}/projects/${newProjectId}/items`, d.id),
-                    data: itemData
-                });
-                allOperations.push({ type: 'DELETE', ref: d.ref });
-            });
-
-            // C. Conexões
-            connsSnap.forEach(d => {
-                allOperations.push({
-                    type: 'SET',
-                    ref: doc(db, `artifacts/ftth-production/users/${user.uid}/projects/${newProjectId}/connections`, d.id),
-                    data: d.data()
-                });
-                allOperations.push({ type: 'DELETE', ref: d.ref });
-            });
-
-            // D. Settings Locais
-            settingsSnap.forEach(d => {
-                allOperations.push({
-                    type: 'SET',
-                    ref: doc(db, `artifacts/ftth-production/users/${user.uid}/projects/${newProjectId}/settings`, d.id),
-                    data: d.data()
-                });
-                allOperations.push({ type: 'DELETE', ref: d.ref });
-            });
-
-            // --- E. LÓGICA DE TAGS (MANUAL MERGE) ---
-            if (sourceTagsSnap.exists() && usedTagIds.size > 0) {
-                const sourceTags = sourceTagsSnap.data(); // Tags do antigo dono
-
-                // 1. Começa com as tuas tags atuais (ou objeto vazio se não tiveres nenhuma)
-                const finalTags = myTagsSnap.exists() ? { ...myTagsSnap.data() } : {};
-                let modified = false;
-
-                // 2. Adiciona/Sobrescreve apenas as tags que o projeto usa
-                usedTagIds.forEach(tagId => {
-                    if (sourceTags[tagId]) {
-                        // Copia a definição da tag para o teu objeto
-                        finalTags[tagId] = sourceTags[tagId];
-                        modified = true;
-                    }
-                });
-
-                // 3. Se houve alteração, grava o objeto inteiro (SET sem merge)
-                if (modified) {
-                    allOperations.push({
-                        type: 'SET',
-                        ref: myGlobalTagsRef,
-                        data: finalTags // Objeto completo (Tuas tags + Novas tags)
-                    });
-                }
-            }
-
-            // F. Limpeza
-            allOperations.push({ type: 'DELETE', ref: oldProjRef });
-            allOperations.push({ type: 'DELETE', ref: doc(db, 'ftth_transfers', transfer.id) });
-
-            // 4. Executar Batch
-            const CHUNK_SIZE = 450;
-            for (let i = 0; i < allOperations.length; i += CHUNK_SIZE) {
-                const chunk = allOperations.slice(i, i + CHUNK_SIZE);
-                const batch = writeBatch(db);
-
-                chunk.forEach(op => {
-                    if (op.type === 'SET') batch.set(op.ref, op.data); // SET padrão (sobrescreve/cria)
-                    if (op.type === 'DELETE') batch.delete(op.ref);
-                });
-
-                await batch.commit();
-            }
-
-            // 5. Limpar Convites
-            const oldInvitesQ = query(collection(db, 'ftth_invitations'), where('projectId', '==', projectId));
-            const invitesSnap = await getDocs(oldInvitesQ);
-            if (!invitesSnap.empty) {
-                const batchInvites = writeBatch(db);
-                invitesSnap.forEach(inv => batchInvites.delete(inv.ref));
-                await batchInvites.commit();
-            }
-
-            openAlert("Sucesso", "Projeto aceito!");
-
-        } catch (error) {
-            console.error("Erro na transferência:", error);
-            openAlert("Erro", "Falha ao transferir projeto.");
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const updateLabelDB = (v) => dbAction(async () => {
         // v é um objeto tipo { 'itemId-portIndex-side': 'Novo Nome' }
@@ -2586,7 +2398,6 @@ const App = () => {
     // Função auxiliar para abrir modal de edição
     const openEditModal = (
         t, iv, cb, ic, scp,
-        initialTagIds = [],
         isObject = false,
         initialIcon = null,
         initialType = null,
@@ -2598,7 +2409,6 @@ const App = () => {
             title: t,
             initialValue: iv,
             initialColor: ic,
-            initialTagIds: initialTagIds,
             showColorPicker: scp,
             favoriteColors: favoriteColors,
             isObject: isObject,
@@ -2608,9 +2418,9 @@ const App = () => {
             initialUplinks: initialUplinks,
             initialInterfaces: initialInterfaces,
 
-            // Callback: (nome, cor, tags, ícone, tipo, portas, uplinks, interfaces)
-            onConfirm: (val, col, tags, icon, type, ports, uplinks, interfaces) => {
-                cb(val, col, tags, icon, type, ports, uplinks, interfaces);
+            // Callback: (nome, cor, ícone, tipo, portas, uplinks, interfaces)
+            onConfirm: (val, col, icon, type, ports, uplinks, interfaces) => {
+                cb(val, col, icon, type, ports, uplinks, interfaces);
                 setEditModalConfig(null);
             }
         });
@@ -2702,27 +2512,6 @@ const App = () => {
         }
     };
 
-    // const handleUpdatePassword = async (newPass) => {
-    //     if (!auth.currentUser || !newPass || newPass.length < 8) {
-    //         openAlert("Atenção", "A senha deve ter pelo menos 8 caracteres.");
-    //         return;
-    //     }
-    //     try {
-    //         await updatePassword(auth.currentUser, newPass);
-    //         openAlert("Sucesso", "Senha alterada! Você será desconectado automaticamente, realize login novamente.");
-    //         setIsProfileOpen(false);
-    //         handleLogout(); // Desloga por segurança
-    //     } catch (error) {
-    //         console.error(error);
-    //         // Firebase exige login recente para trocar senha
-    //         if (error.code === 'auth/requires-recent-login') {
-    //             openAlert("Segurança", "Para mudar a senha, faça logout e login novamente antes de tentar.");
-    //         } else {
-    //             openAlert("Erro", "Falha ao atualizar senha.");
-    //         }
-    //     }
-    // };
-
     const handleUpdatePassword = async (newPass) => {
         if (!auth.currentUser || !newPass || newPass.length < 8) {
             openAlert("Atenção", "A senha deve ter pelo menos 8 caracteres.");
@@ -2802,7 +2591,6 @@ const App = () => {
 
                     // 2. LIMPAR CONFIGURAÇÕES GLOBAIS (Settings)
                     const settingsToDelete = [
-                        'tags',
                         'signals',
                         'nodeColors',
                         'portLabels',
@@ -2922,12 +2710,11 @@ const App = () => {
             oldName,                  // 2. Valor Inicial
 
             // 3. CALLBACK
-            (newName, newColor, newTagIds, newIcon, newType, newPorts, newUplinks, newInterfaces) => {
+            (newName, newColor, newIcon, newType, newPorts, newUplinks, newInterfaces) => {
                 const updatedItem = {
                     ...item,
                     name: newName,
                     color: newColor,
-                    tagIds: newTagIds,
                     ...(newIcon ? { iconType: newIcon } : {}),
                     ...(newType ? { type: newType } : {}),
                 };
@@ -2967,7 +2754,6 @@ const App = () => {
 
             initialColor,             // 4. Cor Inicial
             showPicker,               // 5. Mostrar ColorPicker
-            item.tagIds || [],        // 6. Tags Iniciais
             item.type === 'OBJECT',   // 7. isObject
             item.iconType,            // 8. initialIcon
             item.type,                // 9. initialType
@@ -4484,92 +4270,15 @@ const App = () => {
         setLoading(false);
     };
 
-    // Função auxiliar para cor aleatória (caso crie nova tag)
-    const getRandomTagColor = () => {
-        const colors = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#d946ef', '#f43f5e'];
-        return colors[Math.floor(Math.random() * colors.length)];
-    };
-
     const processImportConfiguration = async ({ colorMap, textRules }) => {
         if (!importModalData) return;
-        setLoading(true); // Importante: Ativar loading pois vamos falar com o banco
+        setLoading(true);
 
         const { items } = importModalData;
 
-        // --- 1. LÓGICA DE TAGS (NOVA) ---
-        // Coletar todas as pastas únicas encontradas no KML
-        const uniqueFolders = new Set();
-        items.forEach(i => {
-            if (i.kmlFolders && i.kmlFolders.length > 0) {
-                i.kmlFolders.forEach(folder => uniqueFolders.add(folder));
-            }
-        });
-
-        // Mapa para converter "Nome da Pasta" -> "ID da Tag"
-        const folderToTagId = {};
-        const newTagsToCreate = [];
-
-        // Verifica quais tags já existem e quais precisam ser criadas
-        // (Nota: availableTags vem do seu estado do App.jsx)
-        uniqueFolders.forEach(folderName => {
-            // Ignora pastas com nomes muito genéricos se quiser (ex: "KML")
-            //if (folderName.length < 2) return;
-
-            const existingTag = availableTags.find(t => t.name.toLowerCase() === folderName.toLowerCase());
-
-            if (existingTag) {
-                folderToTagId[folderName] = existingTag.id;
-            } else {
-                // Cria nova tag
-                const newId = `tag_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-                folderToTagId[folderName] = newId;
-
-                newTagsToCreate.push({
-                    id: newId,
-                    name: folderName,
-                    color: getRandomTagColor()
-                });
-            }
-        });
-
-        // Salvar as NOVAS tags no Firebase antes de prosseguir
-        if (newTagsToCreate.length > 0) {
-            try {
-                // Grava no espaço do DONO DO PROJETO (igual aos demais dados do projeto)
-                // Fallback para user.uid se nenhum projeto estiver ativo
-                const targetOwner = projectOwnerId || user.uid;
-                const settingsRef = doc(db, `artifacts/ftth-production/users/${targetOwner}/settings`, 'tags');
-
-                const tagsUpdate = {};
-                newTagsToCreate.forEach(tag => {
-                    tagsUpdate[tag.id] = tag;
-                });
-
-                await setDoc(settingsRef, tagsUpdate, { merge: true });
-
-            } catch (err) {
-                console.error("Erro ao criar tags automáticas:", err);
-                openAlert("Aviso", "Algumas tags de pasta não puderam ser criadas.");
-            }
-        }
-        // --------------------------------
-
-
-        // --- 2. LÓGICA DE ITENS (EXISTENTE + ATRIBUIÇÃO DE TAGS) ---
+        // --- 2. LÓGICA DE ITENS ---
         const updatedItems = items.map(item => {
-            // A. Resolve IDs das Tags
-            let finalTagIds = item.tagIds || []; // Mantém tags que já existam
-
-            if (item.kmlFolders) {
-                const folderTags = item.kmlFolders
-                    .map(fName => folderToTagId[fName]) // Converte nome -> ID
-                    .filter(id => id !== undefined);    // Remove undefined
-
-                // Junta e remove duplicados
-                finalTagIds = [...new Set([...finalTagIds, ...folderTags])];
-            }
-
-            // B. Resolve Fibras e Cores (Seu código original)
+            // Resolve Fibras e Cores (Apenas para Cabos)
             if (item.type === 'CABLE') {
                 let assignedFibers = 12;
                 let ruleApplied = false;
@@ -4595,12 +4304,11 @@ const App = () => {
                     }
                 }
 
-                // Retorna item com portas atualizadas e TAGS
-                return { ...item, ports: parseInt(assignedFibers), tagIds: finalTagIds };
+                return { ...item, ports: parseInt(assignedFibers) };
             }
 
-            // Retorna item (Nó) com TAGS
-            return { ...item, tagIds: finalTagIds };
+            // CORREÇÃO CRÍTICA: Se não for CABLE, retorna o item intacto em vez de undefined!
+            return item;
         });
 
         setLoading(false);
@@ -4618,7 +4326,6 @@ const App = () => {
         proceedToConfiguration(finalBatch); // Segue o fluxo
     };
 
-    // Passo 3: Salva tudo no banco após correções
     // Passo 3: Salva tudo no banco após correções
     const saveImportedData = async (fixes) => {
         if (!fixConnectionsData) return;
@@ -4686,7 +4393,6 @@ const App = () => {
         try {
             let count = 0;
             for (const item of itemsToSave) {
-                // Remove propriedades temporárias antes de salvar no Firebase
                 delete item._startCoords;
                 delete item._endCoords;
 
@@ -4700,14 +4406,23 @@ const App = () => {
             if (deletedCount > 0) msg += ` (${deletedCount} cabos ignorados).`;
             if (totalEndpoints > 0) msg += ` Foram criados ${totalEndpoints} nós de "Fim de Cabo".`;
 
-            openAlert("Importação Concluída", msg);
+            // PASSO 1: Desmonta o modal pesado de correções PRIMEIRO
+            setFixConnectionsData(null);
+
+            // PASSO 2: Dá um micro-respiro para o React processar a desmontagem e atualizar o mapa,
+            // e só então tira o loading e mostra o alerta final.
+            setTimeout(() => {
+                setLoading(false);
+                openAlert("Importação Concluída", msg);
+            }, 100);
+
         } catch (error) {
             console.error(error);
-            openAlert("Erro", "Falha ao salvar itens.");
-        } finally {
             setFixConnectionsData(null);
             setLoading(false);
+            openAlert("Erro", "Falha ao salvar itens.");
         }
+        // OBS: Removemos o bloco 'finally', pois gerenciamos os estados manualmente acima.
     };
 
     // EFEITO: Monitora se existe um foco pendente E se os itens chegaram (TRABALHA EM CONJUNTO COM handleFocusProject)
@@ -4830,67 +4545,6 @@ const App = () => {
         }
     };
 
-    // --- LÓGICA DE FILTRAGEM (Visualização de ITENS: Nós e Cabos de Backbone) ---
-    const visibleItems = React.useMemo(() => {
-        // Se não tiver tags selecionadas, mostra TUDO
-        if (filterTags.length === 0) return items;
-
-        return items.filter(item => {
-            const itemTags = item.tagIds || [];
-
-            // LÓGICA DE FILTRO PADRÃO
-            if (filterMode === 'OR') {
-                return filterTags.some(tagId => itemTags.includes(tagId));
-            }
-
-            if (filterMode === 'AND') {
-                return filterTags.every(tagId => itemTags.includes(tagId));
-            }
-
-            if (filterMode === 'EXACT') {
-                return itemTags.length === filterTags.length &&
-                    itemTags.every(tagId => filterTags.includes(tagId));
-            }
-
-            return true;
-        });
-    }, [items, filterTags, filterMode]);
-
-    // --- FILTRO DE CONEXÕES (Drops e Patch Cords) ---
-    const visibleConnections = React.useMemo(() => {
-        // Se não houver filtro, mostra todas as conexões existentes
-        if (filterTags.length === 0) return connections;
-
-        return connections.filter(conn => {
-            // Busca os itens nas pontas (usando a lista completa 'items' para garantir que achamos)
-            const nodeA = items.find(i => i.id === conn.fromId);
-            const nodeB = items.find(i => i.id === conn.toId);
-
-            if (!nodeA || !nodeB) return false; // Se algum nó não existe, não desenha
-
-            // Verifica se é um Drop (Conectado a Cliente)
-            const isClientA = nodeA.type === 'CLIENT';
-            const isClientB = nodeB.type === 'CLIENT';
-
-            if (isClientA || isClientB) {
-                // REGRA DO DROP:
-                // Só aparece se o Cliente estiver na lista de itens visíveis (visibleItems)
-                // O visibleItems já foi filtrado pelas tags anteriormente
-                const clientNode = isClientA ? nodeA : nodeB;
-                const isClientVisible = visibleItems.some(v => v.id === clientNode.id);
-
-                return isClientVisible;
-            }
-
-            // OUTRAS CONEXÕES (Ex: Patch cords internos ou fusões, se desenhados no canvas)
-            // Só aparecem se AMBOS os lados estiverem visíveis
-            const isAVisible = visibleItems.some(v => v.id === nodeA.id);
-            const isBVisible = visibleItems.some(v => v.id === nodeB.id);
-
-            return isAVisible && isBVisible;
-        });
-    }, [connections, items, visibleItems, filterTags]);
-
     // Verifica login salvo ao iniciar
     useEffect(() => {
         const savedUser = localStorage.getItem('ftth_user');
@@ -5006,7 +4660,6 @@ const App = () => {
                 onBulkToggleVisibility={handleBulkToggleProjectVisibility}
                 onRespondInvite={handleRespondInvite}
                 incomingTransfers={incomingTransfers}
-                onAcceptTransfer={handleAcceptTransfer}
                 onFocusProject={handleFocusProject}
                 onAlertRequest={openAlert}
                 onConfirmRequest={openConfirm}
@@ -5323,58 +4976,6 @@ const App = () => {
                     )}
                 </div>
 
-                {/* 3. PAINEL DE FILTROS FLUTUANTE (Novo Passo C) */}
-                {isFilterPanelOpen && (
-                    <>
-                        {/* Overlay transparente para clique fora */}
-                        <div
-                            className="fixed inset-0 z-[44]"
-                            onClick={() => setIsFilterPanelOpen(false)}
-                        />
-                        <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[45] bg-white/40 dark:bg-black/70 border border-white/60 dark:border-white/20 backdrop-blur-xl rounded-2xl shadow-xl p-4 w-[90%] max-w-lg animate-in slide-in-from-bottom-2">
-                            <div className="flex justify-between items-center mb-2">
-                                <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Filtrar por Etiquetas</h3>
-                                <div className="flex justify-between items-right mb-2 gap-5">
-                                    <button onClick={() => setFilterTags([])} className="text-xs text-red-500 hover:underline">Limpar</button>
-                                    <button onClick={() => setIsFilterPanelOpen(false)} className="text-xs text-blue-500 hover:underline">Fechar</button>
-                                </div>
-                            </div>
-                            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar">
-                                {availableTags.sort((a, b) => a.name.localeCompare(b.name)).map(tag => (
-                                    <button
-                                        key={tag.id}
-                                        onClick={() => {
-                                            const newTags = filterTags.includes(tag.id) ? filterTags.filter(t => t !== tag.id) : [...filterTags, tag.id];
-                                            setFilterTags(newTags);
-                                        }}
-                                        className={`px-3 py-1 rounded-full text-xs font-bold transition-all border ${filterTags.includes(tag.id)
-                                            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-300'
-                                            : 'bg-white/50 dark:bg-black/50 text-gray-700 dark:text-gray-300 border-white/60 dark:border-white/20 hover:bg-blue-600 dark:hover:bg-blue-300 hover:text-white dark:hover:text-white'
-                                            }`}
-                                    >
-                                        {tag.name}
-                                    </button>
-                                ))}
-                                {availableTags.length === 0 && <p className="text-xs text-gray-600 dark:text-gray-400">Nenhuma etiqueta criada.</p>}
-                            </div>
-                            <div className="flex gap-2 mt-3 pt-2 border-t border-white/60 dark:border-white/20">
-                                {['OR', 'AND', 'EXACT'].map(mode => (
-                                    <button
-                                        key={mode}
-                                        onClick={() => setFilterMode(mode)}
-                                        className={`flex-1 py-1 text-[10px] font-bold rounded transition-colors ${filterMode === mode
-                                            ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/50'
-                                            : 'text-gray-600 dark:text-gray-400 bg-white/30 dark:bg-black/30 hover:bg-white/50 dark:hover:bg-black/50'
-                                            }`}
-                                    >
-                                        {mode === 'OR' ? 'Qualquer (OU)' : mode === 'AND' ? 'Todas (E)' : 'Exato'}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    </>
-                )}
-
                 {/* 4. DOCK (Substitui a Sidebar) */}
                 {userRole !== 'ATIVACAO' && (
                     <Dock
@@ -5406,9 +5007,6 @@ const App = () => {
                     }}
                     onRestore={() => {
                         backupInputRef.current.click();
-                    }}
-                    onManageTags={() => {
-                        setTagManagerOpen(true);
                     }}
                     onOpenNodeColors={() => { setNodeColorsModalOpen(true); }}
                     onOpenCableColors={() => { setStandardsModalOpen(true); }}
@@ -5523,8 +5121,8 @@ const App = () => {
                 )}
 
                 {/* Modais de Lógica */}
-                {modalConfig && <ItemModal mode="create" config={modalConfig} standards={cableColorStandards} nodeColorSettings={nodeColorSettings} favoriteColors={favoriteColors} availableTags={availableTags} onManageTags={() => setTagManagerOpen(true)} onConfirm={handleModalSubmit} onCancel={() => { setModalConfig(null); cableStartNodeRef.current = null; setCableStartNode(null); }} />}
-                {editModalConfig && <ItemModal mode="edit" {...editModalConfig} standards={cableColorStandards} nodeColorSettings={nodeColorSettings} favoriteColors={favoriteColors} availableTags={availableTags} onManageTags={() => setTagManagerOpen(true)} onCancel={() => setEditModalConfig(null)} />}
+                {modalConfig && <ItemModal mode="create" config={modalConfig} standards={cableColorStandards} nodeColorSettings={nodeColorSettings} favoriteColors={favoriteColors} onConfirm={handleModalSubmit} onCancel={() => { setModalConfig(null); cableStartNodeRef.current = null; setCableStartNode(null); }} />}
+                {editModalConfig && <ItemModal mode="edit" {...editModalConfig} standards={cableColorStandards} nodeColorSettings={nodeColorSettings} favoriteColors={favoriteColors} onCancel={() => setEditModalConfig(null)} />}
                 {standardsModalOpen && <StandardsModal standards={cableColorStandards} onClose={() => setStandardsModalOpen(false)} onSave={(newStds) => { updateStandardsDB(newStds); setStandardsModalOpen(false); }} />}
                 {nodeColorsModalOpen &&
                     <NodeColorsModal
@@ -5560,7 +5158,7 @@ const App = () => {
                     projects={myProjects}
                     onConfirm={(selectedProjects) => {
                         generateBackupFile(
-                            { items, connections, availableTags, signalNames, portLabels, nodeColorSettings },
+                            { items, connections, signalNames, portLabels, nodeColorSettings },
                             selectedProjects
                         );
                         setIsBackupModalOpen(false);
@@ -5594,14 +5192,6 @@ const App = () => {
                 {duplicatesData && <DuplicatesModal conflicts={duplicatesData} onCancel={() => { setDuplicatesData(null); setTempCleanItems([]); }} onConfirm={handleDuplicatesResolved} />}
                 {importModalData && <ImportModal colors={importModalData.colors} itemCount={importModalData.items.length} onClose={() => setImportModalData(null)} onConfirm={processImportConfiguration} />}
                 {fixConnectionsData && <FixConnectionsModal items={fixConnectionsData} onClose={() => setFixConnectionsData(null)} onConfirm={saveImportedData} />}
-                {tagManagerOpen &&
-                    <TagManagerModal
-                        tags={availableTags}
-                        onClose={() => setTagManagerOpen(false)}
-                        onSaveTag={saveTagDefinition}
-                        onDeleteTag={deleteTagDefinition}
-                    />
-                }
                 {notesModalConfig && <NotesModal title={notesModalConfig.title} initialNotes={notesModalConfig.initialNotes} onSave={notesModalConfig.onSave} onClose={notesModalConfig.onClose} />}
 
 
