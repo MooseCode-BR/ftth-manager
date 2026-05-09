@@ -424,10 +424,22 @@ export const downloadKML = async (selectedProjects, data, signalConfigs) => {
 
             // --- LINHAS (Cabos) ---
             cables.forEach(cable => {
-                const nodeA = nodes.find(n => n.id === cable.fromNode);
-                const nodeB = nodes.find(n => n.id === cable.toNode);
+                // 1. Tenta achar o nó real na lista de exportação do projeto atual
+                let nodeA = nodes.find(n => n.id === cable.fromNode);
+                let nodeB = nodes.find(n => n.id === cable.toNode);
 
-                if (nodeA && nodeB && nodeA.lat && nodeB.lat) {
+                // 2. Fallback da Ponta Solta: Se o nó for de outro projeto (não exportado), 
+                // construímos um "nó fantasma" usando as coordenadas salvas no próprio cabo.
+                if (!nodeA && cable.startCoords) {
+                    nodeA = { lat: cable.startCoords.lat, lng: cable.startCoords.lng };
+                }
+                if (!nodeB && cable.endCoords) {
+                    nodeB = { lat: cable.endCoords.lat, lng: cable.endCoords.lng };
+                }
+
+                // 3. Se temos as latitudes de ambas as pontas, podemos gerar o traço no KML!
+                // Mudamos a validação para !== undefined pois a coordenada pode ser 0
+                if (nodeA && nodeB && nodeA.lat !== undefined && nodeB.lat !== undefined) {
                     const strokeColor = hexToKmlColor(cable.color || '#000000');
                     const description = generateCableDescription(cable, projectItems, projectConnections, projectSignalConfigs);
 
