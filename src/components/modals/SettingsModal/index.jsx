@@ -93,6 +93,7 @@ const SettingsModal = ({
                         <p className="section-title">Personalização</p>
                     </div>
 
+                    {/*<SettingsOptionButton icon={Tags} label="Gerenciar Tags" onClick={onManageTags} />*/}
                     <SettingsOptionButton icon={Palette} label="Cores dos Nós" onClick={onOpenNodeColors} />
                     <SettingsOptionButton icon={Palette} label="Cores dos Cabos" onClick={onOpenCableColors} />
                 </div>
