@@ -7,7 +7,7 @@ import './styles.css';
 import React, { useEffect } from 'react';
 import {
     X, FileText, Download, Upload, Database,
-    Palette, Tags, User, Users, Settings
+    Palette, Settings
 } from 'lucide-react';
 
 const SettingsModal = ({
@@ -15,7 +15,7 @@ const SettingsModal = ({
     onExportKML, onImportKML,
     onBackup, onRestore,
     onOpenNodeColors, onOpenCableColors,
-    onManageTags, onOpenReport
+    onOpenReport
 }) => {
     if (!isOpen) return null;
 

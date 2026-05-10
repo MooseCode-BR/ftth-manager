@@ -577,7 +577,7 @@ const ConnectionWorkbench = ({ item, items, connections, portLabels, signalNames
                 <div className="h-px bg-gray-200 dark:bg-gray-700 my-0.5"></div>
                 <button onClick={fitAllToScreen} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 rounded" title="Ajustar conteúdo na tela"><ScanLine size={16} /></button>
                 <div className="h-px bg-gray-200 dark:bg-gray-700 my-0.5"></div>
-                <button onClick={() => setShowTags(!showTags)} className={`p-1 rounded ${showTags ? 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300' : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'}`} title="Mostrar/Ocultar Sinais"><Tag size={16} /></button>
+                <button onClick={() => setShowTags(!showTags)} className={`p-1 rounded ${showTags ? 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300' : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'}`} title="Mostrar/Ocultar Etiquetas"><Tag size={16} /></button>
                 <div className="h-px bg-gray-200 dark:bg-gray-700 my-0.5"></div>
                 <button
                     onClick={toggleFullscreen}

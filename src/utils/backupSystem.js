@@ -62,7 +62,7 @@ const generateThumbnailFromBlob = (blob, maxWidth = 300) => {
 // ─────────────────────────────────────────────────────────
 export const generateBackupFile = async (data, visibleProjects) => {
     const {
-        items, connections, availableTags, signalNames, portLabels, nodeColorSettings
+        items, connections, signalNames, portLabels, nodeColorSettings
     } = data;
 
     if (!visibleProjects || visibleProjects.length === 0) {
@@ -80,7 +80,7 @@ export const generateBackupFile = async (data, visibleProjects) => {
 
         let projectItems = items.filter(i => i._projectId === project.id);
         let projectConnections = connections.filter(c => c._projectId === project.id);
-        const finalSettings = { tags: availableTags, signals: signalNames, portLabels: portLabels, nodeColors: nodeColorSettings };
+        const finalSettings = { signals: signalNames, portLabels: portLabels, nodeColors: nodeColorSettings };
 
         try {
             // Se o projeto não está carregado na memória, ou por precaução, tenta buscar no banco:
@@ -330,11 +330,6 @@ export const restoreFromBackup = async (file, projectOwnerId, targetProjectId, o
             });
 
             // 4. Operações das Configurações
-            if (settings.tags) {
-                const tagsObj = Array.isArray(settings.tags) ? settings.tags.reduce((acc, t) => ({ ...acc, [t.id]: t }), {}) : settings.tags;
-                const userTagsRef = doc(db, `artifacts/ftth-production/users/${projectOwnerId}/settings`, 'tags');
-                firestoreOperations.push({ type: 'set', ref: userTagsRef, data: tagsObj, merge: true });
-            }
             if (settings.signals) firestoreOperations.push({ type: 'set', ref: doc(db, `${projectPath}/settings`, 'signals'), data: settings.signals });
             if (settings.portLabels) firestoreOperations.push({ type: 'set', ref: doc(db, `${projectPath}/settings`, 'portLabels'), data: settings.portLabels });
             if (settings.nodeColors) {
