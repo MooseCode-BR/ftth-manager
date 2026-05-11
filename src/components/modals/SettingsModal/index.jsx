@@ -10,6 +10,19 @@ import {
     Palette, Settings
 } from 'lucide-react';
 
+// Componente Interno do Botão (Extraído para limpeza)
+const SettingsOptionButton = ({ icon: Icon, label, onClick, colorClass = "text-gray-700 dark:text-gray-200" }) => (
+    <button
+        onClick={onClick}
+        className="settings-option-btn cursor-pointer"
+    >
+        <div className={`option-icon-wrapper ${colorClass}`}>
+            <Icon size={24} />
+        </div>
+        <span className="option-label">{label}</span>
+    </button>
+);
+
 const SettingsModal = ({
     isOpen, onClose,
     onExportKML, onImportKML,
@@ -18,19 +31,6 @@ const SettingsModal = ({
     onOpenReport
 }) => {
     if (!isOpen) return null;
-
-    // Componente Interno do Botão (Extraído para limpeza)
-    const SettingsOptionButton = ({ icon: Icon, label, onClick, colorClass = "text-gray-700 dark:text-gray-200" }) => (
-        <button
-            onClick={onClick}
-            className="settings-option-btn cursor-pointer"
-        >
-            <div className={`option-icon-wrapper ${colorClass}`}>
-                <Icon size={24} />
-            </div>
-            <span className="option-label">{label}</span>
-        </button>
-    );
 
     // Fechar com ESC
     useEffect(() => {
