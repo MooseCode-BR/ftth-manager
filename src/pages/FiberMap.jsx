@@ -37,7 +37,11 @@ const MapStateController = () => {
             map.setBearing(globalSavedBearing);
 
             // Garantia extra: corrige problemas do mapa ficar cinzento se foi ocultado por CSS
-            setTimeout(() => map.invalidateSize(), 100);
+            setTimeout(() => {
+                try {
+                    if (map && map._container) map.invalidateSize();
+                } catch (e) {}
+            }, 100);
         }
     }, [map]);
 
@@ -66,18 +70,25 @@ const MapSizeObserver = () => {
     const map = useMap();
 
     useEffect(() => {
+        let frameId;
         // Observa mudanças REAIS de largura/altura na div HTML
         const resizeObserver = new ResizeObserver(() => {
+            if (frameId) cancelAnimationFrame(frameId);
             // O requestAnimationFrame espera o CSS terminar de empurrar a tela
-            requestAnimationFrame(() => {
-                map.invalidateSize();
+            frameId = requestAnimationFrame(() => {
+                try {
+                    if (map && map._container) map.invalidateSize();
+                } catch (e) {}
             });
         });
 
         // Gruda o olheiro no contêiner raiz do Leaflet
         resizeObserver.observe(map.getContainer());
 
-        return () => resizeObserver.disconnect();
+        return () => {
+            resizeObserver.disconnect();
+            if (frameId) cancelAnimationFrame(frameId);
+        };
     }, [map]);
 
     return null;

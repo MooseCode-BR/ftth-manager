@@ -11,7 +11,7 @@ import './styles.css';
 // useMemo: Hook para memoizar valores computados e otimizar performance
 // useCallback: Hook para memoizar funções e evitar re-criações desnecessárias
 // memo: Higher-Order Component para memoizar componentes e evitar re-renders desnecessários
-import React, { useState, useRef, useEffect, useMemo, useCallback, memo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback, memo, Suspense, lazy } from 'react';
 
 // ============================================================================
 // GERAÇÃO DE IDs ÚNICOS E RENDERIZAÇÃO
@@ -60,30 +60,30 @@ import JSZip from 'jszip';
 // COMPONENTES - AUTENTICAÇÃO E MODAIS
 // ============================================================================
 
-// Tela de Login/Registro
+// Tela de Login/Registro e Fixos
 import AuthScreen from '../AuthScreen';
-
-// Modais de Gerenciamento de Itens
-import AddSlotModal from '../../components/modals/AddSlotModal'; // Adicionar slots em DIO/OLT
-import AlertModal from '../../components/modals/AlertModal'; // Diálogos de alerta simples
-import ConfirmModal from '../../components/modals/ConfirmModal'; // Confirmações de ações destrutivas
-import ItemModal from '../../components/modals/ItemModal'; // Modal unificado de criação e edição de itens
 import Dock from '../../components/Dock'; // Barra de ferramentas inferior
-import DuplicatesModal from '../../components/modals/DuplicatesModal'; // Tratamento de duplicatas na importação
-import FixConnectionsModal from '../../components/modals/FixConnectionsModal'; // Correção de conexões na importação
-import ImportModal from '../../components/modals/ImportModal'; // Configuração de importação KML
-import InfoModal from '../../components/modals/InfoModal'; // Exibição de informações gerais
-import NodeColorsModal from '../../components/modals/NodeColorsModal'; // Configuração de cores padrão de nós
-import NotesModal from '../../components/modals/NotesModal'; // Edição de notas de itens
-import PhotoGalleryModal from '../../components/modals/PhotoGalleryModal'; // Galeria de fotos de itens
-import ProjectManagerModal from '../../components/modals/ProjectManagerModal'; // Gerenciador de projetos
-import ReportModal from '../../components/modals/ReportModal'; // Geração de relatórios
-import SettingsModal from '../../components/modals/SettingsModal'; // Configurações gerais
-import BackupModal from '../../components/modals/BackupModal'; // Novo modal de seleção de projetos para salvar
-import KMLExportModal from '../../components/modals/KMLExportModal'; // Modal de seleção de projetos para exportar KML
-import StandardsModal from '../../components/modals/StandardModal'; // Padrões de cores de cabos
-import TraceModal from '../../components/modals/TraceModal'; // Rastreamento de sinal óptico
-import DetailPanel from '../DetailPanel'; // Painel lateral de detalhes
+
+// Modais (Lazy Load para melhorar o startup time)
+const AddSlotModal = lazy(() => import('../../components/modals/AddSlotModal'));
+const AlertModal = lazy(() => import('../../components/modals/AlertModal'));
+const ConfirmModal = lazy(() => import('../../components/modals/ConfirmModal'));
+const ItemModal = lazy(() => import('../../components/modals/ItemModal'));
+const DuplicatesModal = lazy(() => import('../../components/modals/DuplicatesModal'));
+const FixConnectionsModal = lazy(() => import('../../components/modals/FixConnectionsModal'));
+const ImportModal = lazy(() => import('../../components/modals/ImportModal'));
+const InfoModal = lazy(() => import('../../components/modals/InfoModal'));
+const NodeColorsModal = lazy(() => import('../../components/modals/NodeColorsModal'));
+const NotesModal = lazy(() => import('../../components/modals/NotesModal'));
+const PhotoGalleryModal = lazy(() => import('../../components/modals/PhotoGalleryModal'));
+const ProjectManagerModal = lazy(() => import('../../components/modals/ProjectManagerModal'));
+const ReportModal = lazy(() => import('../../components/modals/ReportModal'));
+const SettingsModal = lazy(() => import('../../components/modals/SettingsModal'));
+const BackupModal = lazy(() => import('../../components/modals/BackupModal'));
+const KMLExportModal = lazy(() => import('../../components/modals/KMLExportModal'));
+const StandardsModal = lazy(() => import('../../components/modals/StandardModal'));
+const TraceModal = lazy(() => import('../../components/modals/TraceModal'));
+const DetailPanel = lazy(() => import('../DetailPanel'));
 import { LoadScreen } from '../../components/LoadScreen';
 import InstallPwaPopup from '../../components/InstallPwaPopup';
 
@@ -102,12 +102,12 @@ import { syncUserProfile } from '../../hooks/useUserInfo';
 // ============================================================================
 // COMPONENTES ADICIONAIS
 // ============================================================================
-import FiberMap from '../FiberMap'; // Componente de mapa com Leaflet
+const FiberMap = lazy(() => import('../FiberMap'));
 import GenericModal from '../../components/modals/GenericModal'; // Modal genérico para itens simples
 import DraggableToolbar from '../../components/DraggableToolbar'; // Toolbar arrastável
 import { useProjectNotifications } from '../../hooks/useProjectNotifications';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
-import { ProfileModal } from '../../components/modals/ProfileModal';
+const ProfileModal = lazy(() => import('../../components/modals/ProfileModal').then(module => ({ default: module.ProfileModal })));
 // FIM IMPORTS ========================================================================
 
 
@@ -887,47 +887,51 @@ const App = () => {
 
     // 3. Unifica e Processa o Cache (Separação Lógica vs Física)
     useEffect(() => {
-        const allData = Object.values(projectDataCache);
+        // Usa setTimeout como Debounce (500ms) para evitar cascatas de re-render na carga inicial
+        const timeoutId = setTimeout(() => {
+            const allData = Object.values(projectDataCache);
 
-        // --- ITENS (AGORA GLOBAL) ---
-        // Todos os itens baixados ficam na memória para garantir o rastreio do sinal (Topologia Lógica).
-        // Ocultar no mapa será responsabilidade exclusiva da variável 'visibleItems'.
-        const allItemsRaw = allData.flatMap(p => p?.items || []);
-        const uniqueItemsMap = new Map();
-        allItemsRaw.forEach(item => uniqueItemsMap.set(item.id, item));
-        const allItems = Array.from(uniqueItemsMap.values());
+            // --- ITENS (AGORA GLOBAL) ---
+            // Todos os itens baixados ficam na memória para garantir o rastreio do sinal (Topologia Lógica).
+            // Ocultar no mapa será responsabilidade exclusiva da variável 'visibleItems'.
+            const allItemsRaw = allData.flatMap(p => p?.items || []);
+            const uniqueItemsMap = new Map();
+            allItemsRaw.forEach(item => uniqueItemsMap.set(item.id, item));
+            const allItems = Array.from(uniqueItemsMap.values());
 
-        // --- CONEXÕES (GLOBAL) ---
-        const allConnsRaw = allData.flatMap(p => p?.connections || []);
-        const uniqueConnsMap = new Map();
-        allConnsRaw.forEach(conn => uniqueConnsMap.set(conn.id, conn));
-        const allConns = Array.from(uniqueConnsMap.values());
+            // --- CONEXÕES (GLOBAL) ---
+            const allConnsRaw = allData.flatMap(p => p?.connections || []);
+            const uniqueConnsMap = new Map();
+            allConnsRaw.forEach(conn => uniqueConnsMap.set(conn.id, conn));
+            const allConns = Array.from(uniqueConnsMap.values());
 
-        setItems(allItems);
-        setConnections(allConns);
+            setItems(allItems);
+            setConnections(allConns);
 
-        // --- CONFIGURAÇÕES LÓGICAS (SINAIS E ETIQUETAS) ---
-        let mergedSignals = {};
-        let mergedPortLabels = {};
+            // --- CONFIGURAÇÕES LÓGICAS (SINAIS E ETIQUETAS) ---
+            let mergedSignals = {};
+            let mergedPortLabels = {};
 
-        allData.forEach(projectData => {
-            if (projectData && projectData.settings && Array.isArray(projectData.settings)) {
-                projectData.settings.forEach(doc => {
-                    if (doc.id === 'signals') {
-                        const { id, _migrated, _projectId, ...signals } = doc;
-                        mergedSignals = { ...mergedSignals, ...signals };
-                    }
-                    if (doc.id === 'portLabels') {
-                        const { id, _migrated, _projectId, ...labels } = doc;
-                        mergedPortLabels = { ...mergedPortLabels, ...labels };
-                    }
-                });
-            }
-        });
+            allData.forEach(projectData => {
+                if (projectData && projectData.settings && Array.isArray(projectData.settings)) {
+                    projectData.settings.forEach(doc => {
+                        if (doc.id === 'signals') {
+                            const { id, _migrated, _projectId, ...signals } = doc;
+                            mergedSignals = { ...mergedSignals, ...signals };
+                        }
+                        if (doc.id === 'portLabels') {
+                            const { id, _migrated, _projectId, ...labels } = doc;
+                            mergedPortLabels = { ...mergedPortLabels, ...labels };
+                        }
+                    });
+                }
+            });
 
-        setSignalNames(mergedSignals);
-        setPortLabels(mergedPortLabels);
+            setSignalNames(mergedSignals);
+            setPortLabels(mergedPortLabels);
+        }, 500);
 
+        return () => clearTimeout(timeoutId);
     }, [projectDataCache]); // Removido o visibleProjectIds daqui, pois este cache agora é global
 
     // Centralizar em um node
@@ -4706,7 +4710,8 @@ const App = () => {
         <div className={`h-[100dvh] w-screen flex flex-row overflow-hidden ${isDarkMode ? 'dark bg-black text-white' : 'bg-white text-black'}`}>
             <InstallPwaPopup />
 
-            <ProjectManagerModal
+            <Suspense fallback={<LoadScreen />}>
+                <ProjectManagerModal
                 isOpen={isProjectManagerOpen}
                 myProjects={myProjects}
                 sharedProjects={sharedProjects}
@@ -4735,6 +4740,7 @@ const App = () => {
                 onClose={() => setIsProjectManagerOpen(false)}
                 isDarkMode={isDarkMode}
             />
+            </Suspense>
 
             {/* 1. ÁREA PRINCIPAL (MAPA OU CANVAS) - Ocupa toda a tela (z-0) */}
             <div className="flex-1 relative flex flex-col overflow-hidden">
@@ -4862,6 +4868,7 @@ const App = () => {
                     ) : (
                         /* --- MODO MAPA --- */
                         <div className={`w-full h-full relative overflow-hidden ${isDarkMode ? 'bg-slate-900' : 'bg-gray-200'}`}>
+                            <Suspense fallback={<div className="flex items-center justify-center w-full h-full"><LoadingFiber size={80} /></div>}>
                             <FiberMap
                                 items={visibleItems}
                                 allItems={items}
@@ -4901,6 +4908,7 @@ const App = () => {
                                 onLocationFound={(latlng) => setUserLocation({ lat: latlng.lat, lng: latlng.lng })}
 
                             />
+                            </Suspense>
                         </div>
                     )}
                 </div>
@@ -5065,29 +5073,32 @@ const App = () => {
                     />
                 )}
 
-                {/* 5. SETTINGS MODAL (Novo Centralizador) */}
-                <SettingsModal
-                    isOpen={isSettingsOpen}
-                    onClose={() => setIsSettingsOpen(false)}
-                    onExportKML={() => {
-                        setIsKMLExportModalOpen(true);
-                    }}
-                    onImportKML={() => {
-                        fileInputRef.current.click();
-                    }}
-                    onBackup={() => {
-                        setIsBackupModalOpen(true);
-                    }}
-                    onRestore={() => {
-                        backupInputRef.current.click();
-                    }}
-                    onOpenNodeColors={() => { setNodeColorsModalOpen(true); }}
-                    onOpenCableColors={() => { setStandardsModalOpen(true); }}
-                    onOpenReport={() => { setReportOpen(true); }}
-                    onManageProjects={() => { setIsProjectManagerOpen(true); }}
-                />
+                {/* 5. MODAIS (Suspense isolado para Settings) */}
+                <Suspense fallback={null}>
+                    <SettingsModal
+                        isOpen={isSettingsOpen}
+                        onClose={() => setIsSettingsOpen(false)}
+                        onExportKML={() => {
+                            setIsKMLExportModalOpen(true);
+                        }}
+                        onImportKML={() => {
+                            fileInputRef.current.click();
+                        }}
+                        onBackup={() => {
+                            setIsBackupModalOpen(true);
+                        }}
+                        onRestore={() => {
+                            backupInputRef.current.click();
+                        }}
+                        onOpenNodeColors={() => { setNodeColorsModalOpen(true); }}
+                        onOpenCableColors={() => { setStandardsModalOpen(true); }}
+                        onOpenReport={() => { setReportOpen(true); }}
+                        onManageProjects={() => { setIsProjectManagerOpen(true); }}
+                    />
+                </Suspense>
 
-                {/* Painel de Detalhes (Lógica existente) */}
+                {/* Painel de Detalhes (Suspense Isolado para não piscar ao carregar modais filhos) */}
+                <Suspense fallback={null}>
                 {detailId && (() => {
                     const detailedItem = items.find(i => i.id === detailId);
                     if (!detailedItem) return null;
@@ -5149,6 +5160,7 @@ const App = () => {
                         </div>
                     );
                 })()}
+                </Suspense>
 
                 {/* 6. MODAIS EXISTENTES E INPUTS INVISÍVEIS */}
 
@@ -5193,6 +5205,8 @@ const App = () => {
                     </div>
                 )}
 
+                {/* Modais Restantes (Suspense final) */}
+                <Suspense fallback={null}>
                 {/* Modais de Lógica */}
                 {modalConfig && <ItemModal mode="create" config={modalConfig} standards={cableColorStandards} nodeColorSettings={nodeColorSettings} favoriteColors={favoriteColors} onConfirm={handleModalSubmit} onCancel={() => { setModalConfig(null); cableStartNodeRef.current = null; setCableStartNode(null); }} />}
                 {editModalConfig && <ItemModal mode="edit" {...editModalConfig} standards={cableColorStandards} nodeColorSettings={nodeColorSettings} favoriteColors={favoriteColors} onCancel={() => setEditModalConfig(null)} />}
@@ -5319,6 +5333,7 @@ const App = () => {
                     <img src={VERSAO.LOGO_URL} alt="" className="w-3 h-3" />
                     <span>{VERSAO.NUMERO_VERSAO}</span>
                 </div> */}
+                </Suspense>
             </div>
         </div>
     );
