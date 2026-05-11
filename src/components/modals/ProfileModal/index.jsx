@@ -175,6 +175,7 @@ export const ProfileModal = ({ user, onClose, onUpdateName, onUpdatePassword, on
                                         <div className="relative flex-1">
                                             <input
                                                 type={showPassword ? "text" : "password"}
+                                                autoComplete="off"
                                                 // Adicionado pr-10 para o texto não ficar embaixo do ícone
                                                 className="w-full border dark:border-gray-600 rounded py-2 pl-2 pr-10 text-sm dark:bg-gray-700 dark:text-white"
                                                 value={newPassword}

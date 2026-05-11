@@ -293,6 +293,7 @@ const AuthScreen = ({ onLogin }) => {
                                     <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 dark:text-gray-400" size={18} />
                                     <input
                                         type="email"
+                                        autoComplete="email"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                         placeholder="Digite o seu e-mail"
@@ -318,6 +319,7 @@ const AuthScreen = ({ onLogin }) => {
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
                                             placeholder={isPasswordChangeMode ? "Digite a nova senha" : "Digite a sua senha"}
+                                            autoComplete={isPasswordChangeMode ? "new-password" : "current-password"}
                                             autoFocus={isPasswordChangeMode}
                                             className="w-full pl-10 pr-10 py-3 rounded-xl border bg-white/50 dark:bg-black/50 outline-none transition-all duration-500 text-[16px] border-white/60 dark:border-white/10 focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500"
                                             required
