@@ -474,6 +474,15 @@ const ItemModal = ({
                             />
                         </div>
                     )}
+
+                    {/* ── TAGS ── */}
+                    {/*<TagSelector
+                        availableTags={availableTags}
+                        selectedTagIds={selectedTags}
+                        onChange={setSelectedTags}
+                        onManageTags={onManageTags}
+                    />*/}
+
                 </div>
 
                 {/* Rodapé */}
