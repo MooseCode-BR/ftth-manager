@@ -135,21 +135,10 @@ const DetailPanel = ({
     // --- Helpers Internos ---
     const disconnect = (id) => onConfirmRequest("Remover Conexão", "Deseja realmente remover esta conexão?", () => deleteConnectionDB(id));
     const handleConnect = (tId, p, s) => { if (pendingConn) { if (pendingConn.id === tId && pendingConn.port === p && pendingConn.side === s) { setPendingConn(null); return; } if (findConnection(connections, pendingConn.id, pendingConn.port, pendingConn.side) || findConnection(connections, tId, p, s)) { onAlertRequest("Ocupada", "Porta já conectada."); return; } const sItem = items.find(i => i.id === pendingConn.id); const tItem = items.find(i => i.id === tId); const type = (sItem.parentId === item.id && tItem.parentId === item.id) ? 'PATCH' : 'FUSION'; saveConnection({ id: Date.now().toString(), type, fromId: pendingConn.id, fromPort: pendingConn.port, fromSide: pendingConn.side, toId: tId, toPort: p, toSide: s }); setPendingConn(null); } else { if (findConnection(connections, tId, p, s)) { onAlertRequest("Ocupada", "Porta já conectada."); return; } setPendingConn({ id: tId, port: p, side: s, name: items.find(i => i.id === tId).name }); } };
-    // Removemos o spread operator, enviando apenas o dado exato que foi alterado
-    const updatePortLabel = (k, c) => openRenameModal("Renomear Porta", c, (v) => updateLabelDB({ [k]: v }));
-
+    const updatePortLabel = (k, c) => openRenameModal("Renomear Porta", c, (v) => updateLabelDB({ ...portLabels, [k]: v }));
     const handleSignalEdit = (itemId, portIndex, side) => {
         const uniqueKey = `${itemId}-${portIndex}`; let upstreamSignals = [];
-        const item = items.find(i => i.id === itemId); if (item.type === 'SPLITTER' && portIndex !== 0 && portIndex !== '0') { upstreamSignals = getSignalInfo(items, connections, portLabels, signalNames, itemId, 0, 'A'); } else if (item.type === 'CABLE') { const conn = findConnection(connections, itemId, portIndex, side); if (conn) { const isT = conn.toId === itemId; upstreamSignals = getSignalInfo(items, connections, portLabels, signalNames, isT ? conn.fromId : conn.toId, isT ? conn.fromPort : conn.toPort, isT ? conn.fromSide : conn.toSide); } } else { const conn = findConnection(connections, itemId, portIndex, side); if (conn) { const isT = conn.toId === itemId; upstreamSignals = getSignalInfo(items, connections, portLabels, signalNames, isT ? conn.fromId : conn.toId, isT ? conn.fromPort : conn.toPort, isT ? conn.fromSide : conn.toSide); } } const currentConfig = signalNames[uniqueKey];
-
-        setSignalModalConfig({
-            portKey: uniqueKey,
-            initialConfig: currentConfig,
-            upstreamSignals: upstreamSignals,
-            // CORREÇÃO AQUI: Mandamos apenas a chave e a nova configuração
-            onSave: (newConfig) => updateSignalDB({ [uniqueKey]: newConfig }),
-            onClose: () => setSignalModalConfig(null)
-        });
+        const item = items.find(i => i.id === itemId); if (item.type === 'SPLITTER' && portIndex !== 0 && portIndex !== '0') { upstreamSignals = getSignalInfo(items, connections, portLabels, signalNames, itemId, 0, 'A'); } else if (item.type === 'CABLE') { const conn = findConnection(connections, itemId, portIndex, side); if (conn) { const isT = conn.toId === itemId; upstreamSignals = getSignalInfo(items, connections, portLabels, signalNames, isT ? conn.fromId : conn.toId, isT ? conn.fromPort : conn.toPort, isT ? conn.fromSide : conn.toSide); } } else { const conn = findConnection(connections, itemId, portIndex, side); if (conn) { const isT = conn.toId === itemId; upstreamSignals = getSignalInfo(items, connections, portLabels, signalNames, isT ? conn.fromId : conn.toId, isT ? conn.fromPort : conn.toPort, isT ? conn.fromSide : conn.toSide); } } const currentConfig = signalNames[uniqueKey]; setSignalModalConfig({ portKey: uniqueKey, initialConfig: currentConfig, upstreamSignals: upstreamSignals, onSave: (newConfig) => updateSignalDB({ ...signalNames, [uniqueKey]: newConfig }), onClose: () => setSignalModalConfig(null) });
     };
 
     // --- Função para renomear dispositivos internos ---

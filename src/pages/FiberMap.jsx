@@ -37,11 +37,7 @@ const MapStateController = () => {
             map.setBearing(globalSavedBearing);
 
             // Garantia extra: corrige problemas do mapa ficar cinzento se foi ocultado por CSS
-            setTimeout(() => {
-                try {
-                    if (map && map._container) map.invalidateSize();
-                } catch (e) {}
-            }, 100);
+            setTimeout(() => map.invalidateSize(), 100);
         }
     }, [map]);
 
@@ -70,25 +66,18 @@ const MapSizeObserver = () => {
     const map = useMap();
 
     useEffect(() => {
-        let frameId;
         // Observa mudanças REAIS de largura/altura na div HTML
         const resizeObserver = new ResizeObserver(() => {
-            if (frameId) cancelAnimationFrame(frameId);
             // O requestAnimationFrame espera o CSS terminar de empurrar a tela
-            frameId = requestAnimationFrame(() => {
-                try {
-                    if (map && map._container) map.invalidateSize();
-                } catch (e) {}
+            requestAnimationFrame(() => {
+                map.invalidateSize();
             });
         });
 
         // Gruda o olheiro no contêiner raiz do Leaflet
         resizeObserver.observe(map.getContainer());
 
-        return () => {
-            resizeObserver.disconnect();
-            if (frameId) cancelAnimationFrame(frameId);
-        };
+        return () => resizeObserver.disconnect();
     }, [map]);
 
     return null;
@@ -1449,19 +1438,8 @@ const FiberMap = ({
                 <RotationHandler />
 
                 {mapCables.map(cable => {
-                    // 1. Tenta pegar o nó real (se o projeto dele estiver visível)
-                    let posA = getNodePosition(cable.fromNode);
-                    let posB = getNodePosition(cable.toNode);
-
-                    // 2. Fallback: Se o nó está invisível, usa as âncoras salvas no cabo (Ponta Solta)
-                    if (!posA && cable.startCoords && cable.startCoords.lat !== undefined) {
-                        posA = [cable.startCoords.lat, cable.startCoords.lng];
-                    }
-                    if (!posB && cable.endCoords && cable.endCoords.lat !== undefined) {
-                        posB = [cable.endCoords.lat, cable.endCoords.lng];
-                    }
-
-                    // 3. Renderiza apenas se tivermos as coordenadas para traçar a linha
+                    const posA = getNodePosition(cable.fromNode);
+                    const posB = getNodePosition(cable.toNode);
                     if (posA && posB) {
                         return (
                             <EditableCable
@@ -1476,6 +1454,7 @@ const FiberMap = ({
                                 onDelete={() => onDelete(cable.id)}
                                 onOpen={() => onOpen(cable.id)}
                                 onSplit={onSplit}
+                            // onReconnect={onReconnect}
                             />
                         );
                     }

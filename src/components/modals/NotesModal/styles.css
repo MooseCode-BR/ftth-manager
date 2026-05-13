@@ -12,7 +12,7 @@
     @apply p-4 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50 rounded-t-lg;
 }
 
-.notes-overlay .header-title {
+.header-title {
     @apply font-bold text-lg text-gray-800 dark:text-white flex items-center gap-2;
 }
 
@@ -25,7 +25,7 @@
     @apply p-4 flex-1 flex flex-col;
 }
 
-.notes-overlay .input-label {
+.input-label {
     @apply block text-xs font-bold text-gray-500 uppercase mb-2;
 }
 
