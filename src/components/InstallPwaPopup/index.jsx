@@ -63,9 +63,9 @@ const InstallPwaPopup = () => {
                 <img src="/pwa-192x192.png" alt="FTTH Manager Logo" className="pwa-logo" />
 
                 <div className="pwa-title-container">
-                    <h3 className="pwa-title">FTTH Manager</h3>
+                    <h3 className="pwa-title">FTTH Manager Cloud</h3>
                     <p className="pwa-description">
-                        Instale nosso aplicativo para uma experiência mais rápida e acesso offline.
+                        Instale nosso app para melhor experiência!
                     </p>
                 </div>
             </div>

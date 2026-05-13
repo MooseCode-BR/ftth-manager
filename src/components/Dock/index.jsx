@@ -1,7 +1,5 @@
-// Dock uai
-
 import './styles.css';
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
     MousePointer2, BoxSelect,
     PackagePlus, Network, Filter, Ruler, FolderOpen, FolderClosed,
@@ -10,9 +8,9 @@ import {
     Route,
     MapPin
 } from 'lucide-react';
-import { CEOIcon, CTOIcon, PostIcon } from '../icons'; //Importação de Ícones
+import { CEOIcon, CTOIcon, PostIcon } from '../icons';
 
-// Botão Genérico do Dock (Compacto)
+// --- Sub-componente: Botão Genérico do Dock ---
 const DockBtn = ({ icon: Icon, hoverIcon: HoverIcon, label, isActive, onClick, onMouseEnter, onMouseLeave, colorClass = "dock-icon-default" }) => {
     const [isHovered, setIsHovered] = useState(false);
     const DisplayIcon = (isHovered && HoverIcon) ? HoverIcon : Icon;
@@ -28,22 +26,24 @@ const DockBtn = ({ icon: Icon, hoverIcon: HoverIcon, label, isActive, onClick, o
                 setIsHovered(false);
                 if (onMouseLeave) onMouseLeave(e);
             }}
+            // [MELHORIA] Uso de aria-attributes para acessibilidade
+            aria-pressed={isActive}
+            aria-label={label}
             className={`dock-btn ${isActive ? 'dock-btn-active' : 'dock-btn-idle'}`}
-            title={label}
         >
             <DisplayIcon size={20} className={isActive ? "dock-icon-active" : (colorClass || "dock-icon-default")} />
 
-            <span className="dock-tooltip">
+            {/* Tooltip escondido para leitores de tela, visível via CSS */}
+            <span className="dock-tooltip" aria-hidden="true">
                 {label}
             </span>
         </button>
     );
 };
 
-const Divider = () => (
-    <div className="dock-divider"></div>
-);
+const Divider = () => <div className="dock-divider" aria-hidden="true"></div>;
 
+// --- Componente Principal: Dock ---
 const Dock = ({
     activeTool, setActiveTool,
     viewMode, setViewMode,
@@ -54,19 +54,23 @@ const Dock = ({
     onManageProjects
 }) => {
     const [activeCategory, setActiveCategory] = useState(null);
+    const dockRef = useRef(null);
 
-    const categories = [
+    // [MELHORIA] Memoização do array. O React agora só recria essas regras se viewMode mudar.
+    const categories = useMemo(() => [
         {
             id: 'select',
             defaultIcon: MousePointer2,
             label: 'Seleção',
             items: [
                 { id: 'SELECT', icon: MousePointer2, label: 'Ponteiro', action: () => setActiveTool('SELECT') },
-                ...(viewMode === 'CANVAS' ? [{ id: 'RULER', icon: BoxSelect, label: 'Área', action: () => setActiveTool('RULER') }] : [{ id: 'MEASURE', icon: Ruler, label: 'Régua', action: () => setActiveTool('MEASURE') }])
+                ...(viewMode === 'CANVAS'
+                    ? [{ id: 'RULER', icon: BoxSelect, label: 'Área', action: () => setActiveTool('RULER') }]
+                    : [{ id: 'MEASURE', icon: Ruler, label: 'Régua', action: () => setActiveTool('MEASURE') }])
             ]
         },
         {
-            id: 'add', //draw
+            id: 'add',
             defaultIcon: PackagePlus,
             label: 'Adicionar',
             items: [
@@ -79,34 +83,39 @@ const Dock = ({
                 { id: 'ADD_OBJECT', icon: MapPin, label: 'Objeto', action: () => setActiveTool('ADD_OBJECT') },
             ]
         }
-    ];
+    ], [viewMode, setActiveTool]);
 
-    // 2. Função auxiliar para descobrir qual ícone mostrar no botão da categoria
-    const getCategoryIcon = (category) => {
-        // Busca se algum item desta categoria é a ferramenta ativa no momento
-        const activeItem = category.items.find(item => item.id === activeTool);
-
-        // Se achou o item ativo, retorna o ícone dele. Se não, retorna o ícone padrão.
-        return activeItem ? activeItem.icon : category.defaultIcon;
-    };
+    // [MELHORIA] Lógica mobile: Fechar submenu ao clicar fora do Dock
+    useEffect(() => {
+        if (!activeCategory) return;
+        const handleClickOutside = (e) => {
+            if (dockRef.current && !dockRef.current.contains(e.target)) {
+                setActiveCategory(null);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('touchstart', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('touchstart', handleClickOutside);
+        };
+    }, [activeCategory]);
 
     return (
         <div
+            ref={dockRef}
             className="dock-wrapper"
             onMouseLeave={() => setActiveCategory(null)}
         >
-
-            {/* --- EXTENSÃO DO DOCK (SUB-MENU) --- */}
+            {/* --- SUB-MENU --- */}
             {activeCategory && (
-                <div className="dock-submenu-container">
+                <div className="dock-submenu-container" role="menu">
                     {categories.find(c => c.id === activeCategory)?.items.map(item => (
                         <button
                             key={item.id}
-                            onClick={() => { item.action(); setActiveCategory(null) }}
-                            className={`dock-submenu-item ${activeTool === item.id
-                                ? 'submenu-item-active'
-                                : 'submenu-item-idle'
-                                }`}
+                            role="menuitem"
+                            onClick={() => { item.action(); setActiveCategory(null); }}
+                            className={`dock-submenu-item ${activeTool === item.id ? 'submenu-item-active' : 'submenu-item-idle'}`}
                         >
                             <item.icon size={14} />
                             {item.label}
@@ -116,8 +125,9 @@ const Dock = ({
             )}
 
             {/* --- DOCK PRINCIPAL --- */}
-            <div className="dock-main-bar">
-                {/* 5.5 Gerenciador de Projetos (APENAS MOBILE E TABLET ATÉ 1100px) */}
+            <div className="dock-main-bar" role="toolbar" aria-label="Ferramentas principais">
+
+                {/* Projetos (MOBILE/TABLET) */}
                 <div className="lg:hidden contents">
                     <DockBtn
                         icon={FolderClosed}
@@ -128,58 +138,55 @@ const Dock = ({
                     />
                 </div>
 
-                {/* 1. Categorias Expansíveis (ATÉ 1100px) vs Itens Individuais (DESKTOP LARGO) */}
-                {categories.map((cat, catIdx) => (
-                    <React.Fragment key={cat.id}>
-                        {/* Compacto: Botão da Categoria (Some a partir de 1100px) */}
-                        <div className="min-[1100px]:hidden contents">
-                            {(() => {
-                                const activeItem = cat.items.find(item => item.id === activeTool);
-                                const currentIcon = activeItem ? activeItem.icon : cat.defaultIcon;
-                                const currentColor = activeItem ? "text-blue-600 dark:text-blue-500" : undefined;
-                                return (
-                                    <DockBtn
-                                        icon={currentIcon}
-                                        label={cat.label}
-                                        isActive={activeCategory === cat.id}
-                                        onClick={() => setActiveCategory(activeCategory === cat.id ? null : cat.id)}
-                                        onMouseEnter={() => setActiveCategory(cat.id)}
-                                        colorClass={currentColor}
-                                    />
-                                );
-                            })()}
-                        </div>
+                {/* Categorias e Ferramentas */}
+                {categories.map((cat, catIdx) => {
+                    // [MELHORIA] Toda a lógica de extração de ícone e cor feita fora da árvore JSX
+                    const activeItem = cat.items.find(item => item.id === activeTool);
+                    const currentIcon = activeItem ? activeItem.icon : cat.defaultIcon;
+                    const currentColor = activeItem ? "text-blue-600 dark:text-blue-500" : undefined;
+                    const isCatActive = activeCategory === cat.id;
 
-                        {/* Expandido: Todos os itens da Categoria diretamente (Aparece a partir de 1100px) */}
-                        <div className="hidden min-[1100px]:flex items-center gap-2">
-                            {cat.items.map(item => (
+                    return (
+                        <React.Fragment key={cat.id}>
+                            {/* Compacto (< 1100px) */}
+                            <div className="min-[1100px]:hidden contents">
                                 <DockBtn
-                                    key={item.id}
-                                    icon={item.icon}
-                                    label={item.label}
-                                    isActive={activeTool === item.id}
-                                    onClick={() => { item.action(); setActiveCategory(null); }}
-                                    colorClass={activeTool === item.id ? "text-blue-600 dark:text-blue-400" : undefined}
+                                    icon={currentIcon}
+                                    label={cat.label}
+                                    isActive={isCatActive}
+                                    onClick={() => setActiveCategory(isCatActive ? null : cat.id)}
+                                    onMouseEnter={() => setActiveCategory(cat.id)}
+                                    colorClass={currentColor}
                                 />
-                            ))}
-                        </div>
+                            </div>
 
-                        {/* Divisor entre categorias no formato Expandido */}
-                        {catIdx < categories.length - 1 && <div className="hidden min-[1100px]:block"><Divider /></div>}
-                    </React.Fragment>
-                ))}
+                            {/* Expandido (>= 1100px) */}
+                            <div className="hidden min-[1100px]:flex items-center gap-2">
+                                {cat.items.map(item => (
+                                    <DockBtn
+                                        key={item.id}
+                                        icon={item.icon}
+                                        label={item.label}
+                                        isActive={activeTool === item.id}
+                                        onClick={() => { item.action(); setActiveCategory(null); }}
+                                        colorClass={activeTool === item.id ? "text-blue-600 dark:text-blue-400" : undefined}
+                                    />
+                                ))}
+                            </div>
+
+                            {/* Divisor */}
+                            {catIdx < categories.length - 1 && (
+                                <div className="hidden min-[1100px]:block">
+                                    <Divider />
+                                </div>
+                            )}
+                        </React.Fragment>
+                    );
+                })}
 
                 <Divider />
 
-                {/* 3. Filtro */}
-                {/* <DockBtn
-                    icon={Filter}
-                    label="Filtros"
-                    isActive={false}
-                    onClick={() => { toggleFilterPanel(); setActiveCategory(null) }}
-                /> */}
-
-                {/* 4. Alternar Visualização */}
+                {/* Alternar Visualização */}
                 <DockBtn
                     icon={viewMode === 'MAP' ? Network : MapIcon}
                     label={viewMode === 'MAP' ? "Topologia" : "Mapa"}
@@ -187,7 +194,7 @@ const Dock = ({
                     onClick={() => setViewMode(prev => prev === 'MAP' ? 'CANVAS' : 'MAP')}
                 />
 
-                {/* 5. Tema */}
+                {/* Tema */}
                 <DockBtn
                     icon={isDarkMode ? Sun : Moon}
                     label="Tema"
@@ -198,7 +205,7 @@ const Dock = ({
 
                 <Divider />
 
-                {/* 6. Configurações */}
+                {/* Configurações */}
                 <DockBtn
                     icon={Settings}
                     label="Configurações"
