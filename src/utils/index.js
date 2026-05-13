@@ -123,6 +123,8 @@ export const getSignalInfo = (items, connections, portLabels, signalConfigs, ite
 };
 //==================================================//
 
+
+
 // Cálculo de potencia ============================//
 export const calculatePower = (items, connections, itemId, portId, side = 'A', visited = new Set()) => {
     const key = `${itemId}-${portId}-${side}`;
@@ -369,22 +371,13 @@ export const downloadKML = async (selectedProjects, data, signalConfigs) => {
                 projectConnections = connSnap.docs.map(d => ({ id: d.id, ...d.data(), _projectId: project.id, _ownerId: project.ownerId }));
             }
 
-            // Combina os itens e conexões globais (em memória) com os deste projeto
-            const globalItemsMap = new Map(items.map(i => [i.id, i]));
-            projectItems.forEach(i => globalItemsMap.set(i.id, i));
-            const allItemsForExport = Array.from(globalItemsMap.values());
-
-            const globalConnMap = new Map(connections.map(c => [c.id, c]));
-            projectConnections.forEach(c => globalConnMap.set(c.id, c));
-            const allConnsForExport = Array.from(globalConnMap.values());
-
             // Sempre busca os sinais do próprio projeto no Firestore para garantir que as
-            // configurações de sinal reflitam este projeto, mas mantendo as globais (para cross-project)
-            let projectSignalConfigs = { ...(signalConfigs || {}) };
+            // configurações de sinal reflitam este projeto, independente do que está no state global
+            let projectSignalConfigs = signalConfigs || {};
             try {
                 const signalsDoc = await getDoc(doc(db, `${projectPath}/settings`, 'signals'));
                 if (signalsDoc.exists()) {
-                    projectSignalConfigs = { ...projectSignalConfigs, ...signalsDoc.data() };
+                    projectSignalConfigs = signalsDoc.data();
                 }
             } catch (e) {
                 console.warn(`Não foi possível buscar sinais do projeto ${project.name}. Usando estado global.`, e);
@@ -401,36 +394,21 @@ export const downloadKML = async (selectedProjects, data, signalConfigs) => {
         <name>${project.name}</name>
         <description>Exportado do FTTH Manager Cloud</description>`;
 
-            // --- MAPEAMENTO DE ÍCONES KML ---
-            const getKmlIcon = (type) => {
-                switch (type) {
-                    case 'CTO': return 'http://maps.google.com/mapfiles/kml/shapes/donut.png';
-                    case 'CEO': return 'http://maps.google.com/mapfiles/kml/shapes/triangle.png';
-                    case 'POP': return 'http://maps.google.com/mapfiles/kml/shapes/target.png';
-                    case 'TOWER': return 'http://maps.google.com/mapfiles/kml/paddle/wht-diamond.png';
-                    case 'POST': return 'http://maps.google.com/mapfiles/kml/shapes/placemark_square.png';
-                    case 'CLIENT':
-                    case 'OBJECT':
-                    default: return 'http://maps.google.com/mapfiles/kml/pushpin/wht-pushpin.png';
-                }
-            };
-
             // --- PONTOS (Caixas / Clientes) ---
             nodes.forEach(node => {
                 if (node.lat && node.lng) {
                     const color = hexToKmlColor(node.color || '#ffffff');
-                    const iconUrl = getKmlIcon(node.type);
-                    const description = generateNodeDescription(node, allItemsForExport, allConnsForExport, projectSignalConfigs);
+                    const description = generateNodeDescription(node, projectItems, projectConnections, projectSignalConfigs);
                     kmlContent += `
-        <Placemark id="${node.id}">
-            <name>${node.name || ''}</name>
+        <Placemark>
+            <name>${node.name || 'Sem Nome'}</name>
             <description>${description}</description>
             <Style>
                 <IconStyle>
                     <color>${color}</color>
                     <scale>1.1</scale>
                     <Icon>
-                        <href>${iconUrl}</href>
+                        <href>http://maps.google.com/mapfiles/kml/pushpin/wht-pushpin.png</href>
                     </Icon>
                 </IconStyle>
                 <LabelStyle>
@@ -446,24 +424,12 @@ export const downloadKML = async (selectedProjects, data, signalConfigs) => {
 
             // --- LINHAS (Cabos) ---
             cables.forEach(cable => {
-                // 1. Tenta achar o nó real na lista de exportação (incluindo outros projetos se necessário para a posição)
-                let nodeA = allItemsForExport.find(n => n.id === cable.fromNode);
-                let nodeB = allItemsForExport.find(n => n.id === cable.toNode);
+                const nodeA = nodes.find(n => n.id === cable.fromNode);
+                const nodeB = nodes.find(n => n.id === cable.toNode);
 
-                // 2. Fallback da Ponta Solta: Se o nó de fato não for encontrado, 
-                // construímos um "nó fantasma" usando as coordenadas salvas no próprio cabo.
-                if (!nodeA && cable.startCoords) {
-                    nodeA = { lat: cable.startCoords.lat, lng: cable.startCoords.lng };
-                }
-                if (!nodeB && cable.endCoords) {
-                    nodeB = { lat: cable.endCoords.lat, lng: cable.endCoords.lng };
-                }
-
-                // 3. Se temos as latitudes de ambas as pontas, podemos gerar o traço no KML!
-                // Mudamos a validação para !== undefined pois a coordenada pode ser 0
-                if (nodeA && nodeB && nodeA.lat !== undefined && nodeB.lat !== undefined) {
+                if (nodeA && nodeB && nodeA.lat && nodeB.lat) {
                     const strokeColor = hexToKmlColor(cable.color || '#000000');
-                    const description = generateCableDescription(cable, allItemsForExport, allConnsForExport, projectSignalConfigs);
+                    const description = generateCableDescription(cable, projectItems, projectConnections, projectSignalConfigs);
 
                     let coordsString = `${nodeA.lng},${nodeA.lat},0`;
                     if (cable.waypoints && cable.waypoints.length > 0) {
@@ -471,12 +437,9 @@ export const downloadKML = async (selectedProjects, data, signalConfigs) => {
                     }
                     coordsString += ` ${nodeB.lng},${nodeB.lat},0`;
 
-                    // Adiciona um espaço ao final e usa CDATA para contornar bug do Google Earth
-                    const safeName = (cable.name || 'Cabo') + ' ';
-
                     kmlContent += `
-        <Placemark id="${cable.id}">
-            <name><![CDATA[${safeName}]]></name>
+        <Placemark>
+            <name>${cable.name || 'Cabo'}</name>
             <description>${description}</description>
             <Style>
                 <LineStyle>
@@ -557,14 +520,8 @@ export const parseKMLImport = (kmlText) => {
         if (id) {
             const lineStyle = style.getElementsByTagName("LineStyle")[0];
             const lineColor = lineStyle?.getElementsByTagName("color")[0]?.textContent;
-            
-            const iconStyle = style.getElementsByTagName("IconStyle")[0];
-            const iconColor = iconStyle?.getElementsByTagName("color")[0]?.textContent;
-
             if (lineColor) {
                 styleMap[`#${id}`] = kmlColorToHex(lineColor.trim());
-            } else if (iconColor) {
-                styleMap[`#${id}`] = kmlColorToHex(iconColor.trim());
             }
         }
     }
@@ -611,12 +568,8 @@ export const parseKMLImport = (kmlText) => {
         const inlineStyle = p.getElementsByTagName("Style")[0];
         if (inlineStyle) {
             const inlineLineColor = inlineStyle.getElementsByTagName("LineStyle")[0]?.getElementsByTagName("color")[0]?.textContent;
-            const inlineIconColor = inlineStyle.getElementsByTagName("IconStyle")[0]?.getElementsByTagName("color")[0]?.textContent;
-            
             if (inlineLineColor) {
                 itemColor = kmlColorToHex(inlineLineColor);
-            } else if (inlineIconColor) {
-                itemColor = kmlColorToHex(inlineIconColor);
             }
         }
 
@@ -694,7 +647,6 @@ export const parseKMLImport = (kmlText) => {
             lng: pt.lng,
             ports: 0,
             parentId: null,
-            color: pt.color, // <-- Passando a cor extraída do KML para o objeto final
             notes: pt.notes
         };
         createdNodes.push(newNode);

@@ -1438,19 +1438,8 @@ const FiberMap = ({
                 <RotationHandler />
 
                 {mapCables.map(cable => {
-                    // 1. Tenta pegar o nó real (se o projeto dele estiver visível)
-                    let posA = getNodePosition(cable.fromNode);
-                    let posB = getNodePosition(cable.toNode);
-
-                    // 2. Fallback: Se o nó está invisível, usa as âncoras salvas no cabo (Ponta Solta)
-                    if (!posA && cable.startCoords && cable.startCoords.lat !== undefined) {
-                        posA = [cable.startCoords.lat, cable.startCoords.lng];
-                    }
-                    if (!posB && cable.endCoords && cable.endCoords.lat !== undefined) {
-                        posB = [cable.endCoords.lat, cable.endCoords.lng];
-                    }
-
-                    // 3. Renderiza apenas se tivermos as coordenadas para traçar a linha
+                    const posA = getNodePosition(cable.fromNode);
+                    const posB = getNodePosition(cable.toNode);
                     if (posA && posB) {
                         return (
                             <EditableCable
@@ -1465,6 +1454,7 @@ const FiberMap = ({
                                 onDelete={() => onDelete(cable.id)}
                                 onOpen={() => onOpen(cable.id)}
                                 onSplit={onSplit}
+                            // onReconnect={onReconnect}
                             />
                         );
                     }

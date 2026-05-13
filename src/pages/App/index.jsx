@@ -540,9 +540,6 @@ const App = () => {
 
     const [myProjects, setMyProjects] = useState([]);      // Projetos que EU criei
 
-    // Estado para gerenciar a criação de cabos que cruzam dois projetos diferentes
-    const [crossProjectCableData, setCrossProjectCableData] = useState(null);
-
     // O activeProjectId continua sendo o ID do projeto selecionado
     const [activeProjectId, setActiveProjectId] = useState(null);  // O projeto "Caneta"
     const [visibleProjectIds, setVisibleProjectIds] = useState([]); // Os projetos "Olho"
@@ -769,10 +766,9 @@ const App = () => {
         };
     }, [user]); // Depende apenas do usuário logado
 
-    // Carrega DADOS (Itens, Conexões e SETTINGS) - AGORA 100% GLOBAL
+    // Carrega DADOS (Itens, Conexões e SETTINGS)
     useEffect(() => {
-        // Se deslogado, limpa o cache
-        if (!user) {
+        if (!user || visibleProjectIds.length === 0) {
             setProjectDataCache({});
             return;
         }
@@ -780,13 +776,14 @@ const App = () => {
         const unsubscribers = [];
         const allAvailableProjects = [...myProjects, ...sharedProjects];
 
+        // A. Carregar dados ESPECÍFICOS DE CADA PROJETO (Itens, Conexões, Sinais, Labels)
         // Campos permitidos para projetos com permissão READ_ONLY_GEOMETRY
         const GEOMETRY_ONLY_FIELDS = ['id', 'color', 'lat', 'lng', 'name', 'lastEditor', 'type', 'fromNode', 'toNode', 'waypoints', 'parentId', 'fiberCount'];
 
-        // A. Carregar dados de TODOS OS PROJETOS (Independente do olhinho estar ativo)
-        // Isso garante que os nós e conexões invisíveis existam na memória para o sinal passar
-        allAvailableProjects.forEach(projMeta => {
-            const pid = projMeta.id;
+        visibleProjectIds.forEach(pid => {
+            const projMeta = allAvailableProjects.find(p => p.id === pid);
+            if (!projMeta) return;
+
             const targetOwnerId = projMeta.ownerId;
             const basePath = `artifacts/ftth-production/users/${targetOwnerId}/projects/${pid}`;
             const isRestricted = projMeta.permission === 'READ_ONLY_GEOMETRY';
@@ -799,10 +796,10 @@ const App = () => {
                         _projectId: pid
                     }));
 
-                    // DATA SCRUBBING: Limpeza para visitantes restritos
+                    // DATA SCRUBBING: Para projetos restritos, mostra APENAS CTOs com campos de geometria
                     if (isRestricted && cacheKey === 'items') {
                         dataList = dataList
-                            .filter(item => item.type === 'CTO')
+                            .filter(item => item.type === 'CTO') // SOMENTE CTOs
                             .map(item => {
                                 const filtered = { _projectId: pid, _readOnly: true };
                                 GEOMETRY_ONLY_FIELDS.forEach(field => {
@@ -814,11 +811,12 @@ const App = () => {
                             });
                     }
 
+                    // Para projetos restritos, conexões não devem ser carregadas (filtradas abaixo)
+                    // Mas caso passem, marca como somente leitura
                     if (isRestricted && cacheKey === 'connections') {
-                        dataList = [];
+                        dataList = []; // Não carregar conexões para projetos restritos
                     }
 
-                    // Grava no cache
                     setProjectDataCache(prev => ({
                         ...prev,
                         [pid]: { ...prev[pid], [cacheKey]: dataList }
@@ -826,19 +824,20 @@ const App = () => {
                 });
             };
 
-            // Inicia os listeners
             unsubscribers.push(createListener('items', 'items'));
+            // Para projetos restritos, NÃO carregamos conexões nem settings
             if (!isRestricted) {
                 unsubscribers.push(createListener('connections', 'connections'));
+            }
+            if (!isRestricted) {
                 unsubscribers.push(createListener('settings', 'settings'));
             }
         });
 
-        // Limpeza dos listeners ao desmontar ou alterar a quantidade de projetos
         return () => {
             unsubscribers.forEach(u => u());
         };
-    }, [user, myProjects.length, sharedProjects.length]); // <-- CORREÇÃO: Removemos o visibleProjectIds daqui. O banco não desliga ao ocultar.
+    }, [user, JSON.stringify(visibleProjectIds), myProjects.length, sharedProjects.length]);
 
     // Carrega CONFIGURAÇÕES GLOBAIS DO USUÁRIO (Cores, Padrões)
     // IMPORTANTE: Depende de `user` (não de `projectOwnerId`) pois essas configurações
@@ -885,33 +884,25 @@ const App = () => {
 
     }, [user]); // Depende do usuário logado — recarrega ao logar/deslogar
 
-    // 3. Unifica e Processa o Cache (Separação Lógica vs Física)
+    // 3. Unifica e Processa o Cache (Apenas Itens, Conexões e Configs Locais)
     useEffect(() => {
-        const allData = Object.values(projectDataCache);
+        const visibleData = Object.entries(projectDataCache)
+            .filter(([projectId]) => visibleProjectIds.includes(projectId))
+            .map(([, data]) => data);
 
-        // --- ITENS (AGORA GLOBAL) ---
-        // Todos os itens baixados ficam na memória para garantir o rastreio do sinal (Topologia Lógica).
-        // Ocultar no mapa será responsabilidade exclusiva da variável 'visibleItems'.
-        const allItemsRaw = allData.flatMap(p => p?.items || []);
-        const uniqueItemsMap = new Map();
-        allItemsRaw.forEach(item => uniqueItemsMap.set(item.id, item));
-        const allItems = Array.from(uniqueItemsMap.values());
-
-        // --- CONEXÕES (GLOBAL) ---
-        const allConnsRaw = allData.flatMap(p => p?.connections || []);
-        const uniqueConnsMap = new Map();
-        allConnsRaw.forEach(conn => uniqueConnsMap.set(conn.id, conn));
-        const allConns = Array.from(uniqueConnsMap.values());
+        // 1. Itens e Conexões
+        const allItems = visibleData.flatMap(p => p?.items || []);
+        const allConns = visibleData.flatMap(p => p?.connections || []);
 
         setItems(allItems);
         setConnections(allConns);
 
-        // --- CONFIGURAÇÕES LÓGICAS (SINAIS E ETIQUETAS) ---
+        // 2. Processar Settings LOCAIS (Sinais, PortLabels)
         let mergedSignals = {};
         let mergedPortLabels = {};
 
-        allData.forEach(projectData => {
-            if (projectData && projectData.settings && Array.isArray(projectData.settings)) {
+        visibleData.forEach(projectData => {
+            if (projectData.settings) {
                 projectData.settings.forEach(doc => {
                     if (doc.id === 'signals') {
                         const { id, _migrated, _projectId, ...signals } = doc;
@@ -928,7 +919,10 @@ const App = () => {
         setSignalNames(mergedSignals);
         setPortLabels(mergedPortLabels);
 
-    }, [projectDataCache]); // Removido o visibleProjectIds daqui, pois este cache agora é global
+
+        setLoading(false);
+
+    }, [projectDataCache, visibleProjectIds]);
 
     // Centralizar em um node
     useEffect(() => {
@@ -1027,7 +1021,7 @@ const App = () => {
 
                 // Usamos 'for...of' porque ele permite usar 'break' para PARAR o loop
                 // O .filter() original era obrigado a ler a lista inteira até o fim
-                for (const item of visibleItems) {
+                for (const item of items) {
                     // Se já achamos 50 itens, PARA DE PROCURAR IMEDIATAMENTE.
                     // Isso evita travar o navegador processando milhares de itens.
                     if (results.length >= MAX_RESULTS) break;
@@ -1125,20 +1119,22 @@ const App = () => {
     // COMPONENTES -----------
 
     /**
-         * Derivação dos itens visíveis no mapa e canvas.
-         * Filtra a base global de itens ocultando aqueles cujos projetos estão desligados.
-         */
+     * Derivação dos itens visíveis no mapa.
+     * Atualmente atua como um "pass-through" (passa tudo direto), 
+     * mas está estruturado para receber novos filtros de texto ou status sem quebrar o JSX.
+     */
     const visibleItems = useMemo(() => {
+        // Garantia de segurança: se a base não existir, retornamos um array vazio para não quebrar o map/filter
         if (!items || !Array.isArray(items)) return [];
 
         return items.filter(item => {
-            // Se o item tem projeto e esse projeto NÃO está na lista de visíveis, esconde do mapa.
-            if (item._projectId && !visibleProjectIds.includes(item._projectId)) {
-                return false;
-            }
+            // 1. Defina aqui filtros futuros (ex: busca de nome)
+            // const matchesSearch = item.nome ? item.nome.toLowerCase().includes(busca.toLowerCase()) : true;
+
+            // 2. Retornamos a condição. Como não há filtros ativos por enquanto, retornamos true.
             return true;
         });
-    }, [items, visibleProjectIds]);
+    }, [items]); // A matriz de dependência garante que só recalcula se 'items' mudar
 
     /**
      * Derivação das conexões visíveis no mapa.
@@ -1170,8 +1166,7 @@ const App = () => {
     // Isso evita rodar um .filter() dentro de cada cabo no render (O(N^2) -> O(N))
     const cableGroups = useMemo(() => {
         const groups = {};
-        // Usamos visibleItems em vez de items para não agrupar cabos de projetos ocultos
-        visibleItems.filter(i => i.type === 'CABLE').forEach(c => {
+        items.filter(i => i.type === 'CABLE').forEach(c => {
             // Cria uma chave única baseada nos IDs dos nós (ordem alfabética para ser agnóstico de direção)
             const [n1, n2] = [c.fromNode, c.toNode].sort();
             const key = `${n1}-${n2}`;
@@ -1181,8 +1176,7 @@ const App = () => {
         // Ordena para manter consistência visual (quem fica em cima/baixo)
         Object.values(groups).forEach(g => g.sort((a, b) => a.id.localeCompare(b.id)));
         return groups;
-    }, [visibleItems]);
-
+    }, [items]);
     // Lida com a seleção do arquivo de restauração de BackUp   
     const handleRestore = async (event) => {
         const file = event.target.files[0];
@@ -1364,38 +1358,20 @@ const App = () => {
             });
         }
         else if (modalConfig.mode === 'CABLE') {
-            const fromNode = items.find(i => i.id === modalConfig.fromNode.id) || modalConfig.fromNode;
-            const toNode = items.find(i => i.id === modalConfig.toNode.id) || modalConfig.toNode;
-
-            // Identifica o projeto de cada nó (usa o activeProject como fallback seguro)
-            const projA = fromNode._projectId || activeProjectId;
-            const projB = toNode._projectId || activeProjectId;
-
-            // Estrutura base do cabo COM as coordenadas de âncora (para as pontas soltas!)
-            const baseCable = {
+            // Tenta descobrir o projeto baseado no nó de origem (fromNode)
+            // Se o nó de origem tiver _projectId (veio do cache), usamos ele.
+            let cableProjectId = modalConfig.fromNode._projectId || activeProjectId;
+            // Cabos não têm lat/lng próprio (dependem dos nós), então segue normal
+            saveItem({
                 id,
                 type: 'CABLE',
                 name: data.name,
                 ports: parseInt(data.ports),
                 color: data.cableColor || '#334155',
-                fromNode: fromNode.id,
-                toNode: toNode.id,
-                startCoords: { lat: fromNode.lat, lng: fromNode.lng, x: fromNode.x, y: fromNode.y },
-                endCoords: { lat: toNode.lat, lng: toNode.lng, x: toNode.x, y: toNode.y }
-            };
-
-            // Regra 1: Se ambos são do mesmo projeto, herda o projeto e salva direto
-            if (projA === projB) {
-                saveItem({ ...baseCable, _projectId: projA });
-            }
-            // Regra 2: Conectando dois projetos diferentes! Abre o modal de decisão.
-            else {
-                setCrossProjectCableData({
-                    cable: baseCable,
-                    projA: projA,
-                    projB: projB
-                });
-            }
+                fromNode: modalConfig.fromNode.id,
+                toNode: modalConfig.toNode.id,
+                _projectId: cableProjectId // <--- FORÇA O PROJETO DO NÓ DE ORIGEM
+            });
         }
         else if (modalConfig.mode === 'INTERNAL_DEVICE') {
             // Equipamentos internos (OLT/DIO) não precisam de Lat/Lng pois herdam do Pai (POP/Caixa)
@@ -1574,52 +1550,6 @@ const App = () => {
         // 4. SALVAR NO CAMINHO CERTO
         const itemRef = doc(db, `artifacts/ftth-production/users/${targetOwnerId}/projects/${finalProjectId}/items`, item.id);
         await setDoc(itemRef, payload);
-
-        // --- 5. ATUALIZAÇÃO AUTOMÁTICA DE ÂNCORAS DOS CABOS ---
-        // Sempre que um NÓ FÍSICO é salvo ou movido, forçamos a atualização das coordenadas
-        // dos cabos pendurados nele para garantir que as pontas soltas nunca fiquem desatualizadas.
-        if (!item.parentId && ['POP', 'CEO', 'CTO', 'TOWER', 'POST', 'OBJECT', 'CLIENT'].includes(item.type)) {
-
-            // Busca todos os cabos carregados na tela que tocam neste nó
-            const attachedCables = items.filter(i => i.type === 'CABLE' && (i.fromNode === item.id || i.toNode === item.id));
-
-            for (const cable of attachedCables) {
-                let changed = false;
-                let updatedCable = { ...cable };
-
-                // Se a origem do cabo é este nó, atualiza o startCoords
-                if (cable.fromNode === item.id) {
-                    updatedCable.startCoords = { lat: item.lat, lng: item.lng, x: item.x, y: item.y };
-                    changed = true;
-                }
-
-                // Se o destino do cabo é este nó, atualiza o endCoords
-                if (cable.toNode === item.id) {
-                    updatedCable.endCoords = { lat: item.lat, lng: item.lng, x: item.x, y: item.y };
-                    changed = true;
-                }
-
-                // Executa um update silencioso no cabo
-                if (changed) {
-                    const cProjId = cable._projectId || activeProjectId;
-                    if (!cProjId) continue;
-
-                    // Bloqueio de segurança (evita gravar se o cabo for de um projeto "Read Only")
-                    if (isProjectReadOnly(cProjId)) continue;
-
-                    const cProjData = allProjects.find(p => p.id === cProjId);
-                    const cOwnerId = cProjData ? cProjData.ownerId : projectOwnerId;
-
-                    const cPayload = JSON.parse(JSON.stringify(updatedCable));
-                    delete cPayload._projectId; // Não sobe pro banco
-                    cPayload.modifiedAt = now;
-                    cPayload.modifiedBy = user.uid;
-
-                    const cRef = doc(db, `artifacts/ftth-production/users/${cOwnerId}/projects/${cProjId}/items`, cable.id);
-                    await setDoc(cRef, cPayload);
-                }
-            }
-        }
     });
 
     const saveConnection = (conn) => dbAction(async () => {
@@ -2930,15 +2860,18 @@ const App = () => {
                     }
                 });
 
-                // 2. ITERAÇÃO DE CABOS (Compatível com Pontas Soltas)
+                // 2. ITERAÇÃO DE CABOS (Corrigido para usar visibleItems)
+                // Antes: items.filter(...) -> Agora: visibleItems.filter(...)
                 visibleItems.filter(i => i.type === 'CABLE').forEach(cable => {
+                    // Nota: Aqui mantemos 'items.find' para buscar as pontas (nA e nB),
+                    // pois precisamos das coordenadas delas mesmo que estejam ocultas,
+                    // já que decidiste que cabos podem aparecer sem os nós.
+                    const nA = items.find(n => n.id === cable.fromNode);
+                    const nB = items.find(n => n.id === cable.toNode);
 
-                    const nA = items.find(n => n.id === cable.fromNode) || { x: cable.startCoords?.x, y: cable.startCoords?.y, type: 'OBJECT' };
-                    const nB = items.find(n => n.id === cable.toNode) || { x: cable.endCoords?.x, y: cable.endCoords?.y, type: 'OBJECT' };
-
-                    if (nA.x !== undefined && nB.x !== undefined) {
-                        const wA = ITEM_TYPES[nA.type]?.width || 120;
-                        const wB = ITEM_TYPES[nB.type]?.width || 120;
+                    if (nA && nB) {
+                        const wA = ITEM_TYPES[nA.type].width;
+                        const wB = ITEM_TYPES[nB.type].width;
                         const cAx = nA.x + wA / 2;
                         const cAy = nA.y + 30;
                         const cBx = nB.x + wB / 2;
@@ -3290,12 +3223,11 @@ const App = () => {
             if (!alreadyExists) {
                 const newSignal = { id: `client-${finalClientId}`, name: `${finalClientName}`, type: 'GPON' };
                 const newConfig = { local: [...localSignals, newSignal], allowed: currentAllowed };
-
-                // CORREÇÃO: Removemos o spread operator
-                await updateSignalDB({ [signalKey]: newConfig });
+                await updateSignalDB({ ...signalNames, [signalKey]: newConfig });
             }
 
             openAlert("Sucesso", existingClientId ? "Cliente reconectado!" : "Cliente criado com sucesso!");
+
         } catch (error) {
             console.error("Erro ao finalizar cliente:", error);
             openAlert("Erro", "Falha ao salvar conexão.");
@@ -4701,7 +4633,6 @@ const App = () => {
         return null;
     };
 
-    // const app
     return (
         <div className={`h-[100dvh] w-screen flex flex-row overflow-hidden ${isDarkMode ? 'dark bg-black text-white' : 'bg-white text-black'}`}>
             <InstallPwaPopup />
@@ -4760,13 +4691,9 @@ const App = () => {
                                 <svg className="absolute top-0 left-0 w-[5000px] h-[5000px] pointer-events-none overflow-visible">
                                     {/* 1. Cabos Otimizados */}
                                     {visibleItems.filter(i => i.type === 'CABLE').map(c => {
-
-                                        // Modificação: Fallback para o "Nó Fantasma" se o original estiver oculto
-                                        const nodeA = items.find(n => n.id === c.fromNode) || { x: c.startCoords?.x, y: c.startCoords?.y, type: 'OBJECT', id: c.fromNode };
-                                        const nodeB = items.find(n => n.id === c.toNode) || { x: c.endCoords?.x, y: c.endCoords?.y, type: 'OBJECT', id: c.toNode };
-
-                                        // Evita quebrar a tela se for um cabo legado (sem âncoras) e o nó estiver oculto
-                                        if (nodeA.x === undefined || nodeB.x === undefined) return null;
+                                        const nodeA = items.find(n => n.id === c.fromNode);
+                                        const nodeB = items.find(n => n.id === c.toNode);
+                                        if (!nodeA || !nodeB) return null;
 
                                         // Recupera dados do grupo (topoologia)
                                         const [n1, n2] = [c.fromNode, c.toNode].sort();
@@ -5267,53 +5194,7 @@ const App = () => {
                 {fixConnectionsData && <FixConnectionsModal items={fixConnectionsData} onClose={() => setFixConnectionsData(null)} onConfirm={saveImportedData} />}
                 {notesModalConfig && <NotesModal title={notesModalConfig.title} initialNotes={notesModalConfig.initialNotes} onSave={notesModalConfig.onSave} onClose={notesModalConfig.onClose} />}
 
-                {/* Modal de Decisão para Cabos entre Projetos Diferentes */}
-                {crossProjectCableData && (
-                    <div className="fix-modal-overlay z-50">
-                        <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
-                            <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                <span className="text-blue-600">🔗</span> Conexão Multi-Projeto
-                            </h2>
-                            <p className="text-gray-600 mb-6 text-sm">
-                                Este cabo conecta equipamentos de <strong>dois projetos diferentes</strong>.
-                                Como um cabo só pode pertencer a um único projeto, escolha onde ele deve ser salvo:
-                            </p>
 
-                            <div className="flex flex-col gap-3">
-                                <button
-                                    onClick={() => {
-                                        saveItem({ ...crossProjectCableData.cable, _projectId: crossProjectCableData.projA });
-                                        setCrossProjectCableData(null);
-                                    }}
-                                    className="w-full text-left p-3 rounded border border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-colors"
-                                >
-                                    <span className="block font-semibold text-gray-800">Salvar no Projeto Origem</span>
-                                    <span className="block text-xs text-gray-500 mt-1">O cabo ficará atrelado ao nó inicial.</span>
-                                </button>
-
-                                <button
-                                    onClick={() => {
-                                        saveItem({ ...crossProjectCableData.cable, _projectId: crossProjectCableData.projB });
-                                        setCrossProjectCableData(null);
-                                    }}
-                                    className="w-full text-left p-3 rounded border border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-colors"
-                                >
-                                    <span className="block font-semibold text-gray-800">Salvar no Projeto Destino</span>
-                                    <span className="block text-xs text-gray-500 mt-1">O cabo ficará atrelado ao nó final.</span>
-                                </button>
-                            </div>
-
-                            <div className="mt-6 flex justify-end">
-                                <button
-                                    onClick={() => setCrossProjectCableData(null)}
-                                    className="px-4 py-2 text-sm font-semibold text-gray-500 hover:text-red-500 transition-colors"
-                                >
-                                    Cancelar Criação
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
                 {/* Crédito de Versão (Centralizado na Margem Inferior) */}
                 {/* <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-1.5 text-[9px] dark:text-gray-800 text-gray-400 font-medium select-none pointer-events-none opacity-100">
                     <img src={VERSAO.LOGO_URL} alt="" className="w-3 h-3" />

@@ -172,12 +172,12 @@ const Dock = ({
                 <Divider />
 
                 {/* 3. Filtro */}
-                {/*<DockBtn
+                {/* <DockBtn
                     icon={Filter}
                     label="Filtros"
                     isActive={false}
                     onClick={() => { toggleFilterPanel(); setActiveCategory(null) }}
-                />*/}
+                /> */}
 
                 {/* 4. Alternar Visualização */}
                 <DockBtn
