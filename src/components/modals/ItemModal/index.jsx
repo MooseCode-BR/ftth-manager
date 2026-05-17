@@ -432,6 +432,8 @@ const ItemModal = ({
                                 <option value="4">1:4</option>
                                 <option value="8">1:8</option>
                                 <option value="16">1:16</option>
+                                <option value="32">1:32</option>
+                                <option value="64">1:64</option>
                             </select>
                         </div>
                     )}

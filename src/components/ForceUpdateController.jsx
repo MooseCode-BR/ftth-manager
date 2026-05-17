@@ -35,7 +35,7 @@ const ForceUpdateController = ({ children }) => {
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 const requiredVersion = data.min_version;
-                const localVersion = VERSAO.NUMERO_VERSAO;
+                const localVersion = VERSAO;
 
                 if (isVersionOutdated(localVersion, requiredVersion)) {
                     setIsOutdated(true);
@@ -86,7 +86,7 @@ const ForceUpdateController = ({ children }) => {
 
                 <h2 className="text-2xl font-bold text-white mb-3">Atualização Disponível</h2>
                 <p className="text-gray-400 text-sm mb-6 leading-relaxed">
-                    Uma nova versão do FTTH Manager Cloud foi lançada. Sua versão atual (<span className="text-white font-mono">{VERSAO.NUMERO_VERSAO}</span>) não é mais suportada e foi bloqueada por motivos de segurança e compatibilidade. Por favor, atualize para a versão mais recente para continuar usando o sistema.
+                    Uma nova versão do FTTH Manager Cloud foi lançada. Sua versão atual (<span className="text-white font-mono">{VERSAO}</span>) não é mais suportada e foi bloqueada por motivos de segurança e compatibilidade. Por favor, atualize para a versão mais recente para continuar usando o sistema.
                 </p>
 
                 <button

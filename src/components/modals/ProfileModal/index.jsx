@@ -221,7 +221,7 @@ export const ProfileModal = ({ user, onClose, onUpdateName, onUpdatePassword, on
                                     >
                                         <LogOut size={16} /> Sair da Conta
                                     </button>
-                                    <span className="flex justify-center mt-5 text-xs text-gray-500 dark:text-gray-400">FTTH Manager Cloud v{VERSAO.NUMERO_VERSAO} Beta</span>
+                                    <span className="flex justify-center mt-5 text-xs text-gray-500 dark:text-gray-400">FTTH Manager Cloud v{VERSAO} Beta</span>
                                 </div>
                                 {/* ------------------------ */}
                             </div>

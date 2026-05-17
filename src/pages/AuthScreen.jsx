@@ -428,7 +428,7 @@ const AuthScreen = ({ onLogin }) => {
 
             {/* Copyright */}
             <div className="absolute bottom-4 text-xs font-medium text-gray-400 dark:text-gray-500 text-center w-full flex items-center justify-center gap-1">
-                &copy; 2026 FTTH Manager Cloud v{VERSAO.NUMERO_VERSAO} Beta. Todos os direitos reservados.
+                &copy; 2026 FTTH Manager Cloud v{VERSAO} Beta. Todos os direitos reservados.
             </div>
         </div>
     );

@@ -36,8 +36,6 @@ export const ITEM_TYPES = {
     POST: { label: 'Poste', icon: PostIcon, category: 'NODE', defaultPorts: 0, defaultColor: '#0000ff', width: 160 },
     OBJECT: { label: 'Objeto', icon: MapPin, category: 'NODE', defaultPorts: 0, defaultColor: '#ff0000', width: 160 },
     CABLE: { label: 'Cabo Externo', icon: Route, category: 'LINK', defaultPorts: 12, color: 'stroke-slate-800' },
-    // CLIENT: { label: 'Cliente Final', icon: User, category: 'NODE', defaultPorts: 1, defaultColor: '#db2777', width: 160 }, // Pink
-    // FLAG: { label: 'Marcador', icon: MapPin, category: 'FLAG', defaultColor: '#8888ff', width: 160 }, // Tipo azul
 
 
     OLT: { label: 'OLT', icon: Server, category: 'DEVICE', defaultPorts: 0 },
@@ -97,7 +95,4 @@ export const ATTENUATION = {
     }
 };
 
-export const VERSAO = {
-    // LOGO_URL: "favicon.svg",
-    NUMERO_VERSAO: '0.10.1'
-}
+export const VERSAO = '0.10.1'
