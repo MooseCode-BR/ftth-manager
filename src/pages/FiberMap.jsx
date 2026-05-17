@@ -220,7 +220,7 @@ const MapClickHandler = ({ onMapBgClick, interactionMode, onDeselect }) => {
     return null;
 };
 
-// OTIMIZAÇÃO 1: Handler de Zoom Inteligente
+// OTIMIZAÇÃO 1: Handler de Zoom Inteligente - Configuração de quando os rótulos devem aparecer
 // Só dispara atualização se cruzar o limiar de visibilidade (ex: zoom 16)
 const MapZoomHandler = ({ onShowLabelsChange }) => {
     useMapEvents({
@@ -1388,11 +1388,10 @@ const FiberMap = ({
                         name="Ruas"
                     >
                         <TileLayer
-                            // REMOVI A KEY DAQUI para evitar que ele desmonte o componente
                             attribution={tileLayerInfo.attribution}
                             url={tileLayerInfo.url}
                             maxNativeZoom={19}
-                            maxZoom={20}
+                            maxZoom={25}
                         />
                     </LayersControl.BaseLayer>
 
@@ -1404,7 +1403,7 @@ const FiberMap = ({
                             attribution='Tiles &copy; Esri'
                             url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
                             maxNativeZoom={17}
-                            maxZoom={20}
+                            maxZoom={25}
                         />
                     </LayersControl.BaseLayer>
                 </LayersControl>
@@ -1454,7 +1453,6 @@ const FiberMap = ({
                                 onDelete={() => onDelete(cable.id)}
                                 onOpen={() => onOpen(cable.id)}
                                 onSplit={onSplit}
-                            // onReconnect={onReconnect}
                             />
                         );
                     }
@@ -1468,7 +1466,7 @@ const FiberMap = ({
                     chunkedLoading
 
                     /* SOLUÇÃO 2: Desliga o agrupamento quando chegas perto (Zoom 16 ou mais) */
-                    disableClusteringAtZoom={toggleCluster ? 21 : 1}
+                    disableClusteringAtZoom={toggleCluster ? 24 : 1}
 
                     /* Ajuste visual: Aumenta um pouco o raio para ficar mais organizado */
                     maxClusterRadius={50}
