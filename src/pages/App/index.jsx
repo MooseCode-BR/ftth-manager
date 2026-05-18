@@ -30,7 +30,7 @@ import { Dialog } from '@capacitor/dialog';
 import {
     Trash2, Box, Scissors, Activity, User, ArrowRightLeft, Edit3, Save, X, CircleUserRound, ZoomIn, ZoomOut,
     LogOut, Mail, Search, ShieldAlert, MapPin, MapPinned, Loader2, Lock, Unlock, Info, PackagePlus,
-    DoorOpen, AlertTriangle, Play, Pause, ExternalLink
+    DoorOpen, AlertTriangle, Play, Pause, ExternalLink, Tag
 } from 'lucide-react';
 import LoadingFiber from '../../components/loadingfiber';
 
@@ -86,6 +86,7 @@ import TraceModal from '../../components/modals/TraceModal'; // Rastreamento de 
 import DetailPanel from '../DetailPanel'; // Painel lateral de detalhes
 import { LoadScreen } from '../../components/LoadScreen';
 import InstallPwaPopup from '../../components/InstallPwaPopup';
+import TagsFilterPanel from '../../components/TagsFilterPanel';
 
 // ============================================================================
 // FIREBASE - AUTENTICAÇÃO E BANCO DE DADOS
@@ -538,6 +539,11 @@ const App = () => {
     // --- ESTADOS DE PROJETOS & COLABORAÇÃO ---
     // Hook customizado que gerencia convites, transferências e notificações
 
+    const [projectTags, setProjectTags] = useState({}); // Cache de todas as tags visíveis
+    const [selectedFilterTags, setSelectedFilterTags] = useState([]); // Array de nomes das tags para o filtro
+    // 1. Controle de visibilidade do painel (Adicione nos states do topo)
+    const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+
     const [myProjects, setMyProjects] = useState([]);      // Projetos que EU criei
 
     // O activeProjectId continua sendo o ID do projeto selecionado
@@ -637,7 +643,6 @@ const App = () => {
 
     const [notesModalConfig, setNotesModalConfig] = useState(null);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false); // Para mostrar/esconder a barra de filtros
 
     // Estados para Tela de Carregamento Global
     const [isProcessing, setIsProcessing] = useState(false);
@@ -900,6 +905,7 @@ const App = () => {
         // 2. Processar Settings LOCAIS (Sinais, PortLabels)
         let mergedSignals = {};
         let mergedPortLabels = {};
+        let mergedTags = {}; // Objeto base para as tags
 
         visibleData.forEach(projectData => {
             if (projectData.settings) {
@@ -912,13 +918,33 @@ const App = () => {
                         const { id, _migrated, _projectId, ...labels } = doc;
                         mergedPortLabels = { ...mergedPortLabels, ...labels };
                     }
+                    // --- NOVO: Captura das Tags ---
+                    if (doc.id === 'tags') {
+                        const { id, _migrated, _projectId, ...tagsObj } = doc;
+
+                        // BUSCA BLINDADA DO ID DO PROJETO
+                        // Como a estrutura do seu cache pode variar, rastreamos todas as propriedades possíveis.
+                        // A última opção assume que você passa o projectId dentro do próprio documento em settings.
+                        const safeProjectId = projectData.id || projectData.projectId || projectData._projectId || doc._projectId || _projectId;
+
+                        // Aviso de segurança para depuração se o projeto vier órfão
+                        if (!safeProjectId) {
+                            console.warn("ALERTA DE SEGURANÇA: Não encontramos o ID do projeto para carimbar as tags. Verifique a estrutura:", projectData);
+                        }
+
+                        Object.values(tagsObj).forEach(t => {
+                            if (typeof t === 'object' && t.id) {
+                                mergedTags[t.id] = { ...t, _projectId: safeProjectId };
+                            }
+                        });
+                    }
                 });
             }
         });
 
         setSignalNames(mergedSignals);
         setPortLabels(mergedPortLabels);
-
+        setProjectTags(mergedTags);
 
         setLoading(false);
 
@@ -1118,23 +1144,25 @@ const App = () => {
 
     // COMPONENTES -----------
 
-    /**
-     * Derivação dos itens visíveis no mapa.
-     * Atualmente atua como um "pass-through" (passa tudo direto), 
-     * mas está estruturado para receber novos filtros de texto ou status sem quebrar o JSX.
-     */
     const visibleItems = useMemo(() => {
-        // Garantia de segurança: se a base não existir, retornamos um array vazio para não quebrar o map/filter
         if (!items || !Array.isArray(items)) return [];
 
         return items.filter(item => {
-            // 1. Defina aqui filtros futuros (ex: busca de nome)
-            // const matchesSearch = item.nome ? item.nome.toLowerCase().includes(busca.toLowerCase()) : true;
+            // Lógica do Filtro de Tags
+            if (selectedFilterTags.length > 0) {
+                // Montamos o nome (maiúsculo) de todas as tags do item
+                const itemTagNames = (item.tags || [])
+                    .map(tId => projectTags[tId]?.name)
+                    .filter(Boolean);
 
-            // 2. Retornamos a condição. Como não há filtros ativos por enquanto, retornamos true.
-            return true;
+                // Verifica se o item possui pelo menos uma das tags selecionadas no filtro
+                if (!itemTagNames.some(name => selectedFilterTags.includes(name))) {
+                    return false;
+                }
+            }
+            return true; // Passou no filtro
         });
-    }, [items]); // A matriz de dependência garante que só recalcula se 'items' mudar
+    }, [items, selectedFilterTags, projectTags]);
 
     /**
      * Derivação das conexões visíveis no mapa.
@@ -1301,8 +1329,33 @@ const App = () => {
         }
     };
 
+    // Função auxiliar para Processar e Criar novas tags no banco
+    const processAndSaveTags = async (tagsArray, targetProjectId, targetOwnerId) => {
+        if (!tagsArray || tagsArray.length === 0) return [];
+
+        const finalTagIds = [];
+        const tagsToCreate = tagsArray.filter(t => t.isNew);
+        const existingTags = tagsArray.filter(t => !t.isNew);
+
+        // Submetemos as tags novas ao Firestore no documento settings/tags
+        if (tagsToCreate.length > 0 && targetProjectId && targetOwnerId) {
+            const updates = {};
+            tagsToCreate.forEach(t => {
+                const newId = `tag_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+                updates[newId] = { id: newId, name: t.name };
+                finalTagIds.push(newId);
+            });
+            const tagRef = doc(db, `artifacts/ftth-production/users/${targetOwnerId}/projects/${targetProjectId}/settings`, 'tags');
+            await setDoc(tagRef, updates, { merge: true });
+        }
+
+        // Soma os IDs antigos com os novos gerados
+        finalTagIds.push(...existingTags.map(t => t.id));
+        return finalTagIds;
+    };
+
     // --- LÓGICA DE SUBMISSÃO (COM PROJEÇÃO AUTOMÁTICA CANVAS -> MAPA) ---
-    const handleModalSubmit = (data) => {
+    const handleModalSubmit = async (data) => {
         const id = Date.now().toString();
 
         // 1. DEFINIÇÃO DO PONTO ZERO (ÂNCORA)
@@ -1321,7 +1374,7 @@ const App = () => {
         const getLat = (manualLat, canvasY) => manualLat || (anchorLat - (canvasY * pixelToDegree));
         const getLng = (manualLng, canvasX) => manualLng || (anchorLng + (canvasX * pixelToDegree));
 
-        // --- NOVA LÓGICA: HERANÇA DE PROJETO (FIX) ---
+        // --- NOVA LÓGICA: HERANÇA DE PROJETO (FIX E TAGS) ---
         // Se o item que estamos criando tem um Pai (está dentro de algo),
         // ele DEVE pertencer ao mesmo projeto do Pai, ignorando o projeto ativo atual.
         let inheritedProjectId = null;
@@ -1335,6 +1388,39 @@ const App = () => {
                 inheritedProjectId = parentItem._projectId;
             }
         }
+
+        // --- DEFINIÇÃO DO PROJETO ALVO SEGUINDO A NOVA HIERARQUIA ---
+        let finalProjectId = activeProjectId; // Regra Primária: Sempre usa o projeto ativo na tela
+
+        if (inheritedProjectId) {
+            finalProjectId = inheritedProjectId; // Se tem pai, herda do pai obrigatoriamente
+        } else if (modalConfig.mode === 'CABLE') {
+            // Se for cabo, prioriza o projeto ativo. Apenas como último recurso tenta o fromNode
+            finalProjectId = activeProjectId || (modalConfig.fromNode && modalConfig.fromNode._projectId);
+        }
+
+        // >>> LOGS DE DEPURAÇÃO PARA O CONSOLE <<<
+        console.log("=== DEBUG SALVAMENTO DE NOVO ITEM E TAGS ===");
+        console.log("1. modalConfig.mode:", modalConfig.mode);
+        console.log("2. activeProjectId:", activeProjectId);
+        console.log("3. modalConfig.parentId:", modalConfig.parentId);
+        console.log("4. inheritedProjectId:", inheritedProjectId);
+        console.log("5. modalConfig.fromNode._projectId:", modalConfig.fromNode ? modalConfig.fromNode._projectId : "N/A");
+        console.log("6. FINAL PROJECT ID ESCOLHIDO:", finalProjectId);
+        console.log("7. Tags recebidas do Modal:", data.tags);
+
+        // Descobre qual projeto é dono (para salvar tags no lugar certo no Firestore)
+        const allProjects = [...myProjects, ...sharedProjects];
+        const targetProj = allProjects.find(p => p.id === finalProjectId);
+        const ownerId = targetProj ? targetProj.ownerId : projectOwnerId;
+
+        console.log("8. Owner ID do Projeto (Target):", ownerId);
+
+        // Processa as tags chamando nossa função nova!
+        const processedTagIds = await processAndSaveTags(data.tags, finalProjectId, ownerId);
+
+        console.log("9. IDs Finais de Tags Processadas para o BD:", processedTagIds);
+        console.log("============================================");
 
         if (modalConfig.mode === 'NODE') {
             saveItem({
@@ -1352,15 +1438,13 @@ const App = () => {
                 ports: 0,
                 color: data.nodeColor,
                 parentId: null,
-                iconType: data.iconType
+                iconType: data.iconType,
+                tags: processedTagIds
 
                 // Nó raiz usa o projeto ativo padrão (saveItem lida com isso se não passarmos _projectId)
             });
         }
         else if (modalConfig.mode === 'CABLE') {
-            // Tenta descobrir o projeto baseado no nó de origem (fromNode)
-            // Se o nó de origem tiver _projectId (veio do cache), usamos ele.
-            let cableProjectId = modalConfig.fromNode._projectId || activeProjectId;
             // Cabos não têm lat/lng próprio (dependem dos nós), então segue normal
             saveItem({
                 id,
@@ -1370,23 +1454,24 @@ const App = () => {
                 color: data.cableColor || '#334155',
                 fromNode: modalConfig.fromNode.id,
                 toNode: modalConfig.toNode.id,
-                _projectId: cableProjectId // <--- FORÇA O PROJETO DO NÓ DE ORIGEM
+                tags: processedTagIds,
+                _projectId: finalProjectId // <--- ALINHADO COM A DECISÃO DE PROJETO (ANTES ESTAVA FORÇANDO O fromNode)
             });
         }
         else if (modalConfig.mode === 'INTERNAL_DEVICE') {
             // Equipamentos internos (OLT/DIO) não precisam de Lat/Lng pois herdam do Pai (POP/Caixa)
             if (modalConfig.itemType === 'OLT') {
                 const interfaces = data.manualInterfaces.map((iface, i) => ({ id: Date.now() + i, name: iface.name, portCount: parseInt(iface.portCount) }));
-                saveItem({ id, type: 'OLT', name: data.name, uplinkCount: parseInt(data.uplinks), interfaces, parentId: modalConfig.parentId, _projectId: inheritedProjectId }); //_projectId: inheritedProjectId  <--- Força o projeto do pai
+                saveItem({ id, type: 'OLT', name: data.name, uplinkCount: parseInt(data.uplinks), interfaces, parentId: modalConfig.parentId, _projectId: finalProjectId }); // <--- Usando o finalProjectId garantido
             } else if (modalConfig.itemType === 'DIO') {
                 const cards = data.manualInterfaces.map((iface, i) => ({ id: Date.now() + i, name: iface.name, portCount: parseInt(iface.portCount) }));
-                saveItem({ id, type: 'DIO', name: data.name, cards, parentId: modalConfig.parentId, ports: 0, _projectId: inheritedProjectId }); //_projectId: inheritedProjectId  <--- Força o projeto do pai
+                saveItem({ id, type: 'DIO', name: data.name, cards, parentId: modalConfig.parentId, ports: 0, _projectId: finalProjectId });
             } else {
-                saveItem({ id, type: modalConfig.itemType, name: data.name, ports: parseInt(data.ports), parentId: modalConfig.parentId, _projectId: inheritedProjectId }); //_projectId: inheritedProjectId  <--- Força o projeto do pai
+                saveItem({ id, type: modalConfig.itemType, name: data.name, ports: parseInt(data.ports), parentId: modalConfig.parentId, _projectId: finalProjectId });
             }
         }
         else if (modalConfig.mode === 'SPLITTER') {
-            saveItem({ id, type: 'SPLITTER', name: data.name, ports: parseInt(data.ports) + 1, parentId: modalConfig.parentId, _projectId: inheritedProjectId }); //_projectId: inheritedProjectId  <--- Força o projeto do pai
+            saveItem({ id, type: 'SPLITTER', name: data.name, ports: parseInt(data.ports) + 1, parentId: modalConfig.parentId, _projectId: finalProjectId });
         }
 
         setModalConfig(null);
@@ -2395,7 +2480,6 @@ const App = () => {
     });
 
     // Função auxiliar para abrir modal de edição
-    // Função auxiliar para abrir modal de edição
     const openEditModal = (
         t, iv, cb, ic, scp,
         isObject = false,
@@ -2404,6 +2488,8 @@ const App = () => {
         initialPorts = 0,
         initialUplinks = 4,
         initialInterfaces = null,
+        initialTags = [],
+        availableTags = []
     ) => {
         setEditModalConfig({
             title: t,
@@ -2417,10 +2503,12 @@ const App = () => {
             initialPorts: initialPorts,
             initialUplinks: initialUplinks,
             initialInterfaces: initialInterfaces,
-
-            // Callback: (nome, cor, ícone, tipo, portas, uplinks, interfaces)
-            onConfirm: (val, col, icon, type, ports, uplinks, interfaces) => {
-                cb(val, col, icon, type, ports, uplinks, interfaces);
+            initialTags: initialTags,
+            availableTags: availableTags,
+            // AQUI ESTÁ A CORREÇÃO: Adicionamos 'tags' como 8º argumento
+            onConfirm: (val, col, icon, type, ports, uplinks, interfaces, tags) => {
+                // Passamos 'tags' adiante para o callback 'cb'
+                cb(val, col, icon, type, ports, uplinks, interfaces, tags);
                 setEditModalConfig(null);
             }
         });
@@ -2705,18 +2793,37 @@ const App = () => {
 
         const showPicker = item.type === 'CABLE' || ['POP', 'CEO', 'CTO', 'TOWER', 'POST', 'OBJECT'].includes(item.type);
 
+        // REGRA DE OURO: O targetProjectId pertence ao item. Fallback apenas se o item for órfão na UI (raro)
+        const targetProjectId = item._projectId || activeProjectId;
+
+        // Reconstrói o formato de tags que o ItemModal compreende, a partir dos IDs do item
+        const itemTagsList = (item.tags || [])
+            .map(tId => projectTags[tId])
+            .filter(Boolean)
+            .map(t => ({ id: t.id, name: t.name }));
+        const cleanTargetProjectId = String(targetProjectId || '').trim();
+        const availableTagsList = Object.values(projectTags).filter(t =>
+            String(t._projectId || '').trim() === cleanTargetProjectId
+        );
+
         openEditModal(
             "Editar Item",            // 1. Título
             oldName,                  // 2. Valor Inicial
 
             // 3. CALLBACK
-            (newName, newColor, newIcon, newType, newPorts, newUplinks, newInterfaces) => {
+            async (newName, newColor, newIcon, newType, newPorts, newUplinks, newInterfaces, newTags) => {
+
+                const allProjects = [...myProjects, ...sharedProjects];
+                const targetProj = allProjects.find(p => p.id === targetProjectId);
+                const ownerId = targetProj ? targetProj.ownerId : projectOwnerId;
+
+                // Processa antes de salvar
+                const processedTagIds = await processAndSaveTags(newTags, targetProjectId, ownerId);
+
                 const updatedItem = {
-                    ...item,
-                    name: newName,
-                    color: newColor,
-                    ...(newIcon ? { iconType: newIcon } : {}),
-                    ...(newType ? { type: newType } : {}),
+                    ...item, name: newName, color: newColor,
+                    ...(newIcon ? { iconType: newIcon } : {}), ...(newType ? { type: newType } : {}),
+                    tags: processedTagIds // <--- As novas tags entram aqui!
                 };
 
                 // Salva interfaces/cards da OLT ou DIO
@@ -2760,6 +2867,8 @@ const App = () => {
             item.ports || 0,      // 10. initialPorts
             item.uplinks || 4,      // 11. initialUplinks
             item.interfaces || item.cards || null, // 12. initialInterfaces
+            itemTagsList,             // 13. initialTags (Lista de objetos {id, name})
+            availableTagsList         // 14. availableTags (Lista completa para busca)
         );
     };
 
@@ -4633,7 +4742,7 @@ const App = () => {
         return null;
     };
 
-    return (
+    return ( //const app
         <div className={`h-[100dvh] w-screen flex flex-row overflow-hidden ${isDarkMode ? 'dark bg-black text-white' : 'bg-white text-black'}`}>
             <InstallPwaPopup />
 
@@ -4989,6 +5098,9 @@ const App = () => {
                         onNewClient={() => setInteractionMode('ADD_CLIENT')}
                         toggleFilterPanel={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
                         onManageProjects={() => setIsProjectManagerOpen(true)}
+                        isTagFilterOpen={isFilterPanelOpen}
+                        toggleTagFilter={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
+                        activeFilterCount={selectedFilterTags.length}
                     />
                 )}
 
@@ -5012,6 +5124,14 @@ const App = () => {
                     onOpenCableColors={() => { setStandardsModalOpen(true); }}
                     onOpenReport={() => { setReportOpen(true); }}
                     onManageProjects={() => { setIsProjectManagerOpen(true); }}
+                />
+
+                {/* --- COMPONENTE ISOLADO DE FILTRO DE TAGS --- */}
+                <TagsFilterPanel
+                    isOpen={isFilterPanelOpen}
+                    projectTags={projectTags}
+                    selectedFilterTags={selectedFilterTags}
+                    setSelectedFilterTags={setSelectedFilterTags}
                 />
 
                 {/* Painel de Detalhes (Lógica existente) */}
@@ -5121,7 +5241,38 @@ const App = () => {
                 )}
 
                 {/* Modais de Lógica */}
-                {modalConfig && <ItemModal mode="create" config={modalConfig} standards={cableColorStandards} nodeColorSettings={nodeColorSettings} favoriteColors={favoriteColors} onConfirm={handleModalSubmit} onCancel={() => { setModalConfig(null); cableStartNodeRef.current = null; setCableStartNode(null); }} />}
+                {/* Renderização do ItemModal (Criar) */}
+                {modalConfig && (
+                    <ItemModal
+                        mode="create"
+                        config={modalConfig}
+                        standards={cableColorStandards}
+                        nodeColorSettings={nodeColorSettings}
+                        favoriteColors={favoriteColors}
+                        availableTags={Object.values(projectTags).filter(t => {
+                            let targetProjId = activeProjectId;
+
+                            if (modalConfig.mode === 'CABLE') {
+                                targetProjId = activeProjectId || (modalConfig.fromNode && modalConfig.fromNode._projectId);
+                            } else if (modalConfig.parentId) {
+                                const pItem = items.find(i => i.id === modalConfig.parentId);
+                                if (pItem && pItem._projectId) targetProjId = pItem._projectId;
+                            }
+
+                            const cleanTagProjectId = String(t._projectId || '').trim();
+                            const cleanTargetProjectId = String(targetProjId || '').trim();
+
+                            // --- PROTEÇÃO ANTI-FALSO POSITIVO ---
+                            // Se a tag ou o painel alvo não tiverem ID de projeto legítimo associado, 
+                            // a comparação DEVE falhar. Vazio jamais deve combinar com vazio.
+                            if (!cleanTagProjectId || !cleanTargetProjectId) return false;
+
+                            return cleanTagProjectId === cleanTargetProjectId;
+                        })}
+                        onConfirm={handleModalSubmit}
+                        onCancel={() => { setModalConfig(null); cableStartNodeRef.current = null; setCableStartNode(null); }}
+                    />
+                )}
                 {editModalConfig && <ItemModal mode="edit" {...editModalConfig} standards={cableColorStandards} nodeColorSettings={nodeColorSettings} favoriteColors={favoriteColors} onCancel={() => setEditModalConfig(null)} />}
                 {standardsModalOpen && <StandardsModal standards={cableColorStandards} onClose={() => setStandardsModalOpen(false)} onSave={(newStds) => { updateStandardsDB(newStds); setStandardsModalOpen(false); }} />}
                 {nodeColorsModalOpen &&

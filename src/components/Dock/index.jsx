@@ -6,12 +6,13 @@ import {
     Map as MapIcon, RadioTower,
     Sun, Moon, Settings, HouseWifi,
     Route,
-    MapPin
+    MapPin,
+    Tag // <--- Importação do Tag adicionada aqui
 } from 'lucide-react';
 import { CEOIcon, CTOIcon, PostIcon } from '../icons';
 
 // --- Sub-componente: Botão Genérico do Dock ---
-const DockBtn = ({ icon: Icon, hoverIcon: HoverIcon, label, isActive, onClick, onMouseEnter, onMouseLeave, colorClass = "dock-icon-default" }) => {
+const DockBtn = ({ icon: Icon, hoverIcon: HoverIcon, label, isActive, onClick, onMouseEnter, onMouseLeave, colorClass = "dock-icon-default", children }) => {
     const [isHovered, setIsHovered] = useState(false);
     const DisplayIcon = (isHovered && HoverIcon) ? HoverIcon : Icon;
 
@@ -26,12 +27,14 @@ const DockBtn = ({ icon: Icon, hoverIcon: HoverIcon, label, isActive, onClick, o
                 setIsHovered(false);
                 if (onMouseLeave) onMouseLeave(e);
             }}
-            // [MELHORIA] Uso de aria-attributes para acessibilidade
             aria-pressed={isActive}
             aria-label={label}
-            className={`dock-btn ${isActive ? 'dock-btn-active' : 'dock-btn-idle'}`}
+            className={`dock-btn ${isActive ? 'dock-btn-active' : 'dock-btn-idle'} relative`}
         >
             <DisplayIcon size={20} className={isActive ? "dock-icon-active" : (colorClass || "dock-icon-default")} />
+
+            {/* Permite injeção de badges dentro do botão genérico */}
+            {children}
 
             {/* Tooltip escondido para leitores de tela, visível via CSS */}
             <span className="dock-tooltip" aria-hidden="true">
@@ -51,12 +54,16 @@ const Dock = ({
     onOpenSettings,
     onNewClient,
     toggleFilterPanel,
-    onManageProjects
+    onManageProjects,
+
+    // --- NOVAS PROPS RECEBIDAS AQUI ---
+    isTagFilterOpen,
+    toggleTagFilter,
+    activeFilterCount
 }) => {
     const [activeCategory, setActiveCategory] = useState(null);
     const dockRef = useRef(null);
 
-    // [MELHORIA] Memoização do array. O React agora só recria essas regras se viewMode mudar.
     const categories = useMemo(() => [
         {
             id: 'select',
@@ -85,7 +92,6 @@ const Dock = ({
         }
     ], [viewMode, setActiveTool]);
 
-    // [MELHORIA] Lógica mobile: Fechar submenu ao clicar fora do Dock
     useEffect(() => {
         if (!activeCategory) return;
         const handleClickOutside = (e) => {
@@ -140,7 +146,6 @@ const Dock = ({
 
                 {/* Categorias e Ferramentas */}
                 {categories.map((cat, catIdx) => {
-                    // [MELHORIA] Toda a lógica de extração de ícone e cor feita fora da árvore JSX
                     const activeItem = cat.items.find(item => item.id === activeTool);
                     const currentIcon = activeItem ? activeItem.icon : cat.defaultIcon;
                     const currentColor = activeItem ? "text-blue-600 dark:text-blue-500" : undefined;
@@ -204,6 +209,21 @@ const Dock = ({
                 />
 
                 <Divider />
+
+                {/* --- BOTÃO DE FILTROS DE TAGS AQUI --- */}
+                <DockBtn
+                    icon={Tag}
+                    label="Filtro de Tags"
+                    isActive={isTagFilterOpen || activeFilterCount > 0}
+                    onClick={() => { toggleTagFilter(); setActiveCategory(null); }}
+                    colorClass={(isTagFilterOpen || activeFilterCount > 0) ? "text-blue-600 dark:text-blue-400" : undefined}
+                >
+                    {activeFilterCount > 0 && (
+                        <span className="absolute -top-1 -right-1 flex items-center justify-center w-4 h-4 text-[9px] font-bold text-white bg-blue-600 rounded-full shadow-sm animate-in zoom-in">
+                            {activeFilterCount}
+                        </span>
+                    )}
+                </DockBtn>
 
                 {/* Configurações */}
                 <DockBtn
