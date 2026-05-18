@@ -555,7 +555,8 @@ export const parseKMLImport = (kmlText) => {
     const rawPoints = [];
     const rawLines = [];
 
-    const processPlacemark = (p) => {
+    // O processPlacemark agora recebe as pastas (tags) onde ele se encontra
+    const processPlacemark = (p, currentTags) => {
         const name = p.getElementsByTagName("name")[0]?.textContent || "";
         const description = p.getElementsByTagName("description")[0]?.textContent?.trim() || "";
 
@@ -581,12 +582,9 @@ export const parseKMLImport = (kmlText) => {
             if (coords) {
                 const [lng, lat] = coords.trim().split(',').map(parseFloat);
                 if (!isNaN(lat) && !isNaN(lng)) {
-                    minLat = Math.min(minLat, lat);
-                    maxLat = Math.max(maxLat, lat);
-                    minLng = Math.min(minLng, lng);
-                    maxLng = Math.max(maxLng, lng);
-
-                    rawPoints.push({ name, lat, lng, color: itemColor, notes: description });
+                    minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
+                    minLng = Math.min(minLng, lng); maxLng = Math.max(maxLng, lng);
+                    rawPoints.push({ name, lat, lng, color: itemColor, notes: description, tempTags: currentTags });
                 }
             }
         }
@@ -599,26 +597,41 @@ export const parseKMLImport = (kmlText) => {
                 }).filter(p => !isNaN(p.lat));
 
                 if (points.length > 1) {
-                    rawLines.push({ name, points, color: itemColor, notes: description });
+                    rawLines.push({ name, points, color: itemColor, notes: description, tempTags: currentTags });
                 }
             }
         }
     };
 
-    // Função de travessia limpa que apenas vasculha a árvore XML
-    const traverse = (node) => {
-        if (node.nodeName === 'Placemark') {
-            processPlacemark(node);
-        }
-        for (let i = 0; i < node.children.length; i++) {
-            const child = node.children[i];
-            if (['Folder', 'Document', 'Placemark', 'kml'].includes(child.nodeName)) {
-                traverse(child);
+    // Função de travessia inteligente que acumula os nomes das pastas
+    const traverse = (node, pathTags = []) => {
+        let nodeTags = [...pathTags];
+
+        // Remove prefixos como 'kml:' para garantir compatibilidade com qualquer software gerador
+        const cleanNodeName = (node.localName || node.nodeName || '').replace(/^.*:/, '');
+
+        if (cleanNodeName === 'Folder') {
+            // Busca o nome da pasta também ignorando prefixos
+            const nameNode = Array.from(node.children).find(c => (c.localName || c.nodeName || '').replace(/^.*:/, '') === 'name');
+            if (nameNode && nameNode.textContent) {
+                const folderName = nameNode.textContent.trim().toUpperCase();
+                if (folderName && !nodeTags.includes(folderName)) {
+                    nodeTags.push(folderName);
+                }
             }
+        }
+
+        if (cleanNodeName === 'Placemark') {
+            processPlacemark(node, nodeTags);
+        }
+
+        // O loop varre todos os filhos sem se importar com o tipo restrito de tag
+        for (let i = 0; i < node.children.length; i++) {
+            traverse(node.children[i], nodeTags);
         }
     };
 
-    traverse(xmlDoc.documentElement);
+    traverse(xmlDoc.documentElement, []);
 
     // 3. GERAÇÃO DOS ITENS
     if (rawPoints.length === 0 && rawLines.length === 0) return [];
@@ -647,7 +660,8 @@ export const parseKMLImport = (kmlText) => {
             lng: pt.lng,
             ports: 0,
             parentId: null,
-            notes: pt.notes
+            notes: pt.notes,
+            _tempTagNames: pt.tempTags || []
         };
         createdNodes.push(newNode);
         newItems.push(newNode);
@@ -685,7 +699,8 @@ export const parseKMLImport = (kmlText) => {
             color: line.color || '#000000',
             _startCoords: startPt,
             _endCoords: endPt,
-            notes: line.notes
+            notes: line.notes,
+            _tempTagNames: line.tempTags || []
         });
     });
 

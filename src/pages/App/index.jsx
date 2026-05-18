@@ -4486,7 +4486,8 @@ const App = () => {
                     y: fix.coords.y || 0,
 
                     // Garante que o nó pertença ao mesmo projeto do cabo (se aplicável no seu sistema)
-                    _projectId: cable._projectId || cable.projectId || null
+                    _projectId: cable._projectId || cable.projectId || null,
+                    _tempTagNames: cable._tempTagNames ? [...cable._tempTagNames] : [] // <-- Herda tag do cabo pai
                 };
 
                 // Adiciona este novo nó na lista de itens que vão subir para o banco
@@ -4498,6 +4499,79 @@ const App = () => {
             if (fix.side === 'A') cable.fromNode = finalNodeId;
             if (fix.side === 'B') cable.toNode = finalNodeId;
         });
+
+
+        // --- PROCESSAMENTO INTELIGENTE DE TAGS KML ---
+        console.log("=== INICIANDO TRADUÇÃO DE TAGS DO KML ===");
+        const allProjectsList = [...myProjects, ...sharedProjects];
+        const getOwnerIdForProject = (projId) => {
+            if (!projId) return projectOwnerId;
+            const foundProj = allProjectsList.find(p => p.id === projId);
+            return foundProj ? foundProj.ownerId : projectOwnerId;
+        };
+
+        const uniqueTagNames = new Set();
+        itemsToSave.forEach(i => {
+            if (i._tempTagNames) {
+                i._tempTagNames.forEach(t => uniqueTagNames.add(t));
+            }
+        });
+
+        console.log("📌 Pastas (Tags) encontradas no KML:", Array.from(uniqueTagNames));
+
+        const targetProjectId = activeProjectId;
+        const targetOwnerId = getOwnerIdForProject(targetProjectId);
+
+        if (targetProjectId && uniqueTagNames.size > 0) {
+            const tagNameToId = {};
+            const tagsUpdates = {};
+            let hasNewTags = false;
+
+            uniqueTagNames.forEach(tagName => {
+                const existing = Object.values(projectTags).find(t =>
+                    String(t._projectId || '').trim() === String(targetProjectId).trim() &&
+                    t.name === tagName
+                );
+
+                if (existing) {
+                    tagNameToId[tagName] = existing.id;
+                } else {
+                    const newId = `tag_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+                    tagNameToId[tagName] = newId;
+                    tagsUpdates[newId] = { id: newId, name: tagName };
+                    hasNewTags = true;
+                }
+            });
+
+            console.log("🔄 Novas tags mapeadas para o banco:", tagsUpdates);
+
+            if (hasNewTags) {
+                try {
+                    const tagRef = doc(db, `artifacts/ftth-production/users/${targetOwnerId}/projects/${targetProjectId}/settings`, 'tags');
+                    await setDoc(tagRef, tagsUpdates, { merge: true });
+                    console.log("✅ Banco de dados atualizado com as novas tags do KML!");
+                } catch (tagErr) {
+                    console.error("❌ Erro grave ao salvar tags no banco:", tagErr);
+                }
+            }
+
+            // Repassa o ID para os itens
+            itemsToSave.forEach(item => {
+                if (item._tempTagNames && item._tempTagNames.length > 0) {
+                    item.tags = item._tempTagNames.map(tName => tagNameToId[tName]).filter(Boolean);
+                }
+            });
+        } else {
+            console.warn("⚠️ Nenhuma tag extraída do KML ou você importou sem um Projeto Ativo.");
+        }
+
+        // Faxina da memória temporária
+        itemsToSave.forEach(item => {
+            delete item._tempTagNames;
+        });
+        console.log("=== FIM DA TRADUÇÃO DE TAGS ===");
+        // ------------------------------------------------
+
 
         try {
             let count = 0;
