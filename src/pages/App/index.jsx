@@ -5201,8 +5201,9 @@ const App = () => {
                 />
 
                 {/* --- COMPONENTE ISOLADO DE FILTRO DE TAGS --- */}
-                <TagsFilterPanel
+                <TagsFilterPanel 
                     isOpen={isFilterPanelOpen}
+                    onClose={() => setIsFilterPanelOpen(false)} // <--- INJETE ESTA LINHA
                     projectTags={projectTags}
                     selectedFilterTags={selectedFilterTags}
                     setSelectedFilterTags={setSelectedFilterTags}

@@ -1247,7 +1247,7 @@ const FiberMap = ({
     const defaultCenter = [0, 0];
     const [selectedId, setSelectedId] = useState(null);
     const [showLabels, setShowLabels] = useState(false); // Substituiu zoomLevel numérico por booleano
-    const [isHelpExpanded, setIsHelpExpanded] = useState(false); // Começa aberto
+    const [isHelpExpanded, setIsHelpExpanded] = useState(true); // Começa aberto
     const [measureDistance, setMeasureDistance] = useState(0);
     const [toggleCluster, setToggleCluster] = useState(true); // Cluster ativado por padrão
 

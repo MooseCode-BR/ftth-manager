@@ -1,20 +1,49 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Tag } from 'lucide-react';
 
 const TagsFilterPanel = ({
     isOpen,
+    onClose, // NOVO: Função para fechar o painel
     projectTags,
     selectedFilterTags,
     setSelectedFilterTags
 }) => {
+    const panelRef = useRef(null);
+
+    // --- LÓGICA DE CLIQUE FORA (OUTSIDE CLICK) ---
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            // Ignora se o clique for dentro do painel
+            if (panelRef.current && !panelRef.current.contains(e.target)) {
+                // Ignora também se o clique for na Dock (para não dar conflito com o botão de Liga/Desliga)
+                if (e.target.closest('.dock-wrapper')) return;
+                
+                // Se clicou em qualquer outro lugar do mapa, fecha o painel
+                if (onClose) onClose();
+            }
+        };
+
+        // Só escuta os cliques se o painel estiver aberto, economizando memória
+        if (isOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+            document.addEventListener('touchstart', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('touchstart', handleClickOutside);
+        };
+    }, [isOpen, onClose]);
+
     // Se não estiver aberto, não renderiza nada
     if (!isOpen) return null;
 
-    // Extrai nomes únicos das tags para não haver repetição visual
-    const uniqueTags = Array.from(new Set(Object.values(projectTags).map(t => t.name)));
+    // Extrai nomes únicos e ORDENA ALFABETICAMENTE (Mantido da versão anterior)
+    const uniqueTags = Array.from(new Set(Object.values(projectTags).map(t => t.name)))
+        .sort((a, b) => a.localeCompare(b));
 
     return (
-        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 w-80 bg-white/90 dark:bg-black/70 backdrop-blur-xl p-4 rounded-xl shadow-2xl z-[60] border border-gray-200 dark:border-gray-800 animate-in fade-in slide-in-from-bottom-4">
+        <div ref={panelRef} className="absolute bottom-24 left-4 right-4 bg-white/90 dark:bg-black/70 backdrop-blur-xl p-4 rounded-xl shadow-2xl z-[60] border border-gray-200 dark:border-gray-800 animate-in fade-in slide-in-from-bottom-4">
             <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-bold flex items-center gap-2 text-gray-800 dark:text-white">
                     <Tag size={16} /> Filtrar Itens
@@ -26,7 +55,8 @@ const TagsFilterPanel = ({
                 )}
             </div>
 
-            <div className="flex flex-wrap gap-2 max-h-60 overflow-y-auto p-1 custom-scrollbar">
+            {/* Reduzido para max-h-32 (aprox 3 linhas antes do scroll aparecer) */}
+            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-1 custom-scrollbar">
                 {uniqueTags.map(tagName => (
                     <button
                         key={tagName}
@@ -48,7 +78,7 @@ const TagsFilterPanel = ({
 
                 {uniqueTags.length === 0 && (
                     <span className="text-xs text-gray-500 dark:text-gray-400 w-full text-center py-2">
-                        Nenhuma tag disponível, habilite a visibilidade de um projeto.
+                        Nenhuma tag disponível no projeto.
                     </span>
                 )}
             </div>
