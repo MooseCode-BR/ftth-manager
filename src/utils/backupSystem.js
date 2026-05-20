@@ -104,6 +104,10 @@ export const generateBackupFile = async (data, visibleProjects) => {
                 const ncData = nodeColorsDoc.data();
                 finalSettings.nodeColors = ncData;
             }
+
+            const tagsDoc = await getDoc(doc(db, `${projectPath}/settings`, 'tags'));
+            if (tagsDoc.exists()) finalSettings.tags = tagsDoc.data();
+
         } catch (error) {
             console.error(`Erro ao buscar dados completos do projeto ${project.name}:`, error);
         }
@@ -336,6 +340,9 @@ export const restoreFromBackup = async (file, projectOwnerId, targetProjectId, o
                 let payload = settings.nodeColors;
                 if (!payload.settings && !payload.favorites) payload = { settings: payload, favorites: [] };
                 firestoreOperations.push({ type: 'set', ref: doc(db, `${projectPath}/settings`, 'nodeColors'), data: payload });
+            }
+            if (settings.tags) {
+                firestoreOperations.push({ type: 'set', ref: doc(db, `${projectPath}/settings`, 'tags'), data: settings.tags });
             }
 
             // ── FASE 3: EXECUÇÃO DOS LOTES (COMMIT FINAL) ──

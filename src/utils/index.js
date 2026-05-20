@@ -518,10 +518,19 @@ export const parseKMLImport = (kmlText) => {
         const style = styles[i];
         const id = style.getAttribute("id");
         if (id) {
+            // Tenta pegar a cor da linha (Cabos)
             const lineStyle = style.getElementsByTagName("LineStyle")[0];
             const lineColor = lineStyle?.getElementsByTagName("color")[0]?.textContent;
-            if (lineColor) {
-                styleMap[`#${id}`] = kmlColorToHex(lineColor.trim());
+
+            // Tenta pegar a cor do ícone (Nós/Caixas)
+            const iconStyle = style.getElementsByTagName("IconStyle")[0];
+            const iconColor = iconStyle?.getElementsByTagName("color")[0]?.textContent;
+
+            // Define a cor a ser usada (prioriza a cor do ícone, depois a da linha)
+            const colorToUse = iconColor || lineColor;
+
+            if (colorToUse) {
+                styleMap[`#${id}`] = kmlColorToHex(colorToUse.trim());
             }
         }
     }
@@ -555,7 +564,8 @@ export const parseKMLImport = (kmlText) => {
     const rawPoints = [];
     const rawLines = [];
 
-    const processPlacemark = (p) => {
+    // O processPlacemark agora recebe as pastas (tags) onde ele se encontra
+    const processPlacemark = (p, currentTags) => {
         const name = p.getElementsByTagName("name")[0]?.textContent || "";
         const description = p.getElementsByTagName("description")[0]?.textContent?.trim() || "";
 
@@ -568,8 +578,11 @@ export const parseKMLImport = (kmlText) => {
         const inlineStyle = p.getElementsByTagName("Style")[0];
         if (inlineStyle) {
             const inlineLineColor = inlineStyle.getElementsByTagName("LineStyle")[0]?.getElementsByTagName("color")[0]?.textContent;
-            if (inlineLineColor) {
-                itemColor = kmlColorToHex(inlineLineColor);
+            const inlineIconColor = inlineStyle.getElementsByTagName("IconStyle")[0]?.getElementsByTagName("color")[0]?.textContent;
+
+            const colorToUse = inlineIconColor || inlineLineColor;
+            if (colorToUse) {
+                itemColor = kmlColorToHex(colorToUse.trim());
             }
         }
 
@@ -581,12 +594,9 @@ export const parseKMLImport = (kmlText) => {
             if (coords) {
                 const [lng, lat] = coords.trim().split(',').map(parseFloat);
                 if (!isNaN(lat) && !isNaN(lng)) {
-                    minLat = Math.min(minLat, lat);
-                    maxLat = Math.max(maxLat, lat);
-                    minLng = Math.min(minLng, lng);
-                    maxLng = Math.max(maxLng, lng);
-
-                    rawPoints.push({ name, lat, lng, color: itemColor, notes: description });
+                    minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
+                    minLng = Math.min(minLng, lng); maxLng = Math.max(maxLng, lng);
+                    rawPoints.push({ name, lat, lng, color: itemColor, notes: description, tempTags: currentTags });
                 }
             }
         }
@@ -599,26 +609,41 @@ export const parseKMLImport = (kmlText) => {
                 }).filter(p => !isNaN(p.lat));
 
                 if (points.length > 1) {
-                    rawLines.push({ name, points, color: itemColor, notes: description });
+                    rawLines.push({ name, points, color: itemColor, notes: description, tempTags: currentTags });
                 }
             }
         }
     };
 
-    // Função de travessia limpa que apenas vasculha a árvore XML
-    const traverse = (node) => {
-        if (node.nodeName === 'Placemark') {
-            processPlacemark(node);
-        }
-        for (let i = 0; i < node.children.length; i++) {
-            const child = node.children[i];
-            if (['Folder', 'Document', 'Placemark', 'kml'].includes(child.nodeName)) {
-                traverse(child);
+    // Função de travessia inteligente que acumula os nomes das pastas
+    const traverse = (node, pathTags = []) => {
+        let nodeTags = [...pathTags];
+
+        // Remove prefixos como 'kml:' para garantir compatibilidade com qualquer software gerador
+        const cleanNodeName = (node.localName || node.nodeName || '').replace(/^.*:/, '');
+
+        if (cleanNodeName === 'Folder') {
+            // Busca o nome da pasta também ignorando prefixos
+            const nameNode = Array.from(node.children).find(c => (c.localName || c.nodeName || '').replace(/^.*:/, '') === 'name');
+            if (nameNode && nameNode.textContent) {
+                const folderName = nameNode.textContent.trim().toUpperCase();
+                if (folderName && !nodeTags.includes(folderName)) {
+                    nodeTags.push(folderName);
+                }
             }
+        }
+
+        if (cleanNodeName === 'Placemark') {
+            processPlacemark(node, nodeTags);
+        }
+
+        // O loop varre todos os filhos sem se importar com o tipo restrito de tag
+        for (let i = 0; i < node.children.length; i++) {
+            traverse(node.children[i], nodeTags);
         }
     };
 
-    traverse(xmlDoc.documentElement);
+    traverse(xmlDoc.documentElement, []);
 
     // 3. GERAÇÃO DOS ITENS
     if (rawPoints.length === 0 && rawLines.length === 0) return [];
@@ -647,7 +672,10 @@ export const parseKMLImport = (kmlText) => {
             lng: pt.lng,
             ports: 0,
             parentId: null,
-            notes: pt.notes
+            notes: pt.notes,
+            // Injeta a cor do KML ou força Branco se não existir
+            color: pt.color || '#ffffff',
+            _tempTagNames: pt.tempTags || [] // Mantém a lógica de tags importadas
         };
         createdNodes.push(newNode);
         newItems.push(newNode);
@@ -685,7 +713,8 @@ export const parseKMLImport = (kmlText) => {
             color: line.color || '#000000',
             _startCoords: startPt,
             _endCoords: endPt,
-            notes: line.notes
+            notes: line.notes,
+            _tempTagNames: line.tempTags || []
         });
     });
 
