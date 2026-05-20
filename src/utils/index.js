@@ -518,10 +518,19 @@ export const parseKMLImport = (kmlText) => {
         const style = styles[i];
         const id = style.getAttribute("id");
         if (id) {
+            // Tenta pegar a cor da linha (Cabos)
             const lineStyle = style.getElementsByTagName("LineStyle")[0];
             const lineColor = lineStyle?.getElementsByTagName("color")[0]?.textContent;
-            if (lineColor) {
-                styleMap[`#${id}`] = kmlColorToHex(lineColor.trim());
+
+            // Tenta pegar a cor do ícone (Nós/Caixas)
+            const iconStyle = style.getElementsByTagName("IconStyle")[0];
+            const iconColor = iconStyle?.getElementsByTagName("color")[0]?.textContent;
+
+            // Define a cor a ser usada (prioriza a cor do ícone, depois a da linha)
+            const colorToUse = iconColor || lineColor;
+
+            if (colorToUse) {
+                styleMap[`#${id}`] = kmlColorToHex(colorToUse.trim());
             }
         }
     }
@@ -569,8 +578,11 @@ export const parseKMLImport = (kmlText) => {
         const inlineStyle = p.getElementsByTagName("Style")[0];
         if (inlineStyle) {
             const inlineLineColor = inlineStyle.getElementsByTagName("LineStyle")[0]?.getElementsByTagName("color")[0]?.textContent;
-            if (inlineLineColor) {
-                itemColor = kmlColorToHex(inlineLineColor);
+            const inlineIconColor = inlineStyle.getElementsByTagName("IconStyle")[0]?.getElementsByTagName("color")[0]?.textContent;
+
+            const colorToUse = inlineIconColor || inlineLineColor;
+            if (colorToUse) {
+                itemColor = kmlColorToHex(colorToUse.trim());
             }
         }
 
@@ -661,7 +673,9 @@ export const parseKMLImport = (kmlText) => {
             ports: 0,
             parentId: null,
             notes: pt.notes,
-            _tempTagNames: pt.tempTags || []
+            // Injeta a cor do KML ou força Branco se não existir
+            color: pt.color || '#ffffff',
+            _tempTagNames: pt.tempTags || [] // Mantém a lógica de tags importadas
         };
         createdNodes.push(newNode);
         newItems.push(newNode);

@@ -260,3 +260,80 @@ exports.validateWritePermission = onCall(async (request) => {
 
     return { allowed: true, permission: access.permission };
 });
+
+
+
+
+
+
+
+
+
+
+// // ... (Seu código existente acima) ...
+
+// // Constantes para a nova automação
+// const USER_ID_FOR_AUTOMATION = '8Pl6hsT9OVc69IWmsFrhSiBKR9X2'; // O ID do usuário dono da coleção
+// const PROJECT_ID_FOR_AUTOMATION = 'I599DdeVJ1uxTw4oobBe'; // O ID do projeto dentro do usuário
+// const TARGET_TAG_FOR_AUTOMATION = 'tag_1779103952429_11b97';
+// const NEW_FIELD_NAME_FOR_AUTOMATION = 'iconType';
+// const NEW_FIELD_VALUE_FOR_AUTOMATION = 'Diamond';
+
+// /**
+//  * Callable Function: Automação para atualizar itens com uma tag específica
+//  * Adiciona o campo "iconType: Diamond" aos itens que possuem a TARGET_TAG_FOR_AUTOMATION.
+//  *
+//  * Esta função deve ser acionada manualmente via HTTP.
+//  *
+//  * Exemplo de URL para acionar (substitua REGION e PROJECT_ID):
+//  * https://REGION-PROJECT_ID.cloudfunctions.net/updateItemsWithTag
+//  */
+// exports.updateItemsWithTag = functions.https.onRequest(async (req, res) => {
+//     // --- MECANISMO DE SEGURANÇA ---
+//     // É ALTAMENTE RECOMENDADO ADICIONAR UM MECANISMO DE SEGURANÇA AQUI
+//     // para evitar que qualquer pessoa acione esta função em produção.
+//     // Por exemplo, você pode exigir um "token secreto" na query string.
+//     //
+//     // if (req.query.secretToken !== functions.config().autotasks.secret_token) {
+//     //     logger.warn('Tentativa de acesso não autorizado à função updateItemsWithTag');
+//     //     return res.status(403).send('Acesso negado. Token de segurança inválido ou ausente.');
+//     // }
+//     // --- FIM DO MECANISMO DE SEGURANÇA ---
+
+//     try {
+//         logger.log(`Iniciando atualização para itens com a tag: ${TARGET_TAG_FOR_AUTOMATION}`);
+
+//         const collectionPath = `artifacts/ftth-production/users/${USER_ID_FOR_AUTOMATION}/projects/${PROJECT_ID_FOR_AUTOMATION}/items`;
+//         const itemsRef = db.collection(collectionPath);
+
+//         // 1. Consulta os documentos que correspondem à tag
+//         const snapshot = await itemsRef.where('tags', 'array-contains', TARGET_TAG_FOR_AUTOMATION).get();
+//         // Nota: Mudei para 'array-contains' se 'tags' for um array de strings.
+//         // Se 'tags' for uma única string, use '==' como no exemplo anterior.
+//         // Verifique a estrutura exata do seu campo 'tags'.
+
+//         if (snapshot.empty) {
+//             logger.log('Nenhum documento encontrado com a tag especificada.');
+//             return res.status(200).send('Nenhum documento encontrado para atualização.');
+//         }
+
+//         const batch = db.batch();
+//         let updatedCount = 0;
+
+//         // 2. Itera sobre os documentos e adiciona a atualização ao batch
+//         snapshot.forEach(doc => {
+//             batch.update(doc.ref, { [NEW_FIELD_NAME_FOR_AUTOMATION]: NEW_FIELD_VALUE_FOR_AUTOMATION });
+//             updatedCount++;
+//         });
+
+//         // 3. Confirma as escritas em lote
+//         await batch.commit();
+
+//         logger.log(`Sucesso! ${updatedCount} documentos foram atualizados na coleção: ${collectionPath}`);
+//         res.status(200).send(`Automação concluída: ${updatedCount} documentos foram atualizados.`);
+
+//     } catch (error) {
+//         logger.error('Erro ao executar a automação updateItemsWithTag:', error);
+//         res.status(500).send(`Erro interno do servidor: ${error.message}`);
+//     }
+// });
