@@ -829,7 +829,7 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                     closeButton={false}
                     autoPan={false}
                     className="hide-leaflet-popup-tail"
-                    offset={[0, -10]} // Offset maior para ficar acima do ícone do pino
+                    offset={[-90, -95]} // Offset maior para ficar acima do ícone do pino
                 >
                     <DraggableToolbar>
                         {/* --- NOME DO NODE (EM CIMA) --- */}
@@ -1037,7 +1037,7 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
                     position={clickPosition}
                     closeButton={false}
                     className="hide-leaflet-popup-tail"
-                    offset={[0, -5]}
+                    offset={[-90, -95]}
                     autoPan={false}
                 >
                     <DraggableToolbar>

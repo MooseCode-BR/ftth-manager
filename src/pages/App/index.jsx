@@ -195,7 +195,7 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
             {isSelected && !isCableStart && !node._readOnly && (
                 <div
                     className="absolute pointer-events-auto z-[60] animate-in slide-in-from-bottom-2 fade-in duration-200"
-                    style={{ left: '50%', top: '-76px', transform: 'translateX(-50%)' }}
+                    style={{ left: '-7%', top: '-80px', transform: 'translateX(-50%)' }}
                 >
                     <DraggableToolbar>
                         {/* 1. Nome no Topo (Header) */}
@@ -369,8 +369,8 @@ const CableLine = memo(({ cable, nodeA, nodeB, index, count, itemTypes, onSelect
         <div
             className="absolute pointer-events-auto z-[60] animate-in slide-in-from-bottom-2 fade-in"
             style={{
-                left: popupX,
-                top: popupY - 10, // Um pouco acima do clique
+                left: popupX - 60,
+                top: popupY - 95, // Um pouco acima do clique
                 transform: 'translate(-50%, -100%)' // Centraliza e joga pra cima
             }}
             onClick={(e) => e.stopPropagation()}
