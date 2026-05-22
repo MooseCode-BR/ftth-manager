@@ -6,7 +6,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
-    Folder, Trash2, Eye, EyeOff, Edit3, Check, PenTool, FolderOpen, Search,
+    Folder, Trash2, Eye, EyeOff, Edit3, Check, PenTool, FolderOpen, Search, Tag,
     Share2, UserCheck, Inbox, UserMinus, Users, ArrowRightLeft, AlertTriangle,
     Square, CheckSquare, Plus, ChevronDown, ChevronUp, X, Focus, UserPen, HardHat, LogOut
 } from 'lucide-react';
@@ -37,7 +37,8 @@ const ProjectManagerModal = ({
     onAlertRequest,
     onClose,
     isOpen,
-    isDarkMode
+    isDarkMode,
+    onOpenProjectTags
 }) => {
     const [activeTab, setActiveTab] = useState('MY_PROJECTS');
     const [newProjectName, setNewProjectName] = useState('');
@@ -526,6 +527,15 @@ const ProjectManagerModal = ({
                                                             <Share2 size={14} />
                                                         </button>
 
+                                                        {/* --- Botão de Gerenciamento de Tags do Projeto --- */}
+                                                        <button
+                                                            onClick={() => onOpenProjectTags(proj)}
+                                                            className="p-1 text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 rounded transition-colors"
+                                                            title="Gerenciar Tags do Projeto"
+                                                        >
+                                                            <Tag size={14} />
+                                                        </button>
+
                                                         <button
                                                             onClick={() => { onDeleteProject(proj.id); setSelectedIds(new Set()); }}
                                                             className="p-1.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 dark:hover:text-red-500 transition-colors"
@@ -664,6 +674,15 @@ const ProjectManagerModal = ({
                                                         title={isVisible ? "Ocultar Projeto" : "Ver Projeto"}
                                                     >
                                                         {isVisible ? <Eye size={14} /> : <EyeOff size={14} />}
+                                                    </button>
+
+                                                    {/* --- Botão de Gerenciamento de Tags do Projeto --- */}
+                                                    <button
+                                                        onClick={() => onOpenProjectTags(proj)}
+                                                        className="p-1 text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 rounded transition-colors"
+                                                        title="Gerenciar Tags do Projeto"
+                                                    >
+                                                        <Tag size={16} />
                                                     </button>
                                                 </div>
 

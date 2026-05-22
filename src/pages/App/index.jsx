@@ -87,6 +87,7 @@ import DetailPanel from '../DetailPanel'; // Painel lateral de detalhes
 import { LoadScreen } from '../../components/LoadScreen';
 import InstallPwaPopup from '../../components/InstallPwaPopup';
 import TagsFilterPanel from '../../components/TagsFilterPanel';
+import ProjectTagsModal from '../../components/modals/ProjectTagsModal';
 
 // ============================================================================
 // FIREBASE - AUTENTICAÇÃO E BANCO DE DADOS
@@ -539,6 +540,7 @@ const App = () => {
     // --- ESTADOS DE PROJETOS & COLABORAÇÃO ---
     // Hook customizado que gerencia convites, transferências e notificações
 
+    const [tagManagementProject, setTagManagementProject] = useState(null); // Armazena o objeto do projeto focado
     const [projectTags, setProjectTags] = useState({}); // Cache de todas as tags visíveis
     const [selectedFilterTags, setSelectedFilterTags] = useState([]); // Array de nomes das tags para o filtro
     // 1. Controle de visibilidade do painel (Adicione nos states do topo)
@@ -1329,6 +1331,10 @@ const App = () => {
         }
     };
 
+
+
+
+
     // Função auxiliar para Processar e Criar novas tags no banco
     const processAndSaveTags = async (tagsArray, targetProjectId, targetOwnerId) => {
         if (!tagsArray || tagsArray.length === 0) return [];
@@ -1353,6 +1359,47 @@ const App = () => {
         finalTagIds.push(...existingTags.map(t => t.id));
         return finalTagIds;
     };
+
+    // Função para salvar/editar uma única tag diretamente nas configurações do projeto focado
+    const handleSaveSingleProjectTag = async (projectId, ownerId, tagId, tagName) => {
+        try {
+            const tagRef = doc(db, `artifacts/ftth-production/users/${ownerId}/projects/${projectId}/settings`, 'tags');
+
+            // Grava ou atualiza a chave específica no mapa do Firebase settings/tags
+            await setDoc(tagRef, {
+                [tagId]: { id: tagId, name: tagName.toUpperCase() }
+            }, { merge: true });
+
+            console.log(`✅ Tag ${tagName} atualizada com sucesso no projeto ${projectId}`);
+        } catch (err) {
+            console.error("Erro ao salvar tag do projeto:", err);
+            alert("Não foi possível salvar a tag. Verifique suas permissões.");
+        }
+    };
+
+    // Função para deletar uma tag apagando seu campo no Firestore settings/tags
+    const handleDeleteProjectTag = async (projectId, ownerId, tagId, tagName) => {
+        if (!window.confirm(`Tem certeza que deseja excluir a tag "${tagName}"? Ela será removida do catálogo do projeto.`)) return;
+
+        try {
+            const { deleteField } = await import('firebase/firestore');
+            const tagRef = doc(db, `artifacts/ftth-production/users/${ownerId}/projects/${projectId}/settings`, 'tags');
+
+            // Remove o campo do mapa usando o deleteField() nativo do Firestore
+            await setDoc(tagRef, {
+                [tagId]: deleteField()
+            }, { merge: true });
+
+            console.log(`✅ Tag ${tagName} removida com sucesso do projeto ${projectId}`);
+        } catch (err) {
+            console.error("Erro ao deletar tag do projeto:", err);
+            alert("Não foi possível excluir a tag.");
+        }
+    };
+
+
+
+
 
     // --- LÓGICA DE SUBMISSÃO (COM PROJEÇÃO AUTOMÁTICA CANVAS -> MAPA) ---
     const handleModalSubmit = async (data) => {
@@ -4848,6 +4895,17 @@ const App = () => {
                 onConfirmRequest={openConfirm}
                 onClose={() => setIsProjectManagerOpen(false)}
                 isDarkMode={isDarkMode}
+                onOpenProjectTags={(project) => setTagManagementProject(project)}
+            />
+
+            {/* --- SUB-MODAL DE GERENCIAMENTO DE TAGS POR PROJETO --- */}
+            <ProjectTagsModal
+                isOpen={tagManagementProject !== null}
+                onClose={() => setTagManagementProject(null)}
+                project={tagManagementProject}
+                projectTags={projectTags}
+                onSaveTag={handleSaveSingleProjectTag}
+                onDeleteTag={handleDeleteProjectTag}
             />
 
             {/* 1. ÁREA PRINCIPAL (MAPA OU CANVAS) - Ocupa toda a tela (z-0) */}
@@ -5201,7 +5259,7 @@ const App = () => {
                 />
 
                 {/* --- COMPONENTE ISOLADO DE FILTRO DE TAGS --- */}
-                <TagsFilterPanel 
+                <TagsFilterPanel
                     isOpen={isFilterPanelOpen}
                     onClose={() => setIsFilterPanelOpen(false)} // <--- INJETE ESTA LINHA
                     projectTags={projectTags}
