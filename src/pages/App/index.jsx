@@ -1943,13 +1943,52 @@ const App = () => {
         setVisibleProjectIds(prev => prev.filter(p => p !== id));
     };
 
+    // const handleDeleteProject = (id) => {
+    //     // 1. Buscamos o nome real do projeto para exibir na trava de segurança
+    //     // Ele varre seus projetos pessoais e compartilhados e extrai o nome
+    //     const projectToDelete = [...myProjects, ...sharedProjects].find(p => p.id === id);
+    //     const projectName = projectToDelete ? projectToDelete.name : "PROJETO";
+
+    //     // 2. Setamos o estado do modal diretamente, ignorando o openConfirm, 
+    //     // para injetarmos o 'requireTextMatch' perfeitamente.
+    //     setConfirmConfig({
+    //         title: "Excluir Projeto",
+    //         message: `ATENÇÃO: Esta ação é irreversível.\n\nIsso apagará permanentemente todos os dados do projeto "${projectName}".\n`,
+    //         requireTextMatch: projectName, // <-- A MÁGICA DE SEGURANÇA AQUI
+    //         onClose: () => setConfirmConfig(null), // Repassamos a função para o botão cancelar funcionar
+    //         onConfirm: async () => {
+    //             setLoading(true);
+    //             try {
+    //                 await performDeleteProject(id);
+    //                 openAlert("Sucesso", "Projeto excluído.");
+    //             } catch (error) {
+    //                 console.error("Erro ao deletar projeto:", error);
+    //                 if (error.code === 'permission-denied' || (error.message && error.message.includes('Missing or insufficient permissions'))) {
+    //                     openAlert("Acesso Negado", "Você não tem permissões para excluir este projeto ou ele contém dados protegidos.");
+    //                 } else {
+    //                     openAlert("Erro", "Falha ao excluir projeto.");
+    //                 }
+    //             } finally {
+    //                 setLoading(false);
+    //             }
+    //         }
+    //     });
+    // };
+
     const handleDeleteProject = (id) => {
-        openConfirm(
-            "Excluir Projeto",
-            "ATENÇÃO: Esta ação é IRREVERSÍVEL.\n\nIsso apagará PERMANENTEMENTE todos os dados deste projeto.\n\nDeseja realmente continuar?",
-            async () => {
+        // Busca o nome real do projeto para a trava de segurança
+        const projectToDelete = [...myProjects, ...sharedProjects].find(p => p.id === id);
+        const projectName = projectToDelete ? projectToDelete.name : "PROJETO";
+
+        setConfirmConfig({
+            title: "Excluir Projeto",
+            message: `\nATENÇÃO: Esta ação é irreversível.\nIsso apagará permanentemente todos os dados do projeto "${projectName}".\n\nDeseja realmente continuar?`,
+            requireTextMatch: projectName, // <-- Trava de segurança ativada com o nome do projeto
+            onClose: () => setConfirmConfig(null),
+            onConfirm: async () => {
                 setLoading(true);
                 try {
+                    // Usando a sua função nativa que já apaga as coleções e imagens corretamente!
                     await performDeleteProject(id);
                     openAlert("Sucesso", "Projeto excluído.");
                 } catch (error) {
@@ -1963,7 +2002,33 @@ const App = () => {
                     setLoading(false);
                 }
             }
-        );
+        });
+    };
+
+    const handleBulkDeleteProject = async (ids) => {
+        if (ids.length === 0) return;
+
+        setConfirmConfig({
+            title: "Excluir Projetos",
+            message: `\nATENÇÃO: Esta ação é irreversível.\nIsso apagará permanentemente os ${ids.length} projetos selecionados e seus dados.\n\nDeseja realmente continuar?`,
+            requireTextMatch: "Excluir projetos", // <-- Trava de segurança coletiva ativada
+            onClose: () => setConfirmConfig(null),
+            onConfirm: async () => {
+                setLoading(true);
+                try {
+                    // Executa a sua deleção nativa para cada projeto selecionado
+                    for (const id of ids) {
+                        await performDeleteProject(id);
+                    }
+                    openAlert("Sucesso", `${ids.length} projetos excluídos.`);
+                } catch (error) {
+                    console.error(error);
+                    openAlert("Erro", "Falha ao excluir alguns projetos em massa.");
+                } finally {
+                    setLoading(false);
+                }
+            }
+        });
     };
 
     const handleRenameProject = async (id, newName) => {
@@ -2209,27 +2274,27 @@ const App = () => {
         );
     };
 
-    const handleBulkDeleteProject = async (ids) => {
-        if (ids.length === 0) return;
-        openConfirm(
-            "Excluir Projetos",
-            `ATENÇÃO: Esta ação é IRREVERSÍVEL.\n\nIsso apagará PERMANENTEMENTE os ${ids.length} projetos selecionados e seus dados.\n\nDeseja realmente continuar?`,
-            async () => {
-                setLoading(true);
-                try {
-                    for (const id of ids) {
-                        await performDeleteProject(id);
-                    }
-                    openAlert("Sucesso", `${ids.length} projetos excluídos.`);
-                } catch (error) {
-                    console.error(error);
-                    openAlert("Erro", "Falha ao excluir alguns projetos em massa.");
-                } finally {
-                    setLoading(false);
-                }
-            }
-        );
-    };
+    // const handleBulkDeleteProject = async (ids) => {
+    //     if (ids.length === 0) return;
+    //     openConfirm(
+    //         "Excluir Projetos",
+    //         `ATENÇÃO: Esta ação é IRREVERSÍVEL.\n\nIsso apagará PERMANENTEMENTE os ${ids.length} projetos selecionados e seus dados.\n\nDeseja realmente continuar?`,
+    //         async () => {
+    //             setLoading(true);
+    //             try {
+    //                 for (const id of ids) {
+    //                     await performDeleteProject(id);
+    //                 }
+    //                 openAlert("Sucesso", `${ids.length} projetos excluídos.`);
+    //             } catch (error) {
+    //                 console.error(error);
+    //                 openAlert("Erro", "Falha ao excluir alguns projetos em massa.");
+    //             } finally {
+    //                 setLoading(false);
+    //             }
+    //         }
+    //     );
+    // };
 
     const handleBulkToggleProjectVisibility = (ids) => {
         setVisibleProjectIds(prev => {
@@ -5417,7 +5482,7 @@ const App = () => {
                     />
                 }
                 {infoModalConfig && <InfoModal {...infoModalConfig} />}
-                {confirmConfig && <ConfirmModal {...confirmConfig} />}
+                {confirmConfig && <ConfirmModal {...confirmConfig} onClose={() => setConfirmConfig(null)} />}
                 {alertConfig && <AlertModal {...alertConfig} />}
                 {reportOpen && (<ReportModal items={items} connections={connections} onAlertRequest={openAlert} onClose={() => setReportOpen(false)} />)}
 
