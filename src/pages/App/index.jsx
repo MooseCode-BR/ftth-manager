@@ -30,7 +30,8 @@ import { Dialog } from '@capacitor/dialog';
 import {
     Trash2, Box, Scissors, Activity, User, ArrowRightLeft, Edit3, Save, X, CircleUserRound, ZoomIn, ZoomOut,
     LogOut, Mail, Search, ShieldAlert, MapPin, MapPinned, Loader2, Lock, Unlock, Info, PackagePlus,
-    DoorOpen, AlertTriangle, Play, Pause, ExternalLink, Tag
+    DoorOpen, AlertTriangle, Play, Pause, ExternalLink, Tag,
+    PenTool
 } from 'lucide-react';
 import LoadingFiber from '../../components/loadingfiber';
 
@@ -1397,7 +1398,22 @@ const App = () => {
         }
     };
 
-
+    // --- Impede que o usuario tente criar algum item no mapa/canvas sem um projeto ativo. ---
+    const activeProjectGuard = () => {
+        if (!activeProjectId) {
+            openAlert(
+                "Atenção",
+                <span className="flex items-center gap-1.5 flex-wrap">
+                    Para criar um item, é necessário existir ao menos um projeto e sua função "Editar<PenTool size={14} className="text-blue-600 dark:text-blue-400"/>" estar habilitada!
+                </span>
+            );
+            
+            setIsProjectManagerOpen(true); // Abre o modal de projetos para ele escolher
+            setInteractionMode('SELECT'); // Reseta a ferramenta atual do cursor
+            return false; // Retorna falso para bloquear a continuação do código
+        }
+        return true; // Retorna verdadeiro se estiver tudo certo
+    };
 
 
 
@@ -1536,6 +1552,8 @@ const App = () => {
             return;
         }
         if (interactionMode === 'ADD_NODE' && nodeTypeToAdd) {
+            if (!activeProjectGuard()) return; //Impede o usuario de criar um nó sem que um projeto esteja selecionado
+
             setModalConfig({
                 mode: 'NODE',
                 itemType: nodeTypeToAdd,
@@ -1545,6 +1563,8 @@ const App = () => {
             });
         }
         else if (interactionMode === 'ADD_CLIENT') {
+            if (!activeProjectGuard()) return; //Impede o usuario de criar um nó sem que um projeto esteja selecionado
+
             // MUDANÇA: Guarda na memória dedicada
             setNewClientPosition({ lat: latlng.lat, lng: latlng.lng });
             setClientWizard({ step: 'NAME', data: {} });
@@ -1556,6 +1576,8 @@ const App = () => {
     const handleMapNodeClick = (node) => {
         // Lógica de desenhar cabo (Igual ao Canvas)
         if (interactionMode === 'DRAW_CABLE') {
+            if (!activeProjectGuard()) return; //Impede o usuario de criar um nó sem que um projeto esteja selecionado
+
             // LÊ o valor ATUAL via ref (sem stale closure)
             const currentStart = cableStartNodeRef.current;
             console.log('[App] handleMapNodeClick chamado | nó:', node.name, '| cableStartNode:', currentStart?.name || 'null');
@@ -1580,33 +1602,34 @@ const App = () => {
         //     return;
         // }
         // Lógica de adicionar Cliente (Igual ao Canvas)
-        else if (clientWizard.step === 'PICK_CTO') {
-            if (node.type !== 'CTO') {
-                openAlert("Atenção", "Selecione uma CTO válida.");
-                return;
-            }
-            // (Reutiliza lógica de buscar splitter dentro da CTO)
-            const splitter = items.find(i => i.parentId === node.id && i.type === 'SPLITTER');
-            if (!splitter) {
-                openAlert("Erro", "Esta CTO não possui Splitter instalado.");
-                return;
-            }
-            const freePorts = [];
-            for (let i = 1; i < splitter.ports; i++) {
-                const isBusy = findConnection(connections, splitter.id, i, 'A');
-                if (!isBusy) freePorts.push({ id: i, label: i, splitterId: splitter.id });
-            }
-            if (freePorts.length === 0) {
-                openAlert("Lotada", "Esta CTO não tem portas disponíveis.");
-                return;
-            }
-            setClientWizard({
-                step: 'PICK_PORT',
-                data: { ...clientWizard.data, ctoNode: node, splitter, freePorts }
-            });
-        }
-        // Seleção Normal
-        else {
+        // else if (clientWizard.step === 'PICK_CTO') {
+        //     if (node.type !== 'CTO') {
+        //         openAlert("Atenção", "Selecione uma CTO válida.");
+        //         return;
+        //     }
+        //     // (Reutiliza lógica de buscar splitter dentro da CTO)
+        //     const splitter = items.find(i => i.parentId === node.id && i.type === 'SPLITTER');
+        //     if (!splitter) {
+        //         openAlert("Erro", "Esta CTO não possui Splitter instalado.");
+        //         return;
+        //     }
+        //     const freePorts = [];
+        //     for (let i = 1; i < splitter.ports; i++) {
+        //         const isBusy = findConnection(connections, splitter.id, i, 'A');
+        //         if (!isBusy) freePorts.push({ id: i, label: i, splitterId: splitter.id });
+        //     }
+        //     if (freePorts.length === 0) {
+        //         openAlert("Lotada", "Esta CTO não tem portas disponíveis.");
+        //         return;
+        //     }
+        //     setClientWizard({
+        //         step: 'PICK_PORT',
+        //         data: { ...clientWizard.data, ctoNode: node, splitter, freePorts }
+        //     });
+        // }
+
+        else {         // Seleção Normal
+
             setDetailId(node.id);
             setSelectedIds(new Set([node.id]));
         }
@@ -3054,6 +3077,9 @@ const App = () => {
 
     const handleEnd = (e, node) => {
         if (draggingNode?.isMultiSelect) { setSelectedItemsOffset({ dx: 0, dy: 0 }); } if (e.touches && e.touches.length < 2) { touchRef.current.dist = 0; } if (interactionMode === 'SELECT') { if (node) { const pos = getClientPos(e.changedTouches ? e.changedTouches[0] : e); const dist = Math.sqrt(Math.pow(pos.x - dragStartPosRef.current.x, 2) + Math.pow(pos.y - dragStartPosRef.current.y, 2)); if (dist < 5) { if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current); clickTimeoutRef.current = setTimeout(() => { setSelectedIds(new Set([node.id])); setDetailId(null); }, 250); } } else { const pos = getClientPos(e.changedTouches ? e.changedTouches[0] : e); const dist = Math.sqrt(Math.pow(pos.x - dragStartPosRef.current.x, 2) + Math.pow(pos.y - dragStartPosRef.current.y, 2)); if (dist < 5) { setSelectedIds(new Set()); setDetailId(null); } } } else if (interactionMode === 'DRAW_CABLE' && node) {
+            
+            if (!activeProjectGuard()) return; //Impede o usuario de criar um nó sem que um projeto esteja selecionado
+
             // USA REF para evitar stale closure (igual ao modo mapa)
             const currentStart = cableStartNodeRef.current;
             if (!currentStart) {
@@ -3155,6 +3181,8 @@ const App = () => {
         const clickY = (e.clientY - rect.top - pan.y) / scale;
 
         if (interactionMode === 'ADD_NODE' && nodeTypeToAdd) {
+            if (!activeProjectGuard()) return; //Impede o usuario de criar um nó sem que um projeto esteja selecionado
+
             setModalConfig({
                 mode: 'NODE',
                 itemType: nodeTypeToAdd,
@@ -3164,6 +3192,8 @@ const App = () => {
             });
         }
         else if (interactionMode === 'ADD_CLIENT') {
+            if (!activeProjectGuard()) return; //Impede o usuario de criar um nó sem que um projeto esteja selecionado
+
             // MUDANÇA: Guarda na memória dedicada
             setNewClientPosition({ x: clickX, y: clickY });
             setClientWizard({ step: 'NAME', data: {} });
