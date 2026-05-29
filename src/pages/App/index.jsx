@@ -1404,10 +1404,10 @@ const App = () => {
             openAlert(
                 "Atenção",
                 <span className="flex items-center gap-1.5 flex-wrap">
-                    Para criar um item, é necessário existir ao menos um projeto e sua função "Editar<PenTool size={14} className="text-blue-600 dark:text-blue-400"/>" estar habilitada!
+                    Para criar um item, é necessário existir ao menos um projeto e sua função "Editar<PenTool size={14} className="text-blue-600 dark:text-blue-400" />" estar habilitada!
                 </span>
             );
-            
+
             setIsProjectManagerOpen(true); // Abre o modal de projetos para ele escolher
             setInteractionMode('SELECT'); // Reseta a ferramenta atual do cursor
             return false; // Retorna falso para bloquear a continuação do código
@@ -2247,6 +2247,32 @@ const App = () => {
         );
     };
 
+    const handleBulkRevokeShare = async (inviteIds) => {
+        if (inviteIds.length === 0) return;
+
+        openConfirm(
+            "Sair dos Projetos",
+            `\nDeseja realmente sair de ${inviteIds.length} projetos simultaneamente? Você perderá permanentemente o acesso a eles.\n\nContinuar?`,
+            async () => {
+                setLoading(true);
+                try {
+                    const batch = writeBatch(db);
+                    // O "Confirmar" em lote num projeto compartilhado significa apenas apagar o próprio convite
+                    inviteIds.forEach(id => {
+                        batch.delete(doc(db, 'ftth_invitations', id));
+                    });
+                    await batch.commit();
+                    openAlert("Sucesso", `Você saiu de ${inviteIds.length} projetos.`);
+                } catch (error) {
+                    console.error("Erro ao sair em massa:", error);
+                    openAlert("Erro", "Falha ao sair dos projetos compartilhados.");
+                } finally {
+                    setLoading(false);
+                }
+            }
+        );
+    };
+
     // Função: Alternar Permissão de um Compartilhamento (Toggle Rápido)
     const handleUpdateSharePermission = async (inviteId, newPermission) => {
         try {
@@ -3077,7 +3103,7 @@ const App = () => {
 
     const handleEnd = (e, node) => {
         if (draggingNode?.isMultiSelect) { setSelectedItemsOffset({ dx: 0, dy: 0 }); } if (e.touches && e.touches.length < 2) { touchRef.current.dist = 0; } if (interactionMode === 'SELECT') { if (node) { const pos = getClientPos(e.changedTouches ? e.changedTouches[0] : e); const dist = Math.sqrt(Math.pow(pos.x - dragStartPosRef.current.x, 2) + Math.pow(pos.y - dragStartPosRef.current.y, 2)); if (dist < 5) { if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current); clickTimeoutRef.current = setTimeout(() => { setSelectedIds(new Set([node.id])); setDetailId(null); }, 250); } } else { const pos = getClientPos(e.changedTouches ? e.changedTouches[0] : e); const dist = Math.sqrt(Math.pow(pos.x - dragStartPosRef.current.x, 2) + Math.pow(pos.y - dragStartPosRef.current.y, 2)); if (dist < 5) { setSelectedIds(new Set()); setDetailId(null); } } } else if (interactionMode === 'DRAW_CABLE' && node) {
-            
+
             if (!activeProjectGuard()) return; //Impede o usuario de criar um nó sem que um projeto esteja selecionado
 
             // USA REF para evitar stale closure (igual ao modo mapa)
@@ -4969,6 +4995,7 @@ const App = () => {
                 pendingInvites={pendingInvites}
                 outgoingInvites={outgoingInvites}
                 onRevokeShare={handleRevokeShare}
+                onBulkRevokeShare={handleBulkRevokeShare}
                 onUpdateSharePermission={handleUpdateSharePermission}
                 activeProjectId={activeProjectId}
                 visibleProjectIds={visibleProjectIds}

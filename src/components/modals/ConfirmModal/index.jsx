@@ -134,7 +134,7 @@ const ConfirmModal = ({ onClose, onConfirm, title, message, requireTextMatch }) 
                             isConfirmDisabled ? 'opacity-50 cursor-not-allowed saturate-0' : ''
                         }`}
                     >
-                        Excluir
+                        Confirmar
                     </button>
                 </div>
             </div>
