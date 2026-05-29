@@ -220,7 +220,7 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
                                 title={isUnlocked ? "Bloquear Posição" : "Liberar Movimento"}
                             >
                                 {isUnlocked ? <Unlock size={16} /> : <Lock size={16} />}
-                                {isUnlocked ? "Destravar Posição" : "Travar Posição"}
+                                {isUnlocked ? "Travar Posição" : "Destravar Posição"}
                             </button>
 
                             {/* DETALHES */}
