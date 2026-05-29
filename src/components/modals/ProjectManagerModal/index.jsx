@@ -7,7 +7,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
     Folder, Trash2, Eye, EyeOff, Edit3, Check, PenTool, FolderOpen, Search, Tag,
-    Share2, UserCheck, Inbox, UserMinus, Users, ArrowRightLeft, AlertTriangle,
+    Share2, UserCheck, Inbox, UserMinus, Users, ArrowRightLeft, AlertTriangle, ArrowDownAZ, Clock,
     Square, CheckSquare, Plus, ChevronDown, ChevronUp, X, Focus, UserPen, HardHat, LogOut
 } from 'lucide-react';
 
@@ -46,6 +46,9 @@ const ProjectManagerModal = ({
     const [editingId, setEditingId] = useState(null);
     const [editNameValue, setEditNameValue] = useState('');
 
+    // --- ESTADO DE ORDENAÇÃO ---
+    const [sortMode, setSortMode] = useState('ALPHABETICAL'); // Pode ser 'ALPHABETICAL' ou 'DATE'
+
     // --- ESTADOS DE EXPANSÃO (Sanfona) ---
     // Guarda quais projetos estão com a lista de compartilhamento aberta
     const [expandedProjectIds, setExpandedProjectIds] = useState(new Set());
@@ -68,13 +71,50 @@ const ProjectManagerModal = ({
     }, [outgoingInvites]);
 
     // Ordenação alfabética dos projetos
-    const sortedMyProjects = useMemo(() => {
-        return [...myProjects].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-    }, [myProjects]);
+    // const sortedMyProjects = useMemo(() => {
+    //     return [...myProjects].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    // }, [myProjects]);
 
+    // const sortedSharedProjects = useMemo(() => {
+    //     return [...sharedProjects].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    // }, [sharedProjects]);
+
+    // Helper function para extrair a data de criação com precisão (independente do formato do Firebase)
+    const getSortValue = (proj) => {
+        if (!proj.createdAt) return 0;
+        if (typeof proj.createdAt.toMillis === 'function') return proj.createdAt.toMillis();
+        if (proj.createdAt.seconds) return proj.createdAt.seconds * 1000;
+        return new Date(proj.createdAt).getTime() || 0;
+    };
+
+    // Ordenação dos meus projetos
+    const sortedMyProjects = useMemo(() => {
+        const list = [...myProjects];
+        if (sortMode === 'DATE') {
+            return list.sort((a, b) => {
+                const valA = getSortValue(a);
+                const valB = getSortValue(b);
+                if (valA === valB) return (a.name || "").localeCompare(b.name || ""); // Desempate alfabético
+                return valB - valA; // Mais recente no topo
+            });
+        }
+        // Padrão: Alfabética
+        return list.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    }, [myProjects, sortMode]);
+
+    // Ordenação dos projetos compartilhados
     const sortedSharedProjects = useMemo(() => {
-        return [...sharedProjects].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-    }, [sharedProjects]);
+        const list = [...sharedProjects];
+        if (sortMode === 'DATE') {
+            return list.sort((a, b) => {
+                const valA = getSortValue(a);
+                const valB = getSortValue(b);
+                if (valA === valB) return (a.name || "").localeCompare(b.name || "");
+                return valB - valA;
+            });
+        }
+        return list.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    }, [sharedProjects, sortMode]);
 
     // --- ESTADO E LÓGICA DE BUSCA (FILTRO) ---
     const [searchQuery, setSearchQuery] = useState('');
@@ -325,7 +365,7 @@ const ProjectManagerModal = ({
             </div>
 
             {/* --- BARRA DE BUSCA GERAL --- */}
-            <div className="px-4 lg:px-3 py-3 border-b border-gray-200 dark:border-neutral-900 shrink-0">
+            {/* <div className="px-4 lg:px-3 py-3 border-b border-gray-200 dark:border-neutral-900 shrink-0">
                 <div className="relative flex items-center">
                     <Search size={14} className="absolute left-3 text-gray-400 dark:text-gray-500" />
                     <input
@@ -343,6 +383,38 @@ const ProjectManagerModal = ({
                         </button>
                     )}
                 </div>
+            </div> */}
+
+            {/* --- BARRA DE BUSCA GERAL E ORDENAÇÃO --- */}
+            <div className="px-4 lg:px-3 py-3 border-b border-gray-200 dark:border-neutral-900 shrink-0 flex gap-2">
+                
+                {/* Input de Busca */}
+                <div className="relative flex flex-1 items-center">
+                    <Search size={14} className="absolute left-3 text-gray-400 dark:text-gray-500" />
+                    <input
+                        type="text"
+                        placeholder="Buscar projetos"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 text-base lg:text-xs rounded-lg outline-none transition-colors
+                                   bg-gray-100 text-black border border-transparent focus:border-gray-300
+                                   dark:bg-neutral-900 dark:text-white dark:focus:border-neutral-700"
+                    />
+                    {searchQuery && (
+                        <button onClick={() => setSearchQuery('')} className="absolute right-3 p-1 rounded-full text-gray-400 hover:text-black dark:hover:text-white transition-colors">
+                            <X size={12} />
+                        </button>
+                    )}
+                </div>
+
+                {/* Botão de Alternar Ordenação */}
+                <button
+                    onClick={() => setSortMode(prev => prev === 'ALPHABETICAL' ? 'DATE' : 'ALPHABETICAL')}
+                    className="flex items-center justify-center px-3 py-2 bg-gray-100 dark:bg-neutral-900 border border-transparent hover:border-gray-300 dark:hover:border-neutral-700 rounded-lg text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
+                    title={sortMode === 'ALPHABETICAL' ? "Alternar para Data de Criação (Mais recentes primeiro)" : "Alternar para Ordem Alfabética"}
+                >
+                    {sortMode === 'ALPHABETICAL' ? <ArrowDownAZ size={16} /> : <Clock size={16} />}
+                </button>
             </div>
 
             {/* --- BARRA DE SELEÇÃO EM MASSA --- */}
