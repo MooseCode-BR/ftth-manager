@@ -505,11 +505,8 @@ const LocationControl = ({ onLocationFound, onAlertRequest }) => {
             position={position}
             icon={technicianIcon}
             zIndexOffset={2000} // Ficar acima do resto
-        >
-            <Popup className="text-center font-bold text-gray-800">
-                Você está aqui!
-            </Popup>
-        </Marker>
+            interactive={false}
+        />
     ) : null;
 };
 
