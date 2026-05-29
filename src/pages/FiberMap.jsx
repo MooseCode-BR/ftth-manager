@@ -855,7 +855,7 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                                 title={isUnlocked ? "Bloquear Posição" : "Liberar Movimento"}
                             >
                                 {isUnlocked ? <Unlock size={16} /> : <Lock size={16} />}
-                                {isUnlocked ? "Destravar Posição" : "Travar Posição"}
+                                {isUnlocked ? "Travar Posição" : "Destravar Posição"}
                             </button>
 
                             {/* Botão DETALHES */}
@@ -1069,7 +1069,7 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
                                 title={isUnlocked ? "Bloquear" : "Desbloquear"}
                             >
                                 {isUnlocked ? <Unlock size={16} /> : <Lock size={16} />}
-                                {isUnlocked ? "Desbloquear Cabo" : "Bloquear Cabo"}
+                                {isUnlocked ? "Bloquear Cabo" : "Desbloquear Cabo"}
                             </button>
 
                             {/* Botão DETALHES */}
