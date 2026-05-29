@@ -906,7 +906,7 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                                 <Navigation size={16} />
                                 Abrir no Maps
                             </button>
-                            
+
                             {/* Linha Divisória */}
                             <div className="h-px bg-gray-300/50 dark:bg-gray-600/50 my-0.5 mx-1"></div>
 
@@ -1071,7 +1071,7 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
                                 {isUnlocked ? <Unlock size={16} /> : <Lock size={16} />}
                                 {isUnlocked ? "Desbloquear Cabo" : "Bloquear Cabo"}
                             </button>
-                            
+
                             {/* Botão DETALHES */}
                             <button
                                 onClick={(e) => { e.stopPropagation(); if (onOpen) onOpen(cable.id, clickPosition); }}
@@ -1294,12 +1294,24 @@ const FiberMap = ({
         return null;
     };
 
+    // Fornecedor de imagens: OpenStreetMaps (Light) / CartoCDN (Dark)
+    // const tileLayerInfo = isDarkMode ? {
+    //     url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    //     attribution: '&copy; OpenStreetMap contributors'
+    // } : {
+    //     url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    //     attribution: '&copy; OpenStreetMap &copy; CARTO'
+    // };
+
+    // Fornecedor de imagens: Google
     const tileLayerInfo = isDarkMode ? {
-        url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-        attribution: '&copy; OpenStreetMap contributors'
+        url: 'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+        attribution: '&copy; Google Maps',
+        className: 'google-dark-map' // Classe CSS que criará o modo escuro
     } : {
-        url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-        attribution: '&copy; OpenStreetMap &copy; CARTO'
+        url: 'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+        attribution: '&copy; Google Maps',
+        className: '' // Sem filtro para o modo claro
     };
 
     // FUNÇÃO AUXILIAR: Para limpar a busca e selecionar o item ao mesmo tempo
@@ -1402,15 +1414,23 @@ const FiberMap = ({
                         checked={activeBaseLayer === 'Ruas'}
                         name="Ruas"
                     >
-                        <TileLayer
+                        {/* <TileLayer
                             attribution={tileLayerInfo.attribution}
                             url={tileLayerInfo.url}
                             maxNativeZoom={19}
-                            maxZoom={25}
+                            maxZoom={22}
+                        /> */}
+                        <TileLayer
+                            url={tileLayerInfo.url}
+                            attribution={tileLayerInfo.attribution}
+                            className={tileLayerInfo.className}
+                            subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+                            maxZoom={22}
                         />
                     </LayersControl.BaseLayer>
 
-                    <LayersControl.BaseLayer
+                    {/* Fornecedor de imagens: Esri */}
+                    {/* <LayersControl.BaseLayer
                         checked={activeBaseLayer === 'Satélite'}
                         name="Satélite"
                     >
@@ -1419,6 +1439,34 @@ const FiberMap = ({
                             url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
                             maxNativeZoom={17}
                             maxZoom={25}
+                        />
+                    </LayersControl.BaseLayer> */}
+
+                    {/* Fornecedor de imagens: Google (Sem nome de ruas) */}
+                    {/* <LayersControl.BaseLayer
+                        checked={activeBaseLayer === 'Satélite'}
+                        name="Satélite"
+                    >
+                        <TileLayer
+                            attribution='&copy; Google Maps'
+                            url="https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+                            subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+                            maxNativeZoom={22}
+                            maxZoom={22}
+                        />
+                    </LayersControl.BaseLayer> */}
+
+                    {/* Fornecedor de imagens: Google (Com nome de ruas) */}
+                    <LayersControl.BaseLayer
+                        checked={activeBaseLayer === 'Satélite'}
+                        name="Satélite"
+                    >
+                        <TileLayer
+                            attribution='&copy; Google Maps'
+                            url="https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+                            subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+                            maxNativeZoom={22}
+                            maxZoom={22}
                         />
                     </LayersControl.BaseLayer>
                 </LayersControl>

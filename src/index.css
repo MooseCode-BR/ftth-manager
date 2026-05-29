@@ -247,3 +247,13 @@ button.leaflet-control-custom.locating-active {
   transform: translate(-50%, -50%);
   z-index: 1000;
 }
+
+/* Filtro para transformar o Google Maps claro em Dark */
+.google-dark-map {
+    filter: invert(100%) hue-rotate(180deg) brightness(90%) contrast(90%);
+}
+
+/* Opcional: Garante que os fundos cinzas padrão do Leaflet não quebrem a estética */
+.leaflet-container {
+    background: #262626 !important;
+}
