@@ -500,35 +500,48 @@ const DropLine = memo(({ x1, y1, x2, y2 }) => {
 
 // FIM COMPONENTES MEMOIZADOS (PERFORMANCE) ========================================================================
 
-//Salva todo o texto do input antes de passar ao componente App
-// Componente Input que "segura" a digitação por 300ms
+// Componente Input otimizado para não "comer" letras durante digitação rápida
 const DebouncedInput = ({ value, onChange, ...props }) => {
     const [localValue, setLocalValue] = useState(value);
+    
+    // Ref para blindar a digitação. Impede que o estado atrasado do pai sobrescreva o que o usuário está digitando agora.
+    const isTyping = useRef(false);
+    const lastSentValue = useRef(value);
 
-    // Sincroniza se o pai mudar o valor externamente (ex: limpar busca)
+    // Sincroniza se o pai mudar o valor externamente (ex: usuário clicou no X para limpar a busca)
+    // A trava 'isTyping' garante que a sua digitação não seja interrompida pelo render do mapa.
     useEffect(() => {
-        setLocalValue(value);
+        if (!isTyping.current) {
+            setLocalValue(value);
+            lastSentValue.current = value;
+        }
     }, [value]);
 
-    // O "Freio" da digitação
+    // O verdadeiro "Freio" da digitação
     useEffect(() => {
         const handler = setTimeout(() => {
-            // Só avisa o pai se o valor mudou
-            if (localValue !== value) {
-                onChange(localValue); // Passamos o VALOR direto, não o evento 'e'
+            isTyping.current = false; // Tempo suficiente passou, consideramos que a rajada de digitação pausou
+            
+            // Só avisa o pai se o valor realmente mudou e é diferente do último que enviamos
+            if (localValue !== lastSentValue.current) {
+                lastSentValue.current = localValue;
+                onChange(localValue); 
             }
-        }, 10);
+        }, 350); // Aumentado para 350ms para garantir extrema fluidez antes de forçar o re-render do sistema
 
         return () => clearTimeout(handler);
-    }, [localValue]);
+    }, [localValue, onChange]);
 
     return (
         <input
-            {...props} // Repassa onKeyDown, className, onFocus, etc.
+            {...props} 
             id='barra-de-busca'
             name='Barra de Busca'
             value={localValue}
-            onChange={(e) => setLocalValue(e.target.value)} // Atualiza localmente instantâneo
+            onChange={(e) => {
+                isTyping.current = true; // Avisa que estamos ativamente digitando
+                setLocalValue(e.target.value); // Atualiza instantaneamente a tela, sem engasgos
+            }}
         />
     );
 };
