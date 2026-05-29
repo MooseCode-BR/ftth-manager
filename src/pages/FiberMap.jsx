@@ -7,8 +7,7 @@ import { ITEM_TYPES, ICON_MAP } from '../config/constants';
 import { CompassIcon } from '../components/icons';
 import {
     ChevronUp, Info, Lock, Unlock, Edit3, Trash2, Ruler, MapPin, Scissors,
-    Group, Ungroup, Crosshair,
-    DoorOpen, Copy
+    Group, Ungroup, Crosshair, Navigation, DoorOpen, Copy
 } from 'lucide-react';
 import DraggableToolbar from '../components/DraggableToolbar';
 
@@ -826,7 +825,7 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                     closeButton={false}
                     autoPan={false}
                     className="hide-leaflet-popup-tail"
-                    offset={[-90, -95]} // Offset maior para ficar acima do ícone do pino
+                    offset={[20, 20]} // Offset maior para ficar acima do ícone do pino
                 >
                     <DraggableToolbar>
                         {/* --- NOME DO NODE (EM CIMA) --- */}
@@ -836,11 +835,10 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                             </span>
                         </div>
 
-                        {/* --- BOTÕES (EMBAIXO, LADO A LADO) --- */}
-                        <div className="flex flex-row items-center justify-center gap-1.5 w-full"
+                        {/* --- BOTÕES (EMBAIXO, LISTA VERTICAL) --- */}
+                        <div className="flex flex-col gap-1 w-full min-w-[170px]"
                             onPointerDown={(e) => {
-                                // L.DomEvent.stopPropagation não é suficiente para interact.js ou native draggables no Leaflet,
-                                // O e.stopPropagation() já é feito no DraggableToolbar
+                                // e.stopPropagation() já é feito no DraggableToolbar
                             }}>
 
                             {/* Botão MOVER / TRAVAR */}
@@ -850,14 +848,26 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                                     e.preventDefault();
                                     setIsUnlocked(!isUnlocked);
                                 }}
-                                className={`p-1.5 rounded-full flex items-center justify-center transition-colors border ${isUnlocked
-                                    ? 'bg-green-500/90 text-white border-green-500/50 shadow-sm'
-                                    : 'bg-transparent text-gray-700 dark:text-gray-200 border-transparent hover:bg-white/50 dark:hover:bg-gray-700/50'
+                                className={`w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium rounded-lg transition-colors text-left ${isUnlocked
+                                    ? 'bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20'
+                                    : 'bg-transparent text-gray-700 dark:text-gray-200 hover:bg-white/50 dark:hover:bg-neutral-800'
                                     }`}
                                 title={isUnlocked ? "Bloquear Posição" : "Liberar Movimento"}
-                                style={{ width: '28px', height: '28px' }}
                             >
-                                {isUnlocked ? <Unlock size={14} /> : <Lock size={14} />}
+                                {isUnlocked ? <Unlock size={16} /> : <Lock size={16} />}
+                                {isUnlocked ? "Destravar Posição" : "Travar Posição"}
+                            </button>
+
+                            {/* Botão DETALHES */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (onOpen) onOpen(item.id);
+                                }}
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
+                            >
+                                <DoorOpen size={16} />
+                                Abrir Detalhes
                             </button>
 
                             {/* Botão EDITAR */}
@@ -866,37 +876,10 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                                     e.stopPropagation();
                                     if (onEdit) onEdit(item.id, item.name);
                                 }}
-                                className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors"
-                                style={{ width: '28px', height: '28px' }}
-                                title="Editar Propriedades"
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
                             >
-                                <Edit3 size={14} />
-                            </button>
-
-                            {/* Botão DETALHES (Novo, para igualar ao cabo) */}
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (onOpen) onOpen(item.id);
-                                }}
-                                className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors"
-                                style={{ width: '28px', height: '28px' }}
-                                title="Abrir Detalhes"
-                            >
-                                <DoorOpen size={14} />
-                            </button>
-
-                            {/* Botão EXCLUIR */}
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (onDelete) onDelete(item.id);
-                                }}
-                                className="bg-transparent text-red-600 dark:text-red-400 border border-transparent p-1.5 rounded-full hover:bg-red-100/50 dark:hover:bg-red-900/40 flex items-center justify-center transition-colors shadow-none"
-                                style={{ width: '28px', height: '28px' }}
-                                title="Excluir Item"
-                            >
-                                <Trash2 size={14} />
+                                <Edit3 size={16} />
+                                Editar Item
                             </button>
 
                             {/* Botão COPIAR COORDENADAS */}
@@ -905,12 +888,40 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                                     e.stopPropagation();
                                     navigator.clipboard.writeText(`${item.lat}, ${item.lng}`);
                                 }}
-                                className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors shadow-none"
-                                style={{ width: '28px', height: '28px' }}
-                                title="Copiar Coordenadas"
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
                             >
-                                <Copy size={14} />
+                                <Copy size={16} />
+                                Copiar Coodenadas
                             </button>
+
+                            {/* Botão ABRIR NO MAPS */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}`;
+                                    window.open(mapsUrl, '_blank', 'noopener,noreferrer');
+                                }}
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-transparent hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors text-left"
+                            >
+                                <Navigation size={16} />
+                                Abrir no Maps
+                            </button>
+                            
+                            {/* Linha Divisória */}
+                            <div className="h-px bg-gray-300/50 dark:bg-gray-600/50 my-0.5 mx-1"></div>
+
+                            {/* Botão EXCLUIR */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (onDelete) onDelete(item.id);
+                                }}
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-transparent hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-left"
+                            >
+                                <Trash2 size={16} />
+                                Excluir Item
+                            </button>
+
                         </div>
                     </DraggableToolbar>
                 </Popup>
@@ -1034,7 +1045,7 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
                     position={clickPosition}
                     closeButton={false}
                     className="hide-leaflet-popup-tail"
-                    offset={[-90, -95]}
+                    offset={[20, 20]}
                     autoPan={false}
                 >
                     <DraggableToolbar>
@@ -1045,52 +1056,59 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
                             </span>
                         </div>
 
-                        {/* --- BOTÕES (EMBAIXO, LADO A LADO) --- */}
-                        <div className="flex flex-row items-center justify-center gap-1.5 w-full">
+                        {/* --- BOTÕES (EMBAIXO, LISTA VERTICAL) --- */}
+                        <div className="flex flex-col gap-1 w-full min-w-[170px]">
 
+                            {/* Botão BLOQUEAR / DESBLOQUEAR */}
                             <button
                                 onClick={(e) => { e.stopPropagation(); setIsUnlocked(!isUnlocked); }}
-                                className={`p-1.5 rounded-full flex items-center justify-center transition-colors border ${isUnlocked ? 'bg-green-500/90 text-white border-green-500/50 shadow-sm' : 'bg-transparent text-gray-700 dark:text-gray-200 border-transparent hover:bg-white/50 dark:hover:bg-gray-700/50'}`}
+                                className={`w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium rounded-lg transition-colors text-left ${isUnlocked
+                                    ? 'bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20'
+                                    : 'bg-transparent text-gray-700 dark:text-gray-200 hover:bg-white/50 dark:hover:bg-neutral-800'
+                                    }`}
                                 title={isUnlocked ? "Bloquear" : "Desbloquear"}
-                                style={{ width: '28px', height: '28px' }}
                             >
-                                {isUnlocked ? <Unlock size={14} /> : <Lock size={14} />}
+                                {isUnlocked ? <Unlock size={16} /> : <Lock size={16} />}
+                                {isUnlocked ? "Desbloquear Cabo" : "Bloquear Cabo"}
                             </button>
-
-                            <button
-                                onClick={(e) => { e.stopPropagation(); if (onEdit) onEdit(cable.id, cable.name); }}
-                                className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors"
-                                style={{ width: '28px', height: '28px' }}
-                                title="Editar"
-                            >
-                                <Edit3 size={14} />
-                            </button>
-
+                            
+                            {/* Botão DETALHES */}
                             <button
                                 onClick={(e) => { e.stopPropagation(); if (onOpen) onOpen(cable.id, clickPosition); }}
-                                className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors"
-                                style={{ width: '28px', height: '28px' }}
-                                title="Detalhes"
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
                             >
-                                <DoorOpen size={14} />
+                                <DoorOpen size={16} />
+                                Abrir Detalhes
                             </button>
 
+                            {/* Botão EDITAR */}
                             <button
-                                onClick={(e) => { e.stopPropagation(); if (onDelete) onDelete(cable.id); }}
-                                className="bg-transparent text-red-600 dark:text-red-400 border border-transparent p-1.5 rounded-full hover:bg-red-100/50 dark:hover:bg-red-900/40 flex items-center justify-center transition-colors shadow-none"
-                                style={{ width: '28px', height: '28px' }}
-                                title="Excluir"
+                                onClick={(e) => { e.stopPropagation(); if (onEdit) onEdit(cable.id, cable.name); }}
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
                             >
-                                <Trash2 size={14} />
+                                <Edit3 size={16} />
+                                Editar Cabo
                             </button>
 
+                            {/* Botão SECCIONAR (CORTAR) */}
                             <button
                                 onClick={(e) => { e.stopPropagation(); if (onSplit) onSplit(cable.id, clickPosition); }}
-                                className="bg-transparent text-orange-600 dark:text-orange-400 border border-transparent p-1.5 rounded-full hover:bg-orange-100/50 dark:hover:bg-orange-900/40 flex items-center justify-center transition-colors shadow-none"
-                                style={{ width: '28px', height: '28px' }}
-                                title="Seccionar (Cortar)"
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-orange-600 dark:text-orange-400 bg-transparent hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors text-left"
                             >
-                                <Scissors size={14} className="rotate-90" />
+                                <Scissors size={16} className="rotate-90" />
+                                Cortar Cabo Aqui
+                            </button>
+
+                            {/* Linha Divisória */}
+                            <div className="h-px bg-gray-300/50 dark:bg-gray-600/50 my-0.5 mx-1"></div>
+
+                            {/* Botão EXCLUIR */}
+                            <button
+                                onClick={(e) => { e.stopPropagation(); if (onDelete) onDelete(cable.id); }}
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-transparent hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-left"
+                            >
+                                <Trash2 size={16} />
+                                Excluir Cabo
                             </button>
                         </div>
                     </DraggableToolbar>

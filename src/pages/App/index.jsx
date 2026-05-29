@@ -197,7 +197,7 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
             {isSelected && !isCableStart && !node._readOnly && (
                 <div
                     className="absolute pointer-events-auto z-[60] animate-in slide-in-from-bottom-2 fade-in duration-200"
-                    style={{ left: '-7%', top: '-80px', transform: 'translateX(-50%)' }}
+                    style={{ left: '-10%', top: '80px', transform: 'translateX(-50%)' }}
                 >
                     <DraggableToolbar>
                         {/* 1. Nome no Topo (Header) */}
@@ -207,60 +207,61 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
                             </span>
                         </div>
 
-                        {/* 2. Botões de Ação (Linha) */}
-                        <div className="flex items-center justify-center gap-1.5 w-full">
+                        {/* 2. Botões de Ação (Lista Vertical) */}
+                        <div className="flex flex-col gap-1 w-full min-w-[170px]">
+                            
                             {/* TRAVAR / DESTRAVAR */}
                             <button
                                 onClick={(e) => { e.stopPropagation(); setIsUnlocked(!isUnlocked); }}
-                                className={`p-1.5 rounded-full flex items-center justify-center transition-colors border ${isUnlocked
-                                    ? 'bg-green-500/90 text-white border-green-500/50 shadow-sm'
-                                    : 'bg-transparent text-gray-700 dark:text-gray-200 border-transparent hover:bg-white/50 dark:hover:bg-gray-700/50'
+                                className={`w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium rounded-lg transition-colors text-left ${isUnlocked
+                                    ? 'bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20'
+                                    : 'bg-transparent text-gray-700 dark:text-gray-200 hover:bg-white/50 dark:hover:bg-neutral-800'
                                     }`}
                                 title={isUnlocked ? "Bloquear Posição" : "Liberar Movimento"}
-                                style={{ width: '28px', height: '28px' }}
                             >
-                                {isUnlocked ? <Unlock size={14} /> : <Lock size={14} />}
+                                {isUnlocked ? <Unlock size={16} /> : <Lock size={16} />}
+                                {isUnlocked ? "Destravar Posição" : "Travar Posição"}
+                            </button>
+
+                            {/* DETALHES */}
+                            <button
+                                onClick={(e) => { e.stopPropagation(); if (onOpen) onOpen(node.id); }}
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
+                            >
+                                <DoorOpen size={16} />
+                                Abrir Detalhes
                             </button>
 
                             {/* EDITAR */}
                             <button
                                 onClick={(e) => { e.stopPropagation(); onEdit(node.id, node.name); }}
-                                className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors"
-                                style={{ width: '28px', height: '28px' }}
-                                title="Editar"
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
                             >
-                                <Edit3 size={14} />
-                            </button>
-
-                            {/* DETALHES (Novo) */}
-                            <button
-                                onClick={(e) => { e.stopPropagation(); if (onOpen) onOpen(node.id); }}
-                                className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors"
-                                style={{ width: '28px', height: '28px' }}
-                                title="Detalhes"
-                            >
-                                <DoorOpen size={14} />
-                            </button>
-
-                            {/* EXCLUIR */}
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onDelete(node.id); }}
-                                className="bg-transparent text-red-600 dark:text-red-400 border border-transparent p-1.5 rounded-full hover:bg-red-100/50 dark:hover:bg-red-900/40 flex items-center justify-center transition-colors shadow-none"
-                                style={{ width: '28px', height: '28px' }}
-                                title="Excluir"
-                            >
-                                <Trash2 size={14} />
+                                <Edit3 size={16} />
+                                Editar Equipamento
                             </button>
 
                             {/* MAPA (Voar para o nó) */}
                             <button
                                 onClick={(e) => { e.stopPropagation(); if (onFlyToMap) onFlyToMap(node); }}
-                                className="bg-transparent text-blue-600 dark:text-blue-400 border border-transparent p-1.5 rounded-full hover:bg-blue-100/50 dark:hover:bg-blue-900/40 flex items-center justify-center transition-colors shadow-none"
-                                style={{ width: '28px', height: '28px' }}
-                                title="Ver no Mapa"
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-transparent hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors text-left"
                             >
-                                <MapPinned size={14} />
+                                <MapPinned size={16} />
+                                Ver no Mapa
                             </button>
+
+                            {/* Linha Divisória */}
+                            <div className="h-px bg-gray-300/50 dark:bg-gray-600/50 my-0.5 mx-1"></div>
+
+                            {/* EXCLUIR */}
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onDelete(node.id); }}
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-transparent hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-left"
+                            >
+                                <Trash2 size={16} />
+                                Excluir Equipamento
+                            </button>
+
                         </div>
                     </DraggableToolbar>
                 </div>
@@ -371,8 +372,8 @@ const CableLine = memo(({ cable, nodeA, nodeB, index, count, itemTypes, onSelect
         <div
             className="absolute pointer-events-auto z-[60] animate-in slide-in-from-bottom-2 fade-in"
             style={{
-                left: popupX - 60,
-                top: popupY - 95, // Um pouco acima do clique
+                left: popupX - 95,
+                top: popupY + 20, // Um pouco acima do clique
                 transform: 'translate(-50%, -100%)' // Centraliza e joga pra cima
             }}
             onClick={(e) => e.stopPropagation()}
@@ -387,37 +388,39 @@ const CableLine = memo(({ cable, nodeA, nodeB, index, count, itemTypes, onSelect
                     </span>
                 </div>
 
-                {/* 2. Botões */}
-                <div className="flex items-center justify-center gap-1.5 w-full">
+                {/* 2. Botões (Lista Vertical) */}
+                <div className="flex flex-col gap-1 w-full min-w-[170px]">
+                    
+                    {/* DETALHES */}
+                    <button
+                        onClick={(e) => { e.stopPropagation(); if (onOpen) onOpen(cable.id); }}
+                        className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
+                    >
+                        <DoorOpen size={16} />
+                        Abrir Detalhes
+                    </button>
+
                     {/* EDITAR */}
                     <button
                         onClick={(e) => { e.stopPropagation(); onEdit(cable.id, cable.name); }}
-                        className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors"
-                        style={{ width: '28px', height: '28px' }}
-                        title="Editar"
+                        className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
                     >
-                        <Edit3 size={14} />
+                        <Edit3 size={16} />
+                        Editar Cabo
                     </button>
 
-                    {/* DETALHES (Novo) */}
-                    <button
-                        onClick={(e) => { e.stopPropagation(); if (onOpen) onOpen(cable.id); }}
-                        className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors"
-                        style={{ width: '28px', height: '28px' }}
-                        title="Detalhes"
-                    >
-                        <DoorOpen size={14} />
-                    </button>
+                    {/* Linha Divisória */}
+                    <div className="h-px bg-gray-300/50 dark:bg-gray-600/50 my-0.5 mx-1"></div>
 
                     {/* EXCLUIR */}
                     <button
                         onClick={(e) => { e.stopPropagation(); onDelete(cable.id); }}
-                        className="bg-transparent text-red-600 dark:text-red-400 border border-transparent p-1.5 rounded-full hover:bg-red-100/50 dark:hover:bg-red-900/40 flex items-center justify-center transition-colors shadow-none"
-                        style={{ width: '28px', height: '28px' }}
-                        title="Excluir"
+                        className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-transparent hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-left"
                     >
-                        <Trash2 size={14} />
+                        <Trash2 size={16} />
+                        Excluir Cabo
                     </button>
+
                 </div>
             </DraggableToolbar>
         </div>,
