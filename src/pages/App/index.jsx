@@ -201,8 +201,8 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
                 >
                     <DraggableToolbar>
                         {/* 1. Nome no Topo (Header) */}
-                        <div className="w-full text-center border-b border-gray-300/50 dark:border-gray-600/50 pb-1.5 mb-1.5">
-                            <span className="text-[10px] font-bold text-black dark:text-white block truncate max-w-[140px] mx-auto px-1">
+                        <div className="w-full text-center border-b border-gray-300/50 dark:border-gray-600/50 px-2.5 py-2 mb-1.5">
+                            <span className="text-xs font-bold text-black dark:text-white block truncate max-w-[200px]">
                                 {node.name}
                             </span>
                         </div>
@@ -220,7 +220,7 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
                                 title={isUnlocked ? "Bloquear Posição" : "Liberar Movimento"}
                             >
                                 {isUnlocked ? <Unlock size={16} /> : <Lock size={16} />}
-                                {isUnlocked ? "Destravar Posição" : "Travar Posição"}
+                                {isUnlocked ? "Travar Posição" : "Destravar Posição"}
                             </button>
 
                             {/* DETALHES */}
@@ -382,8 +382,8 @@ const CableLine = memo(({ cable, nodeA, nodeB, index, count, itemTypes, onSelect
         >
             <DraggableToolbar>
                 {/* 1. Nome no Topo */}
-                <div className="w-full text-center border-b border-gray-300/50 dark:border-gray-600/50 pb-1.5 mb-1.5">
-                    <span className="text-xs font-bold text-black dark:text-white block truncate max-w-[140px] mx-auto px-1">
+                <div className="w-full text-center border-b border-gray-300/50 dark:border-gray-600/50 px-2.5 py-2 mb-1.5">
+                            <span className="text-xs font-bold text-black dark:text-white block truncate max-w-[200px]">
                         {cable.name}
                     </span>
                 </div>
