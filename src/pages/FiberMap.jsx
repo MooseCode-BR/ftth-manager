@@ -720,6 +720,44 @@ const RotationHandler = () => {
     return null;
 };
 
+
+// Função matemática para detectar todos os cabos perto de um clique
+const findOverlappingCables = (map, clickLatLng, allCables, getNodePosition, thresholdPixels = 10) => {
+    // Converte o lat/lng do clique para X/Y da tela do usuário
+    const clickPt = map.latLngToLayerPoint(clickLatLng);
+    const hits = [];
+
+    allCables.forEach(cable => {
+        const posA = getNodePosition(cable.fromNode);
+        const posB = getNodePosition(cable.toNode);
+
+        if (!posA || !posB) return;
+
+        // Reconstrói a linha completa (Ponta A -> Waypoints -> Ponta B)
+        const waypoints = cable.waypoints || [];
+        const allPoints = [posA, ...waypoints, posB];
+
+        let isHit = false;
+        // Percorre cada segmento de linha do cabo
+        for (let i = 0; i < allPoints.length - 1; i++) {
+            // Converte as coordenadas do segmento para pixels na tela
+            const p1 = map.latLngToLayerPoint(L.latLng(allPoints[i]));
+            const p2 = map.latLngToLayerPoint(L.latLng(allPoints[i + 1]));
+
+            // Calcula a distância do clique até o segmento
+            const dist = L.LineUtil.pointToSegmentDistance(clickPt, p1, p2);
+
+            if (dist <= thresholdPixels) {
+                isHit = true;
+                break;
+            }
+        }
+        if (isHit) hits.push(cable);
+    });
+
+    return hits;
+};
+
 // --- COMPONENTES MEMOIZADOS (A CHAVE DA PERFORMANCE) ---
 
 // OTIMIZAÇÃO 2: Memoização do Marcador
@@ -969,7 +1007,7 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
     );
 });
 
-const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect, onEdit, onDelete, onOpen, onSplit }) => {
+const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect, onEdit, onDelete, onOpen, onSplit, allCables, setOverlappingMenu, getNodePosition, forcedPosition }) => {
     const [isUnlocked, setIsUnlocked] = useState(false);
     const [clickPosition, setClickPosition] = useState(null);
 
@@ -981,47 +1019,115 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
         }
     }, [isSelected]);
 
+    // Puxa a coordenada exata enviada pelo menu de sobreposição
+    useEffect(() => {
+        if (forcedPosition && isSelected) {
+            setClickPosition(forcedPosition);
+        }
+    }, [forcedPosition, isSelected]);
+    // ---------------------------------
+
     const waypointsArr = useMemo(() => (cable.waypoints || []).map(wp => [wp.lat, wp.lng]), [cable.waypoints]);
     const positions = [posA, ...waypointsArr, posB];
+
+    // Clique na Linha
+    // const handleLineClick = (e) => {
+    //     L.DomEvent.stopPropagation(e);
+
+    //     // 1. GRAVA A POSIÇÃO IMEDIATAMENTE
+    //     setClickPosition(e.latlng);
+
+    //     if (!isSelected) {
+    //         onSelect(cable.id);
+    //         return;
+    //     }
+
+    //     if (!isUnlocked) return;
+
+    //     // Lógica de adicionar ponto (waypoint)
+    //     const { lat, lng } = e.latlng;
+    //     const newWaypoints = [...(cable.waypoints || [])];
+
+    //     let bestIndex = newWaypoints.length;
+    //     let minAddedDist = Infinity;
+    //     const allPoints = [L.latLng(posA), ...newWaypoints.map(wp => L.latLng(wp)), L.latLng(posB)];
+    //     const clickPt = L.latLng(lat, lng);
+
+    //     for (let i = 0; i < allPoints.length - 1; i++) {
+    //         const p1 = allPoints[i];
+    //         const p2 = allPoints[i + 1];
+    //         const originalDist = p1.distanceTo(p2);
+    //         const newDist = p1.distanceTo(clickPt) + clickPt.distanceTo(p2);
+    //         const addedDist = newDist - originalDist;
+
+    //         if (addedDist < minAddedDist) {
+    //             minAddedDist = addedDist;
+    //             bestIndex = i;
+    //         }
+    //     }
+
+    //     newWaypoints.splice(bestIndex, 0, { lat, lng });
+    //     saveItem({ ...cable, waypoints: newWaypoints });
+    // };
 
     // Clique na Linha
     const handleLineClick = (e) => {
         L.DomEvent.stopPropagation(e);
 
-        // 1. GRAVA A POSIÇÃO IMEDIATAMENTE
+        // 1. SE O CABO ESTÁ DESTRAVADO (MODO DE EDIÇÃO):
+        // O usuário quer adicionar um waypoint. Ignoramos a sobreposição e seguimos a lógica original.
+        if (isSelected && isUnlocked) {
+            const { lat, lng } = e.latlng;
+            const newWaypoints = [...(cable.waypoints || [])];
+
+            let bestIndex = newWaypoints.length;
+            let minAddedDist = Infinity;
+            const allPoints = [L.latLng(posA), ...newWaypoints.map(wp => L.latLng(wp)), L.latLng(posB)];
+            const clickPt = L.latLng(lat, lng);
+
+            for (let i = 0; i < allPoints.length - 1; i++) {
+                const p1 = allPoints[i];
+                const p2 = allPoints[i + 1];
+                const originalDist = p1.distanceTo(p2);
+                const newDist = p1.distanceTo(clickPt) + clickPt.distanceTo(p2);
+                const addedDist = newDist - originalDist;
+
+                if (addedDist < minAddedDist) {
+                    minAddedDist = addedDist;
+                    bestIndex = i;
+                }
+            }
+
+            newWaypoints.splice(bestIndex, 0, { lat, lng });
+            saveItem({ ...cable, waypoints: newWaypoints });
+            return;
+        }
+
+        // 2. SE NÃO ESTÁ EM EDIÇÃO: VAMOS USAR O RADAR DE SOBREPOSIÇÃO
+        const map = e.target._map;
+
+        // Verificamos se você passou allCables para dentro deste componente
+        if (typeof allCables !== 'undefined' && setOverlappingMenu) {
+            // Roda o radar procurando cabos próximos (num raio de 10 pixels)
+            const foundCables = findOverlappingCables(map, e.latlng, allCables, getNodePosition, 10);
+
+            // Se encontrou mais de um cabo, pausa a seleção e abre o menu
+            if (foundCables.length > 1) {
+                setOverlappingMenu({
+                    isOpen: true,
+                    position: e.latlng,
+                    cables: foundCables
+                });
+                return; // Encerra a função, o usuário vai escolher no menu
+            }
+        }
+
+        // 3. SE SÓ TEM UM CABO (OU RADAR NÃO ENCONTROU SOBREPOSIÇÃO): Segue o fluxo normal
         setClickPosition(e.latlng);
 
         if (!isSelected) {
             onSelect(cable.id);
-            return;
         }
-
-        if (!isUnlocked) return;
-
-        // Lógica de adicionar ponto (waypoint)
-        const { lat, lng } = e.latlng;
-        const newWaypoints = [...(cable.waypoints || [])];
-
-        let bestIndex = newWaypoints.length;
-        let minAddedDist = Infinity;
-        const allPoints = [L.latLng(posA), ...newWaypoints.map(wp => L.latLng(wp)), L.latLng(posB)];
-        const clickPt = L.latLng(lat, lng);
-
-        for (let i = 0; i < allPoints.length - 1; i++) {
-            const p1 = allPoints[i];
-            const p2 = allPoints[i + 1];
-            const originalDist = p1.distanceTo(p2);
-            const newDist = p1.distanceTo(clickPt) + clickPt.distanceTo(p2);
-            const addedDist = newDist - originalDist;
-
-            if (addedDist < minAddedDist) {
-                minAddedDist = addedDist;
-                bestIndex = i;
-            }
-        }
-
-        newWaypoints.splice(bestIndex, 0, { lat, lng });
-        saveItem({ ...cable, waypoints: newWaypoints });
     };
 
     const handleLineDblClick = (e) => {
@@ -1045,10 +1151,12 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
 
     return (
         <>
-            {/* Linha Invisível (Hitbox maior) */}
+            {/* Contorno */}
             <Polyline
                 positions={positions}
-                pathOptions={{ color: 'transparent', weight: 20 }}
+                pathOptions={{ 
+                    color: 'black', 
+                    weight: isSelected ? 10 : 6 }}
                 eventHandlers={{ click: handleLineClick, dblclick: handleLineDblClick, contextmenu: (e) => setContextMenuPin(e.latlng) }}
             />
 
@@ -1057,8 +1165,8 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
                 positions={positions}
                 pathOptions={{
                     color: cable.color || '#334155',
-                    weight: isSelected ? 5 : 4,
-                    opacity: isSelected ? 1 : 0.8,
+                    weight: isSelected ? 8 : 4,
+                    opacity: isSelected ? 1 : 1,
                     dashArray: showEditControls ? '10, 10' : null
                 }}
                 eventHandlers={{ click: handleLineClick, dblclick: handleLineDblClick, contextmenu: (e) => setContextMenuPin(e.latlng) }}
@@ -1279,10 +1387,15 @@ const RulerTool = ({ isActive, onDistanceChange }) => {
     );
 };
 
+
 const FiberMap = ({
     items, saveItem, isDarkMode, interactionMode, onMapClick, onNodeClick, isPickingMode, flyToCoords,
     allItems, onEdit, onDelete, onOpen, onSplit, onClearSearch, cableStartNodeId, onLocationFound, onAlertRequest
 }) => {
+
+    // Estado para enviar a posição do clique do menu de desambiguação para dentro do cabo
+    const [forcedCablePosition, setForcedCablePosition] = useState(null);
+
     const defaultCenter = [0, 0];
     const [selectedId, setSelectedId] = useState(null);
     const [showLabels, setShowLabels] = useState(false); // Substituiu zoomLevel numérico por booleano
@@ -1291,6 +1404,12 @@ const FiberMap = ({
     const [toggleCluster, setToggleCluster] = useState(true); // Cluster ativado por padrão
     // Estado para o marcador de clique longo / botão direito
     const [contextMenuPin, setContextMenuPin] = useState(null);
+    // Estado para quando clicar em cabos sobrepostos
+    const [overlappingMenu, setOverlappingMenu] = useState({
+        isOpen: false,
+        position: null,
+        cables: []
+    });
 
     const searchIcon = useMemo(() => createSearchIcon(), []);
 
@@ -1525,7 +1644,7 @@ const FiberMap = ({
 
                 <RotationHandler />
 
-                {mapCables.map(cable => {
+                {/* {mapCables.map(cable => {
                     const posA = getNodePosition(cable.fromNode);
                     const posB = getNodePosition(cable.toNode);
                     if (posA && posB) {
@@ -1546,6 +1665,34 @@ const FiberMap = ({
                         );
                     }
                     return null;
+                })} */}
+                {mapCables.map(cable => {
+                    const posA = getNodePosition(cable.fromNode);
+                    const posB = getNodePosition(cable.toNode);
+                    if (posA && posB) {
+                        return (
+                            <EditableCable
+                                key={cable.id}
+                                cable={cable}
+                                posA={posA}
+                                posB={posB}
+                                saveItem={saveItem}
+                                isSelected={selectedId === cable.id}
+                                onSelect={handleSelection}
+                                onEdit={() => onEdit(cable.id, cable.name)}
+                                onDelete={() => onDelete(cable.id)}
+                                onOpen={() => onOpen(cable.id)}
+                                onSplit={onSplit}
+
+                                /* --- NOVAS PROPRIEDADES DO RADAR DE SOBREPOSIÇÃO --- */
+                                allCables={mapCables}
+                                setOverlappingMenu={setOverlappingMenu}
+                                getNodePosition={getNodePosition}
+                                forcedPosition={forcedCablePosition?.id === cable.id ? forcedCablePosition.latlng : null}
+                            />
+                        );
+                    }
+                    return null;
                 })}
 
                 {/* INÍCIO DO CLUSTER */}
@@ -1555,7 +1702,7 @@ const FiberMap = ({
                     chunkedLoading
 
                     /* SOLUÇÃO 2: Desliga o agrupamento quando chegas perto (Zoom 16 ou mais) */
-                    disableClusteringAtZoom={toggleCluster ? 24 : 1}
+                    disableClusteringAtZoom={toggleCluster ? 22 : 1}
 
                     /* Ajuste visual: Aumenta um pouco o raio para ficar mais organizado */
                     maxClusterRadius={50}
@@ -1640,6 +1787,51 @@ const FiberMap = ({
                             </div>
                         </Popup>
                     </Marker>
+                )}
+
+                {/* --- MENU DE DESAMBIGUAÇÃO (CABOS SOBREPOSTOS) --- */}
+                {overlappingMenu.isOpen && overlappingMenu.position && (
+                    <Popup
+                        position={overlappingMenu.position}
+                        onClose={() => setOverlappingMenu({ isOpen: false, position: null, cables: [] })}
+                        className="hide-leaflet-popup-tail popup-top-left"
+                        autoPan={false}
+                        closeButton={false}
+                    >
+                        <div className="p-2 flex flex-col items-center min-w-[195px] rounded-2xl border backdrop-blur-xl shadow-2xl bg-white/40 dark:bg-black/60 border-white/60 dark:border-black/60">
+                            <div className="w-full text-center border-b border-gray-300/50 dark:border-gray-600/50 pb-1.5 mb-1.5 mt-1">
+                                <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 block mx-auto px-1 uppercase tracking-wider">
+                                    Selecione o cabo desejado
+                                </span>
+                            </div>
+
+                            {overlappingMenu.cables.map((cable) => (
+                                <button
+                                    key={cable.id}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        // 1. Salva a posição antes de limpar o menu
+                                        const clickPos = overlappingMenu.position;
+
+                                        // 2. Fecha o menu de desambiguação
+                                        setOverlappingMenu({ isOpen: false, position: null, cables: [] });
+
+                                        // 3. Avisa qual cabo foi selecionado E onde o balão deve abrir
+                                        handleSelection(cable.id); // (ou sua função onSelect)
+                                        setForcedCablePosition({ id: cable.id, latlng: clickPos });
+                                    }}
+                                    className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
+                                >
+                                    {/* Bolinha de cor para identificar o cabo */}
+                                    <div
+                                        className="w-3 h-3 rounded-full border border-gray-300 dark:border-gray-600"
+                                        style={{ backgroundColor: cable.color || '#334155' }}
+                                    ></div>
+                                    <span className="truncate">{cable.name}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </Popup>
                 )}
 
             </MapContainer>
@@ -1775,6 +1967,8 @@ const FiberMap = ({
 
 
             </div>
+
+
 
 
         </div >
