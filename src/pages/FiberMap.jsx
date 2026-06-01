@@ -7,8 +7,7 @@ import { ITEM_TYPES, ICON_MAP } from '../config/constants';
 import { CompassIcon } from '../components/icons';
 import {
     ChevronUp, Info, Lock, Unlock, Edit3, Trash2, Ruler, MapPin, Scissors,
-    Group, Ungroup, Crosshair,
-    DoorOpen, Copy
+    Group, Ungroup, Crosshair, Navigation, DoorOpen, Copy
 } from 'lucide-react';
 import DraggableToolbar from '../components/DraggableToolbar';
 
@@ -204,10 +203,29 @@ const createSearchIcon = () => {
 
 // --- COMPONENTES DE CONTROLE ---
 // Pega coordenadas para cliques no mapa adicionando Nós ou Clientes / Desseleciona qualquer seleção se clicar no mapa
-const MapClickHandler = ({ onMapBgClick, interactionMode, onDeselect }) => {
+// const MapClickHandler = ({ onMapBgClick, interactionMode, onDeselect }) => {
+//     const map = useMap();
+//     useMapEvents({
+//         click() {
+//             if (interactionMode === 'ADD_NODE' || interactionMode === 'ADD_CLIENT' || interactionMode === 'ADD_OBJECT') {
+//                 // Usa o centro do mapa (mira) em vez do local do clique
+//                 onMapBgClick(map.getCenter());
+//             } else {
+//                 onMapBgClick(null);
+//                 if (onDeselect) onDeselect();
+//             }
+//         },
+//     });
+//     return null;
+// };
+// ATENÇÃO: Adicionamos o setContextMenuPin aqui nos parâmetros
+const MapClickHandler = ({ onMapBgClick, interactionMode, onDeselect, setContextMenuPin }) => {
     const map = useMap();
     useMapEvents({
         click() {
+            // 1. Limpa o pino do clique longo/botão direito se o usuário der um clique normal
+            if (setContextMenuPin) setContextMenuPin(null);
+
             if (interactionMode === 'ADD_NODE' || interactionMode === 'ADD_CLIENT' || interactionMode === 'ADD_OBJECT') {
                 // Usa o centro do mapa (mira) em vez do local do clique
                 onMapBgClick(map.getCenter());
@@ -216,6 +234,10 @@ const MapClickHandler = ({ onMapBgClick, interactionMode, onDeselect }) => {
                 if (onDeselect) onDeselect();
             }
         },
+        // 2. O evento mágico do Leaflet que detecta botão direito ou clique longo
+        contextmenu(e) {
+            if (setContextMenuPin) setContextMenuPin(e.latlng);
+        }
     });
     return null;
 };
@@ -391,9 +413,9 @@ const LocationControl = ({ onLocationFound, onAlertRequest }) => {
                     <defs>
                         <filter id="contorno-branco" x="-20%" y="-20%" width="140%" height="140%">
                             {/* Expande a forma (alpha) do desenho */}
-                            <feMorphology in="SourceAlpha" operator="dilate" radius="2" result="expandido" />
+                            <feMorphology in="SourceAlpha" operator="dilate" radius="10" result="expandido" />
                             {/* Preenche a forma expandida com preto */}
-                            <feFlood floodColor="#ffffff" result="cor-branca" />
+                            <feFlood floodColor="#000" result="cor-branca" />
                             {/* Aplica a cor preta apenas na área expandida */}
                             <feComposite in="cor-branca" in2="expandido" operator="in" result="contorno" />
                             {/* Junta o contorno preto (atrás) com o desenho original (frente) */}
@@ -411,79 +433,79 @@ const LocationControl = ({ onLocationFound, onAlertRequest }) => {
                     <g className="character" filter="url(#contorno-branco)">
                         {/* ================= CORPO ================= */}
                         {/* Pernas */}
-                        <line x1="125" y1="150" x2="105" y2="205" stroke="#000000" strokeWidth="11" strokeLinecap="round" />
-                        <line x1="125" y1="150" x2="145" y2="205" stroke="#000000" strokeWidth="11" strokeLinecap="round" />
-
-                        {/* Tronco */}
-                        <line x1="125" y1="91" x2="125" y2="155" stroke="#000000" strokeWidth="15" strokeLinecap="round" />
+                        <line x1="125" y1="150" x2="105" y2="205" stroke="#08f" strokeWidth="11" strokeLinecap="round" />
+                        <line x1="125" y1="150" x2="145" y2="205" stroke="#08f" strokeWidth="11" strokeLinecap="round" />
 
                         {/* Braço esquerdo segurando a escada (mão no trilho inferior) */}
-                        <path d="M 125 98 Q 110 115 92 107" fill="none" stroke="#000000" strokeWidth="8"
+                        <path d="M 125 98 Q 110 115 92 107" fill="none" stroke="#08f" strokeWidth="8"
                             strokeLinecap="round" />
-                        <circle cx="92" cy="107" r="4" fill="#000000" />
+                        <circle cx="92" cy="107" r="4" fill="#08f" />
 
                         {/* ================= ESCADA NO OMBRO (Cor Laranja) ================= */}
                         <g transform="translate(125, 80) rotate(-20)">
                             {/* Trilhos laterais */}
-                            <line x1="-80" y1="-14" x2="70" y2="-14" stroke="#FF6B00" strokeWidth="10" strokeLinecap="round" />
-                            <line x1="-80" y1="14" x2="70" y2="14" stroke="#FF6B00" strokeWidth="10" strokeLinecap="round" />
+                            <line x1="-80" y1="-14" x2="70" y2="-14" stroke="#FF6000" strokeWidth="10" strokeLinecap="round" />
+                            <line x1="-80" y1="14" x2="70" y2="14" stroke="#FF6000" strokeWidth="10" strokeLinecap="round" />
                             {/* Degraus */}
-                            <line x1="-65" y1="-14" x2="-65" y2="14" stroke="#FF6B00" strokeWidth="5" />
-                            <line x1="-40" y1="-14" x2="-40" y2="14" stroke="#FF6B00" strokeWidth="5" />
-                            <line x1="-15" y1="-14" x2="-15" y2="14" stroke="#FF6B00" strokeWidth="5" />
-                            <line x1="10" y1="-14" x2="10" y2="14" stroke="#FF6B00" strokeWidth="5" />
-                            <line x1="35" y1="-14" x2="35" y2="14" stroke="#FF6B00" strokeWidth="5" />
-                            <line x1="60" y1="-14" x2="60" y2="14" stroke="#FF6B00" strokeWidth="5" />
+                            <line x1="-65" y1="-14" x2="-65" y2="14" stroke="#FF6000" strokeWidth="5" />
+                            <line x1="-40" y1="-14" x2="-40" y2="14" stroke="#FF6000" strokeWidth="5" />
+                            <line x1="-15" y1="-14" x2="-15" y2="14" stroke="#FF6000" strokeWidth="5" />
+                            <line x1="10" y1="-14" x2="10" y2="14" stroke="#FF6000" strokeWidth="5" />
+                            <line x1="35" y1="-14" x2="35" y2="14" stroke="#FF6000" strokeWidth="5" />
+                            <line x1="60" y1="-14" x2="60" y2="14" stroke="#FF6000" strokeWidth="5" />
                         </g>
 
                         {/* ================= BRAÇO DIREITO (Dando Tchau) ================= */}
                         <g className="waving-arm">
-                            <path d="M 125 100 Q 155 105 162 65" fill="none" stroke="#000000" strokeWidth="8"
+                            <path d="M 125 100 Q 155 105 162 65" fill="none" stroke="#08f" strokeWidth="8"
                                 strokeLinecap="round" />
                             {/* Mão direita (bolinha) */}
-                            <circle cx="162" cy="65" r="4" fill="#000000" />
+                            <circle cx="162" cy="65" r="4" fill="#08f" />
                         </g>
 
+                        {/* Tronco */}
+                        <line x1="125" y1="91" x2="125" y2="155" stroke="#08f" strokeWidth="10" strokeLinecap="round" />
+
                         {/* EPI: Suspensórios (Tiras no ombro) e Fita Peitoral */}
-                        <path d="M 125 95 L 118 135" stroke="#FF6B00" strokeWidth="4" />
+                        {/* <path d="M 125 95 L 118 135" stroke="#FF6B00" strokeWidth="4" />
                         <path d="M 125 95 L 132 135" stroke="#FF6B00" strokeWidth="4" />
                         <line x1="119" y1="115" x2="131" y2="115" stroke="#FF6B00" strokeWidth="4" strokeLinecap="round" />
-                        <circle cx="125" cy="115" r="2.5" fill="none" stroke="#000000" strokeWidth="1.5" />
+                        <circle cx="125" cy="115" r="2.5" fill="none" stroke="#000000" strokeWidth="1.5" /> */}
                         {/* Argola frontal */}
 
                         {/* ================= EPI: CINTURÃO DE SEGURANÇA ================= */}
-                        <rect x="110" y="132" width="30" height="14" rx="4" fill="#FF6B00" />
-                        <rect x="122" y="132" width="6" height="14" rx="1.5" fill="#CC5500" /> {/* Fivela */}
+                        {/* <rect x="110" y="132" width="30" height="14" rx="4" fill="#FF6B00" />
+                        <rect x="122" y="132" width="6" height="14" rx="1.5" fill="#CC5500" /> Fivela */}
 
                         {/* Argolas laterais do EPI */}
-                        <circle cx="110" cy="139" r="3" fill="none" stroke="#000000" strokeWidth="2" />
-                        <circle cx="140" cy="139" r="3" fill="none" stroke="#000000" strokeWidth="2" />
+                        {/* <circle cx="110" cy="139" r="3" fill="none" stroke="#000000" strokeWidth="2" />
+                        <circle cx="140" cy="139" r="3" fill="none" stroke="#000000" strokeWidth="2" /> */}
 
                         {/* EPI: Talabarte (Corda de segurança com mosquetão) */}
-                        <path d="M 140 139 Q 155 155 145 185" fill="none" stroke="#FF6B00" strokeWidth="5"
+                        {/* <path d="M 140 139 Q 155 155 145 185" fill="none" stroke="#FF6B00" strokeWidth="5"
                             strokeLinecap="round" />
-                        <rect x="142" y="185" width="6" height="12" rx="3" fill="none" stroke="#000000" strokeWidth="3" />
+                        <rect x="142" y="185" width="6" height="12" rx="3" fill="none" stroke="#000000" strokeWidth="3" /> */}
                         {/* Mosquetão */}
 
                         {/* EPI: Perneiras (Tiras nas coxas) */}
-                        <line x1="111" y1="168" x2="123" y2="162" stroke="#FF6B00" strokeWidth="8" strokeLinecap="round" />
-                        <line x1="139" y1="168" x2="127" y2="162" stroke="#FF6B00" strokeWidth="8" strokeLinecap="round" />
+                        {/* <line x1="111" y1="168" x2="123" y2="162" stroke="#FF6B00" strokeWidth="8" strokeLinecap="round" />
+                        <line x1="139" y1="168" x2="127" y2="162" stroke="#FF6B00" strokeWidth="8" strokeLinecap="round" /> */}
 
                         {/* ================= CABEÇA ================= */}
                         {/* Rosto */}
-                        <circle cx="125" cy="75" r="16" fill="#000" stroke="#000" strokeWidth="2.5" />
+                        <circle cx="125" cy="75" r="16" fill="#08f" stroke="#08f" strokeWidth="4" />
 
                         {/* Sorriso simpático */}
-                        <path d="M 120 83 Q 125 88 130 83" fill="none" stroke="#fff" strokeWidth="2.5"
+                        <path d="M 120 83 Q 125 88 130 83" fill="none" stroke="#fff" strokeWidth="4"
                             strokeLinecap="round" />
 
                         {/* ================= CAPACETE (Cor Laranja) ================= */}
                         {/* Domo do capacete */}
-                        <path d="M 107 72 A 18 18 0 0 1 143 72 Z" fill="#FF6B00" stroke="#000000" strokeWidth="3"
-                            strokeLinejoin="round" />
+                        {/* <path d="M 107 72 A 18 18 0 0 1 143 72 Z" fill="#fff" stroke="#fff" strokeWidth="0"
+                            strokeLinejoin="round" /> */}
                         {/* Aba do capacete */}
-                        <path d="M 103 72 Q 125 72 147 72" fill="none" stroke="#000000" strokeWidth="6"
-                            strokeLinecap="round" />
+                        {/* <path d="M 103 72 Q 125 72 147 72" fill="none" stroke="#fff" strokeWidth="6"
+                            strokeLinecap="round" /> */}
 
 
 
@@ -505,11 +527,8 @@ const LocationControl = ({ onLocationFound, onAlertRequest }) => {
             position={position}
             icon={technicianIcon}
             zIndexOffset={2000} // Ficar acima do resto
-        >
-            <Popup className="text-center font-bold text-gray-800">
-                Você está aqui!
-            </Popup>
-        </Marker>
+            interactive={false}
+        />
     ) : null;
 };
 
@@ -804,7 +823,8 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
             if (!isPickingMode && onOpen) {
                 onOpen(item.id);
             }
-        }
+        },
+        contextmenu: (e) => setContextMenuPin(e.latlng)
     }), [item, saveItem, onNodeClick, onSelectLocal, isPickingMode, onOpen]);
 
     return (
@@ -829,21 +849,20 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                     closeButton={false}
                     autoPan={false}
                     className="hide-leaflet-popup-tail"
-                    offset={[-90, -95]} // Offset maior para ficar acima do ícone do pino
+                    offset={[20, 20]} // Offset maior para ficar acima do ícone do pino
                 >
                     <DraggableToolbar>
                         {/* --- NOME DO NODE (EM CIMA) --- */}
-                        <div className="w-full text-center border-b border-gray-300/50 dark:border-gray-600/50 pb-1.5 mb-1.5">
-                            <span className="text-[10px] font-bold text-black dark:text-white block truncate max-w-[180px] mx-auto px-1">
+                        <div className="w-full text-center border-b border-gray-300/50 dark:border-gray-600/50 px-2.5 py-2 mb-1.5">
+                            <span className="text-xs font-bold text-black dark:text-white block truncate max-w-[200px]">
                                 {item.name}
                             </span>
                         </div>
 
-                        {/* --- BOTÕES (EMBAIXO, LADO A LADO) --- */}
-                        <div className="flex flex-row items-center justify-center gap-1.5 w-full"
+                        {/* --- BOTÕES (EMBAIXO, LISTA VERTICAL) --- */}
+                        <div className="flex flex-col gap-1 w-full min-w-[170px]"
                             onPointerDown={(e) => {
-                                // L.DomEvent.stopPropagation não é suficiente para interact.js ou native draggables no Leaflet,
-                                // O e.stopPropagation() já é feito no DraggableToolbar
+                                // e.stopPropagation() já é feito no DraggableToolbar
                             }}>
 
                             {/* Botão MOVER / TRAVAR */}
@@ -853,14 +872,26 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                                     e.preventDefault();
                                     setIsUnlocked(!isUnlocked);
                                 }}
-                                className={`p-1.5 rounded-full flex items-center justify-center transition-colors border ${isUnlocked
-                                    ? 'bg-green-500/90 text-white border-green-500/50 shadow-sm'
-                                    : 'bg-transparent text-gray-700 dark:text-gray-200 border-transparent hover:bg-white/50 dark:hover:bg-gray-700/50'
+                                className={`w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium rounded-lg transition-colors text-left ${isUnlocked
+                                    ? 'bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20'
+                                    : 'bg-transparent text-gray-700 dark:text-gray-200 hover:bg-white/50 dark:hover:bg-neutral-800'
                                     }`}
                                 title={isUnlocked ? "Bloquear Posição" : "Liberar Movimento"}
-                                style={{ width: '28px', height: '28px' }}
                             >
-                                {isUnlocked ? <Unlock size={14} /> : <Lock size={14} />}
+                                {isUnlocked ? <Unlock size={16} /> : <Lock size={16} />}
+                                {isUnlocked ? "Travar Posição" : "Destravar Posição"}
+                            </button>
+
+                            {/* Botão DETALHES */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (onOpen) onOpen(item.id);
+                                }}
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
+                            >
+                                <DoorOpen size={16} />
+                                Abrir Detalhes
                             </button>
 
                             {/* Botão EDITAR */}
@@ -869,37 +900,10 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                                     e.stopPropagation();
                                     if (onEdit) onEdit(item.id, item.name);
                                 }}
-                                className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors"
-                                style={{ width: '28px', height: '28px' }}
-                                title="Editar Propriedades"
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
                             >
-                                <Edit3 size={14} />
-                            </button>
-
-                            {/* Botão DETALHES (Novo, para igualar ao cabo) */}
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (onOpen) onOpen(item.id);
-                                }}
-                                className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors"
-                                style={{ width: '28px', height: '28px' }}
-                                title="Abrir Detalhes"
-                            >
-                                <DoorOpen size={14} />
-                            </button>
-
-                            {/* Botão EXCLUIR */}
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (onDelete) onDelete(item.id);
-                                }}
-                                className="bg-transparent text-red-600 dark:text-red-400 border border-transparent p-1.5 rounded-full hover:bg-red-100/50 dark:hover:bg-red-900/40 flex items-center justify-center transition-colors shadow-none"
-                                style={{ width: '28px', height: '28px' }}
-                                title="Excluir Item"
-                            >
-                                <Trash2 size={14} />
+                                <Edit3 size={16} />
+                                Editar Item
                             </button>
 
                             {/* Botão COPIAR COORDENADAS */}
@@ -908,12 +912,40 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                                     e.stopPropagation();
                                     navigator.clipboard.writeText(`${item.lat}, ${item.lng}`);
                                 }}
-                                className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors shadow-none"
-                                style={{ width: '28px', height: '28px' }}
-                                title="Copiar Coordenadas"
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
                             >
-                                <Copy size={14} />
+                                <Copy size={16} />
+                                Copiar Coodenadas
                             </button>
+
+                            {/* Botão ABRIR NO MAPS */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}`;
+                                    window.open(mapsUrl, '_blank', 'noopener,noreferrer');
+                                }}
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-transparent hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors text-left"
+                            >
+                                <Navigation size={16} />
+                                Abrir no Maps
+                            </button>
+
+                            {/* Linha Divisória */}
+                            <div className="h-px bg-gray-300/50 dark:bg-gray-600/50 my-0.5 mx-1"></div>
+
+                            {/* Botão EXCLUIR */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (onDelete) onDelete(item.id);
+                                }}
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-transparent hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-left"
+                            >
+                                <Trash2 size={16} />
+                                Excluir Item
+                            </button>
+
                         </div>
                     </DraggableToolbar>
                 </Popup>
@@ -1017,7 +1049,7 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
             <Polyline
                 positions={positions}
                 pathOptions={{ color: 'transparent', weight: 20 }}
-                eventHandlers={{ click: handleLineClick, dblclick: handleLineDblClick }}
+                eventHandlers={{ click: handleLineClick, dblclick: handleLineDblClick, contextmenu: (e) => setContextMenuPin(e.latlng) }}
             />
 
             {/* Linha Visível */}
@@ -1029,7 +1061,7 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
                     opacity: isSelected ? 1 : 0.8,
                     dashArray: showEditControls ? '10, 10' : null
                 }}
-                eventHandlers={{ click: handleLineClick, dblclick: handleLineDblClick }}
+                eventHandlers={{ click: handleLineClick, dblclick: handleLineDblClick, contextmenu: (e) => setContextMenuPin(e.latlng) }}
             />
             {/* --- O POPUP AGORA ESTÁ AQUI FORA (IRMÃO DA POLYLINE) --- */}
             {isSelected && clickPosition && (
@@ -1037,63 +1069,70 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
                     position={clickPosition}
                     closeButton={false}
                     className="hide-leaflet-popup-tail"
-                    offset={[-90, -95]}
+                    offset={[20, 20]}
                     autoPan={false}
                 >
                     <DraggableToolbar>
                         {/* --- NOME DO CABO (EM CIMA) --- */}
-                        <div className="w-full text-center border-b border-gray-300/50 dark:border-gray-600/50 pb-1.5 mb-1.5">
-                            <span className="text-[10px] font-bold text-black dark:text-white block truncate max-w-[180px] mx-auto px-1">
+                        <div className="w-full text-center border-b border-gray-300/50 dark:border-gray-600/50 px-2.5 py-2 mb-1.5">
+                            <span className="text-xs font-bold text-black dark:text-white block truncate max-w-[200px]">
                                 {cable.name}
                             </span>
                         </div>
 
-                        {/* --- BOTÕES (EMBAIXO, LADO A LADO) --- */}
-                        <div className="flex flex-row items-center justify-center gap-1.5 w-full">
+                        {/* --- BOTÕES (EMBAIXO, LISTA VERTICAL) --- */}
+                        <div className="flex flex-col gap-1 w-full min-w-[170px]">
 
+                            {/* Botão BLOQUEAR / DESBLOQUEAR */}
                             <button
                                 onClick={(e) => { e.stopPropagation(); setIsUnlocked(!isUnlocked); }}
-                                className={`p-1.5 rounded-full flex items-center justify-center transition-colors border ${isUnlocked ? 'bg-green-500/90 text-white border-green-500/50 shadow-sm' : 'bg-transparent text-gray-700 dark:text-gray-200 border-transparent hover:bg-white/50 dark:hover:bg-gray-700/50'}`}
+                                className={`w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium rounded-lg transition-colors text-left ${isUnlocked
+                                    ? 'bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20'
+                                    : 'bg-transparent text-gray-700 dark:text-gray-200 hover:bg-white/50 dark:hover:bg-neutral-800'
+                                    }`}
                                 title={isUnlocked ? "Bloquear" : "Desbloquear"}
-                                style={{ width: '28px', height: '28px' }}
                             >
-                                {isUnlocked ? <Unlock size={14} /> : <Lock size={14} />}
+                                {isUnlocked ? <Unlock size={16} /> : <Lock size={16} />}
+                                {isUnlocked ? "Bloquear Cabo" : "Desbloquear Cabo"}
                             </button>
 
-                            <button
-                                onClick={(e) => { e.stopPropagation(); if (onEdit) onEdit(cable.id, cable.name); }}
-                                className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors"
-                                style={{ width: '28px', height: '28px' }}
-                                title="Editar"
-                            >
-                                <Edit3 size={14} />
-                            </button>
-
+                            {/* Botão DETALHES */}
                             <button
                                 onClick={(e) => { e.stopPropagation(); if (onOpen) onOpen(cable.id, clickPosition); }}
-                                className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors"
-                                style={{ width: '28px', height: '28px' }}
-                                title="Detalhes"
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
                             >
-                                <DoorOpen size={14} />
+                                <DoorOpen size={16} />
+                                Abrir Detalhes
                             </button>
 
+                            {/* Botão EDITAR */}
                             <button
-                                onClick={(e) => { e.stopPropagation(); if (onDelete) onDelete(cable.id); }}
-                                className="bg-transparent text-red-600 dark:text-red-400 border border-transparent p-1.5 rounded-full hover:bg-red-100/50 dark:hover:bg-red-900/40 flex items-center justify-center transition-colors shadow-none"
-                                style={{ width: '28px', height: '28px' }}
-                                title="Excluir"
+                                onClick={(e) => { e.stopPropagation(); if (onEdit) onEdit(cable.id, cable.name); }}
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
                             >
-                                <Trash2 size={14} />
+                                <Edit3 size={16} />
+                                Editar Cabo
                             </button>
 
+                            {/* Botão SECCIONAR (CORTAR) */}
                             <button
                                 onClick={(e) => { e.stopPropagation(); if (onSplit) onSplit(cable.id, clickPosition); }}
-                                className="bg-transparent text-orange-600 dark:text-orange-400 border border-transparent p-1.5 rounded-full hover:bg-orange-100/50 dark:hover:bg-orange-900/40 flex items-center justify-center transition-colors shadow-none"
-                                style={{ width: '28px', height: '28px' }}
-                                title="Seccionar (Cortar)"
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-orange-600 dark:text-orange-400 bg-transparent hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors text-left"
                             >
-                                <Scissors size={14} className="rotate-90" />
+                                <Scissors size={16} className="rotate-90" />
+                                Cortar Cabo Aqui
+                            </button>
+
+                            {/* Linha Divisória */}
+                            <div className="h-px bg-gray-300/50 dark:bg-gray-600/50 my-0.5 mx-1"></div>
+
+                            {/* Botão EXCLUIR */}
+                            <button
+                                onClick={(e) => { e.stopPropagation(); if (onDelete) onDelete(cable.id); }}
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-transparent hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-left"
+                            >
+                                <Trash2 size={16} />
+                                Excluir Cabo
                             </button>
                         </div>
                     </DraggableToolbar>
@@ -1250,6 +1289,8 @@ const FiberMap = ({
     const [isHelpExpanded, setIsHelpExpanded] = useState(true); // Começa aberto
     const [measureDistance, setMeasureDistance] = useState(0);
     const [toggleCluster, setToggleCluster] = useState(true); // Cluster ativado por padrão
+    // Estado para o marcador de clique longo / botão direito
+    const [contextMenuPin, setContextMenuPin] = useState(null);
 
     const searchIcon = useMemo(() => createSearchIcon(), []);
 
@@ -1279,12 +1320,24 @@ const FiberMap = ({
         return null;
     };
 
+    // Fornecedor de imagens: OpenStreetMaps (Light) / CartoCDN (Dark)
+    // const tileLayerInfo = isDarkMode ? {
+    //     url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    //     attribution: '&copy; OpenStreetMap contributors'
+    // } : {
+    //     url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    //     attribution: '&copy; OpenStreetMap &copy; CARTO'
+    // };
+
+    // Fornecedor de imagens: Google
     const tileLayerInfo = isDarkMode ? {
-        url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-        attribution: '&copy; OpenStreetMap contributors'
+        url: 'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+        attribution: '&copy; Google Maps',
+        className: 'google-dark-map' // Classe CSS que criará o modo escuro
     } : {
-        url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-        attribution: '&copy; OpenStreetMap &copy; CARTO'
+        url: 'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+        attribution: '&copy; Google Maps',
+        className: '' // Sem filtro para o modo claro
     };
 
     // FUNÇÃO AUXILIAR: Para limpar a busca e selecionar o item ao mesmo tempo
@@ -1387,15 +1440,23 @@ const FiberMap = ({
                         checked={activeBaseLayer === 'Ruas'}
                         name="Ruas"
                     >
-                        <TileLayer
+                        {/* <TileLayer
                             attribution={tileLayerInfo.attribution}
                             url={tileLayerInfo.url}
                             maxNativeZoom={19}
-                            maxZoom={25}
+                            maxZoom={22}
+                        /> */}
+                        <TileLayer
+                            url={tileLayerInfo.url}
+                            attribution={tileLayerInfo.attribution}
+                            className={tileLayerInfo.className}
+                            subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+                            maxZoom={22}
                         />
                     </LayersControl.BaseLayer>
 
-                    <LayersControl.BaseLayer
+                    {/* Fornecedor de imagens: Esri */}
+                    {/* <LayersControl.BaseLayer
                         checked={activeBaseLayer === 'Satélite'}
                         name="Satélite"
                     >
@@ -1404,6 +1465,34 @@ const FiberMap = ({
                             url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
                             maxNativeZoom={17}
                             maxZoom={25}
+                        />
+                    </LayersControl.BaseLayer> */}
+
+                    {/* Fornecedor de imagens: Google (Sem nome de ruas) */}
+                    {/* <LayersControl.BaseLayer
+                        checked={activeBaseLayer === 'Satélite'}
+                        name="Satélite"
+                    >
+                        <TileLayer
+                            attribution='&copy; Google Maps'
+                            url="https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+                            subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+                            maxNativeZoom={22}
+                            maxZoom={22}
+                        />
+                    </LayersControl.BaseLayer> */}
+
+                    {/* Fornecedor de imagens: Google (Com nome de ruas) */}
+                    <LayersControl.BaseLayer
+                        checked={activeBaseLayer === 'Satélite'}
+                        name="Satélite"
+                    >
+                        <TileLayer
+                            attribution='&copy; Google Maps'
+                            url="https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+                            subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+                            maxNativeZoom={22}
+                            maxZoom={22}
                         />
                     </LayersControl.BaseLayer>
                 </LayersControl>
@@ -1424,7 +1513,7 @@ const FiberMap = ({
                     </Marker>
                 )}
 
-                <MapClickHandler onMapBgClick={onMapClick} interactionMode={interactionMode} onDeselect={() => { setSelectedId(null); if (onClearSearch) onClearSearch(); }} />
+                <MapClickHandler onMapBgClick={onMapClick} interactionMode={interactionMode} onDeselect={() => { setSelectedId(null); if (onClearSearch) onClearSearch(); }} setContextMenuPin={setContextMenuPin} />
 
                 {/* Aqui está o segredo do zoom: Só atualiza estado se mudar a visibilidade */}
                 <MapZoomHandler onShowLabelsChange={setShowLabels} />
@@ -1502,6 +1591,56 @@ const FiberMap = ({
 
                 </MarkerClusterGroup>
                 {/* FIM DO CLUSTER */}
+
+                {/* --- MARCADOR DE CLIQUE LONGO / CONTEXTO --- */}
+                {contextMenuPin && (
+                    <Marker
+                        position={contextMenuPin}
+                        icon={searchIcon}
+                        zIndexOffset={9999}
+                    >
+                        <Popup
+                            className="hide-leaflet-popup-tail popup-top-left"
+                            autoPan={false}
+                            closeButton={false}
+                        >
+                            <div className="p-2 flex flex-col items-center min-w-[195px] rounded-2xl border backdrop-blur-xl shadow-2xl bg-white/40 dark:bg-black/60 border-white/60 dark:border-black/60">
+                                {/* Cabeçalho */}
+                                {/* <div className="w-full text-center border-b border-gray-300/50 dark:border-gray-600/50 px-2.5 py-2 mb-1.5">
+                                    <span className="text-xs font-bold text-black dark:text-white block truncate max-w-[200px]">
+                                        Localização Marcada
+                                    </span>
+                                </div> */}
+
+                                {/* Botão COPIAR */}
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigator.clipboard.writeText(`${contextMenuPin.lat}, ${contextMenuPin.lng}`);
+                                        setContextMenuPin(null); // Fecha o pino após copiar
+                                    }}
+                                    className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
+                                >
+                                    <Copy size={16} />
+                                    Copiar Coordenadas
+                                </button>
+
+                                {/* Botão MAPS */}
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        window.open(`https://www.google.com/maps/search/?api=1&query=${contextMenuPin.lat},${contextMenuPin.lng}`, '_blank', 'noopener,noreferrer');
+                                        setContextMenuPin(null); // Fecha o pino após abrir o mapa
+                                    }}
+                                    className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-transparent hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors text-left"
+                                >
+                                    <Navigation size={16} />
+                                    Abrir no Maps
+                                </button>
+                            </div>
+                        </Popup>
+                    </Marker>
+                )}
 
             </MapContainer>
 

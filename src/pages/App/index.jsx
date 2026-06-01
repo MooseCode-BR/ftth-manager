@@ -30,7 +30,8 @@ import { Dialog } from '@capacitor/dialog';
 import {
     Trash2, Box, Scissors, Activity, User, ArrowRightLeft, Edit3, Save, X, CircleUserRound, ZoomIn, ZoomOut,
     LogOut, Mail, Search, ShieldAlert, MapPin, MapPinned, Loader2, Lock, Unlock, Info, PackagePlus,
-    DoorOpen, AlertTriangle, Play, Pause, ExternalLink, Tag
+    DoorOpen, AlertTriangle, Play, Pause, ExternalLink, Tag,
+    PenTool
 } from 'lucide-react';
 import LoadingFiber from '../../components/loadingfiber';
 
@@ -196,70 +197,71 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
             {isSelected && !isCableStart && !node._readOnly && (
                 <div
                     className="absolute pointer-events-auto z-[60] animate-in slide-in-from-bottom-2 fade-in duration-200"
-                    style={{ left: '-7%', top: '-80px', transform: 'translateX(-50%)' }}
+                    style={{ left: '-10%', top: '80px', transform: 'translateX(-50%)' }}
                 >
                     <DraggableToolbar>
                         {/* 1. Nome no Topo (Header) */}
-                        <div className="w-full text-center border-b border-gray-300/50 dark:border-gray-600/50 pb-1.5 mb-1.5">
-                            <span className="text-[10px] font-bold text-black dark:text-white block truncate max-w-[140px] mx-auto px-1">
+                        <div className="w-full text-center border-b border-gray-300/50 dark:border-gray-600/50 px-2.5 py-2 mb-1.5">
+                            <span className="text-xs font-bold text-black dark:text-white block truncate max-w-[200px]">
                                 {node.name}
                             </span>
                         </div>
 
-                        {/* 2. Botões de Ação (Linha) */}
-                        <div className="flex items-center justify-center gap-1.5 w-full">
+                        {/* 2. Botões de Ação (Lista Vertical) */}
+                        <div className="flex flex-col gap-1 w-full min-w-[170px]">
+                            
                             {/* TRAVAR / DESTRAVAR */}
                             <button
                                 onClick={(e) => { e.stopPropagation(); setIsUnlocked(!isUnlocked); }}
-                                className={`p-1.5 rounded-full flex items-center justify-center transition-colors border ${isUnlocked
-                                    ? 'bg-green-500/90 text-white border-green-500/50 shadow-sm'
-                                    : 'bg-transparent text-gray-700 dark:text-gray-200 border-transparent hover:bg-white/50 dark:hover:bg-gray-700/50'
+                                className={`w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium rounded-lg transition-colors text-left ${isUnlocked
+                                    ? 'bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20'
+                                    : 'bg-transparent text-gray-700 dark:text-gray-200 hover:bg-white/50 dark:hover:bg-neutral-800'
                                     }`}
                                 title={isUnlocked ? "Bloquear Posição" : "Liberar Movimento"}
-                                style={{ width: '28px', height: '28px' }}
                             >
-                                {isUnlocked ? <Unlock size={14} /> : <Lock size={14} />}
+                                {isUnlocked ? <Unlock size={16} /> : <Lock size={16} />}
+                                {isUnlocked ? "Travar Posição" : "Destravar Posição"}
+                            </button>
+
+                            {/* DETALHES */}
+                            <button
+                                onClick={(e) => { e.stopPropagation(); if (onOpen) onOpen(node.id); }}
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
+                            >
+                                <DoorOpen size={16} />
+                                Abrir Detalhes
                             </button>
 
                             {/* EDITAR */}
                             <button
                                 onClick={(e) => { e.stopPropagation(); onEdit(node.id, node.name); }}
-                                className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors"
-                                style={{ width: '28px', height: '28px' }}
-                                title="Editar"
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
                             >
-                                <Edit3 size={14} />
-                            </button>
-
-                            {/* DETALHES (Novo) */}
-                            <button
-                                onClick={(e) => { e.stopPropagation(); if (onOpen) onOpen(node.id); }}
-                                className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors"
-                                style={{ width: '28px', height: '28px' }}
-                                title="Detalhes"
-                            >
-                                <DoorOpen size={14} />
-                            </button>
-
-                            {/* EXCLUIR */}
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onDelete(node.id); }}
-                                className="bg-transparent text-red-600 dark:text-red-400 border border-transparent p-1.5 rounded-full hover:bg-red-100/50 dark:hover:bg-red-900/40 flex items-center justify-center transition-colors shadow-none"
-                                style={{ width: '28px', height: '28px' }}
-                                title="Excluir"
-                            >
-                                <Trash2 size={14} />
+                                <Edit3 size={16} />
+                                Editar Equipamento
                             </button>
 
                             {/* MAPA (Voar para o nó) */}
                             <button
                                 onClick={(e) => { e.stopPropagation(); if (onFlyToMap) onFlyToMap(node); }}
-                                className="bg-transparent text-blue-600 dark:text-blue-400 border border-transparent p-1.5 rounded-full hover:bg-blue-100/50 dark:hover:bg-blue-900/40 flex items-center justify-center transition-colors shadow-none"
-                                style={{ width: '28px', height: '28px' }}
-                                title="Ver no Mapa"
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-transparent hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors text-left"
                             >
-                                <MapPinned size={14} />
+                                <MapPinned size={16} />
+                                Ver no Mapa
                             </button>
+
+                            {/* Linha Divisória */}
+                            <div className="h-px bg-gray-300/50 dark:bg-gray-600/50 my-0.5 mx-1"></div>
+
+                            {/* EXCLUIR */}
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onDelete(node.id); }}
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-transparent hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-left"
+                            >
+                                <Trash2 size={16} />
+                                Excluir Equipamento
+                            </button>
+
                         </div>
                     </DraggableToolbar>
                 </div>
@@ -370,8 +372,8 @@ const CableLine = memo(({ cable, nodeA, nodeB, index, count, itemTypes, onSelect
         <div
             className="absolute pointer-events-auto z-[60] animate-in slide-in-from-bottom-2 fade-in"
             style={{
-                left: popupX - 60,
-                top: popupY - 95, // Um pouco acima do clique
+                left: popupX - 95,
+                top: popupY + 20, // Um pouco acima do clique
                 transform: 'translate(-50%, -100%)' // Centraliza e joga pra cima
             }}
             onClick={(e) => e.stopPropagation()}
@@ -380,43 +382,45 @@ const CableLine = memo(({ cable, nodeA, nodeB, index, count, itemTypes, onSelect
         >
             <DraggableToolbar>
                 {/* 1. Nome no Topo */}
-                <div className="w-full text-center border-b border-gray-300/50 dark:border-gray-600/50 pb-1.5 mb-1.5">
-                    <span className="text-xs font-bold text-black dark:text-white block truncate max-w-[140px] mx-auto px-1">
+                <div className="w-full text-center border-b border-gray-300/50 dark:border-gray-600/50 px-2.5 py-2 mb-1.5">
+                            <span className="text-xs font-bold text-black dark:text-white block truncate max-w-[200px]">
                         {cable.name}
                     </span>
                 </div>
 
-                {/* 2. Botões */}
-                <div className="flex items-center justify-center gap-1.5 w-full">
+                {/* 2. Botões (Lista Vertical) */}
+                <div className="flex flex-col gap-1 w-full min-w-[170px]">
+                    
+                    {/* DETALHES */}
+                    <button
+                        onClick={(e) => { e.stopPropagation(); if (onOpen) onOpen(cable.id); }}
+                        className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
+                    >
+                        <DoorOpen size={16} />
+                        Abrir Detalhes
+                    </button>
+
                     {/* EDITAR */}
                     <button
                         onClick={(e) => { e.stopPropagation(); onEdit(cable.id, cable.name); }}
-                        className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors"
-                        style={{ width: '28px', height: '28px' }}
-                        title="Editar"
+                        className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
                     >
-                        <Edit3 size={14} />
+                        <Edit3 size={16} />
+                        Editar Cabo
                     </button>
 
-                    {/* DETALHES (Novo) */}
-                    <button
-                        onClick={(e) => { e.stopPropagation(); if (onOpen) onOpen(cable.id); }}
-                        className="bg-transparent text-gray-700 dark:text-gray-200 border border-transparent p-1.5 rounded-full hover:bg-white/50 dark:hover:bg-gray-700/50 flex items-center justify-center transition-colors"
-                        style={{ width: '28px', height: '28px' }}
-                        title="Detalhes"
-                    >
-                        <DoorOpen size={14} />
-                    </button>
+                    {/* Linha Divisória */}
+                    <div className="h-px bg-gray-300/50 dark:bg-gray-600/50 my-0.5 mx-1"></div>
 
                     {/* EXCLUIR */}
                     <button
                         onClick={(e) => { e.stopPropagation(); onDelete(cable.id); }}
-                        className="bg-transparent text-red-600 dark:text-red-400 border border-transparent p-1.5 rounded-full hover:bg-red-100/50 dark:hover:bg-red-900/40 flex items-center justify-center transition-colors shadow-none"
-                        style={{ width: '28px', height: '28px' }}
-                        title="Excluir"
+                        className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-transparent hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-left"
                     >
-                        <Trash2 size={14} />
+                        <Trash2 size={16} />
+                        Excluir Cabo
                     </button>
+
                 </div>
             </DraggableToolbar>
         </div>,
@@ -499,35 +503,48 @@ const DropLine = memo(({ x1, y1, x2, y2 }) => {
 
 // FIM COMPONENTES MEMOIZADOS (PERFORMANCE) ========================================================================
 
-//Salva todo o texto do input antes de passar ao componente App
-// Componente Input que "segura" a digitação por 300ms
+// Componente Input otimizado para não "comer" letras durante digitação rápida
 const DebouncedInput = ({ value, onChange, ...props }) => {
     const [localValue, setLocalValue] = useState(value);
+    
+    // Ref para blindar a digitação. Impede que o estado atrasado do pai sobrescreva o que o usuário está digitando agora.
+    const isTyping = useRef(false);
+    const lastSentValue = useRef(value);
 
-    // Sincroniza se o pai mudar o valor externamente (ex: limpar busca)
+    // Sincroniza se o pai mudar o valor externamente (ex: usuário clicou no X para limpar a busca)
+    // A trava 'isTyping' garante que a sua digitação não seja interrompida pelo render do mapa.
     useEffect(() => {
-        setLocalValue(value);
+        if (!isTyping.current) {
+            setLocalValue(value);
+            lastSentValue.current = value;
+        }
     }, [value]);
 
-    // O "Freio" da digitação
+    // O verdadeiro "Freio" da digitação
     useEffect(() => {
         const handler = setTimeout(() => {
-            // Só avisa o pai se o valor mudou
-            if (localValue !== value) {
-                onChange(localValue); // Passamos o VALOR direto, não o evento 'e'
+            isTyping.current = false; // Tempo suficiente passou, consideramos que a rajada de digitação pausou
+            
+            // Só avisa o pai se o valor realmente mudou e é diferente do último que enviamos
+            if (localValue !== lastSentValue.current) {
+                lastSentValue.current = localValue;
+                onChange(localValue); 
             }
-        }, 10);
+        }, 350); // Aumentado para 350ms para garantir extrema fluidez antes de forçar o re-render do sistema
 
         return () => clearTimeout(handler);
-    }, [localValue]);
+    }, [localValue, onChange]);
 
     return (
         <input
-            {...props} // Repassa onKeyDown, className, onFocus, etc.
+            {...props} 
             id='barra-de-busca'
             name='Barra de Busca'
             value={localValue}
-            onChange={(e) => setLocalValue(e.target.value)} // Atualiza localmente instantâneo
+            onChange={(e) => {
+                isTyping.current = true; // Avisa que estamos ativamente digitando
+                setLocalValue(e.target.value); // Atualiza instantaneamente a tela, sem engasgos
+            }}
         />
     );
 };
@@ -1397,7 +1414,22 @@ const App = () => {
         }
     };
 
+    // --- Impede que o usuario tente criar algum item no mapa/canvas sem um projeto ativo. ---
+    const activeProjectGuard = () => {
+        if (!activeProjectId) {
+            openAlert(
+                "Atenção",
+                <span className="flex items-center gap-1.5 flex-wrap">
+                    Para criar um item, é necessário existir ao menos um projeto e sua função "Editar<PenTool size={14} className="text-blue-600 dark:text-blue-400" />" estar habilitada!
+                </span>
+            );
 
+            setIsProjectManagerOpen(true); // Abre o modal de projetos para ele escolher
+            setInteractionMode('SELECT'); // Reseta a ferramenta atual do cursor
+            return false; // Retorna falso para bloquear a continuação do código
+        }
+        return true; // Retorna verdadeiro se estiver tudo certo
+    };
 
 
 
@@ -1536,6 +1568,8 @@ const App = () => {
             return;
         }
         if (interactionMode === 'ADD_NODE' && nodeTypeToAdd) {
+            if (!activeProjectGuard()) return; //Impede o usuario de criar um nó sem que um projeto esteja selecionado
+
             setModalConfig({
                 mode: 'NODE',
                 itemType: nodeTypeToAdd,
@@ -1545,6 +1579,8 @@ const App = () => {
             });
         }
         else if (interactionMode === 'ADD_CLIENT') {
+            if (!activeProjectGuard()) return; //Impede o usuario de criar um nó sem que um projeto esteja selecionado
+
             // MUDANÇA: Guarda na memória dedicada
             setNewClientPosition({ lat: latlng.lat, lng: latlng.lng });
             setClientWizard({ step: 'NAME', data: {} });
@@ -1556,6 +1592,8 @@ const App = () => {
     const handleMapNodeClick = (node) => {
         // Lógica de desenhar cabo (Igual ao Canvas)
         if (interactionMode === 'DRAW_CABLE') {
+            if (!activeProjectGuard()) return; //Impede o usuario de criar um nó sem que um projeto esteja selecionado
+
             // LÊ o valor ATUAL via ref (sem stale closure)
             const currentStart = cableStartNodeRef.current;
             console.log('[App] handleMapNodeClick chamado | nó:', node.name, '| cableStartNode:', currentStart?.name || 'null');
@@ -1580,33 +1618,34 @@ const App = () => {
         //     return;
         // }
         // Lógica de adicionar Cliente (Igual ao Canvas)
-        else if (clientWizard.step === 'PICK_CTO') {
-            if (node.type !== 'CTO') {
-                openAlert("Atenção", "Selecione uma CTO válida.");
-                return;
-            }
-            // (Reutiliza lógica de buscar splitter dentro da CTO)
-            const splitter = items.find(i => i.parentId === node.id && i.type === 'SPLITTER');
-            if (!splitter) {
-                openAlert("Erro", "Esta CTO não possui Splitter instalado.");
-                return;
-            }
-            const freePorts = [];
-            for (let i = 1; i < splitter.ports; i++) {
-                const isBusy = findConnection(connections, splitter.id, i, 'A');
-                if (!isBusy) freePorts.push({ id: i, label: i, splitterId: splitter.id });
-            }
-            if (freePorts.length === 0) {
-                openAlert("Lotada", "Esta CTO não tem portas disponíveis.");
-                return;
-            }
-            setClientWizard({
-                step: 'PICK_PORT',
-                data: { ...clientWizard.data, ctoNode: node, splitter, freePorts }
-            });
-        }
-        // Seleção Normal
-        else {
+        // else if (clientWizard.step === 'PICK_CTO') {
+        //     if (node.type !== 'CTO') {
+        //         openAlert("Atenção", "Selecione uma CTO válida.");
+        //         return;
+        //     }
+        //     // (Reutiliza lógica de buscar splitter dentro da CTO)
+        //     const splitter = items.find(i => i.parentId === node.id && i.type === 'SPLITTER');
+        //     if (!splitter) {
+        //         openAlert("Erro", "Esta CTO não possui Splitter instalado.");
+        //         return;
+        //     }
+        //     const freePorts = [];
+        //     for (let i = 1; i < splitter.ports; i++) {
+        //         const isBusy = findConnection(connections, splitter.id, i, 'A');
+        //         if (!isBusy) freePorts.push({ id: i, label: i, splitterId: splitter.id });
+        //     }
+        //     if (freePorts.length === 0) {
+        //         openAlert("Lotada", "Esta CTO não tem portas disponíveis.");
+        //         return;
+        //     }
+        //     setClientWizard({
+        //         step: 'PICK_PORT',
+        //         data: { ...clientWizard.data, ctoNode: node, splitter, freePorts }
+        //     });
+        // }
+
+        else {         // Seleção Normal
+
             setDetailId(node.id);
             setSelectedIds(new Set([node.id]));
         }
@@ -1943,13 +1982,52 @@ const App = () => {
         setVisibleProjectIds(prev => prev.filter(p => p !== id));
     };
 
+    // const handleDeleteProject = (id) => {
+    //     // 1. Buscamos o nome real do projeto para exibir na trava de segurança
+    //     // Ele varre seus projetos pessoais e compartilhados e extrai o nome
+    //     const projectToDelete = [...myProjects, ...sharedProjects].find(p => p.id === id);
+    //     const projectName = projectToDelete ? projectToDelete.name : "PROJETO";
+
+    //     // 2. Setamos o estado do modal diretamente, ignorando o openConfirm, 
+    //     // para injetarmos o 'requireTextMatch' perfeitamente.
+    //     setConfirmConfig({
+    //         title: "Excluir Projeto",
+    //         message: `ATENÇÃO: Esta ação é irreversível.\n\nIsso apagará permanentemente todos os dados do projeto "${projectName}".\n`,
+    //         requireTextMatch: projectName, // <-- A MÁGICA DE SEGURANÇA AQUI
+    //         onClose: () => setConfirmConfig(null), // Repassamos a função para o botão cancelar funcionar
+    //         onConfirm: async () => {
+    //             setLoading(true);
+    //             try {
+    //                 await performDeleteProject(id);
+    //                 openAlert("Sucesso", "Projeto excluído.");
+    //             } catch (error) {
+    //                 console.error("Erro ao deletar projeto:", error);
+    //                 if (error.code === 'permission-denied' || (error.message && error.message.includes('Missing or insufficient permissions'))) {
+    //                     openAlert("Acesso Negado", "Você não tem permissões para excluir este projeto ou ele contém dados protegidos.");
+    //                 } else {
+    //                     openAlert("Erro", "Falha ao excluir projeto.");
+    //                 }
+    //             } finally {
+    //                 setLoading(false);
+    //             }
+    //         }
+    //     });
+    // };
+
     const handleDeleteProject = (id) => {
-        openConfirm(
-            "Excluir Projeto",
-            "ATENÇÃO: Esta ação é IRREVERSÍVEL.\n\nIsso apagará PERMANENTEMENTE todos os dados deste projeto.\n\nDeseja realmente continuar?",
-            async () => {
+        // Busca o nome real do projeto para a trava de segurança
+        const projectToDelete = [...myProjects, ...sharedProjects].find(p => p.id === id);
+        const projectName = projectToDelete ? projectToDelete.name : "PROJETO";
+
+        setConfirmConfig({
+            title: "Excluir Projeto",
+            message: `\nATENÇÃO: Esta ação é irreversível.\nIsso apagará permanentemente todos os dados do projeto "${projectName}".\n\nDeseja realmente continuar?`,
+            requireTextMatch: projectName, // <-- Trava de segurança ativada com o nome do projeto
+            onClose: () => setConfirmConfig(null),
+            onConfirm: async () => {
                 setLoading(true);
                 try {
+                    // Usando a sua função nativa que já apaga as coleções e imagens corretamente!
                     await performDeleteProject(id);
                     openAlert("Sucesso", "Projeto excluído.");
                 } catch (error) {
@@ -1963,7 +2041,33 @@ const App = () => {
                     setLoading(false);
                 }
             }
-        );
+        });
+    };
+
+    const handleBulkDeleteProject = async (ids) => {
+        if (ids.length === 0) return;
+
+        setConfirmConfig({
+            title: "Excluir Projetos",
+            message: `\nATENÇÃO: Esta ação é irreversível.\nIsso apagará permanentemente os ${ids.length} projetos selecionados e seus dados.\n\nDeseja realmente continuar?`,
+            requireTextMatch: "Excluir projetos", // <-- Trava de segurança coletiva ativada
+            onClose: () => setConfirmConfig(null),
+            onConfirm: async () => {
+                setLoading(true);
+                try {
+                    // Executa a sua deleção nativa para cada projeto selecionado
+                    for (const id of ids) {
+                        await performDeleteProject(id);
+                    }
+                    openAlert("Sucesso", `${ids.length} projetos excluídos.`);
+                } catch (error) {
+                    console.error(error);
+                    openAlert("Erro", "Falha ao excluir alguns projetos em massa.");
+                } finally {
+                    setLoading(false);
+                }
+            }
+        });
     };
 
     const handleRenameProject = async (id, newName) => {
@@ -2159,6 +2263,32 @@ const App = () => {
         );
     };
 
+    const handleBulkRevokeShare = async (inviteIds) => {
+        if (inviteIds.length === 0) return;
+
+        openConfirm(
+            "Sair dos Projetos",
+            `\nDeseja realmente sair de ${inviteIds.length} projetos simultaneamente? Você perderá permanentemente o acesso a eles.\n\nContinuar?`,
+            async () => {
+                setLoading(true);
+                try {
+                    const batch = writeBatch(db);
+                    // O "Confirmar" em lote num projeto compartilhado significa apenas apagar o próprio convite
+                    inviteIds.forEach(id => {
+                        batch.delete(doc(db, 'ftth_invitations', id));
+                    });
+                    await batch.commit();
+                    openAlert("Sucesso", `Você saiu de ${inviteIds.length} projetos.`);
+                } catch (error) {
+                    console.error("Erro ao sair em massa:", error);
+                    openAlert("Erro", "Falha ao sair dos projetos compartilhados.");
+                } finally {
+                    setLoading(false);
+                }
+            }
+        );
+    };
+
     // Função: Alternar Permissão de um Compartilhamento (Toggle Rápido)
     const handleUpdateSharePermission = async (inviteId, newPermission) => {
         try {
@@ -2209,27 +2339,27 @@ const App = () => {
         );
     };
 
-    const handleBulkDeleteProject = async (ids) => {
-        if (ids.length === 0) return;
-        openConfirm(
-            "Excluir Projetos",
-            `ATENÇÃO: Esta ação é IRREVERSÍVEL.\n\nIsso apagará PERMANENTEMENTE os ${ids.length} projetos selecionados e seus dados.\n\nDeseja realmente continuar?`,
-            async () => {
-                setLoading(true);
-                try {
-                    for (const id of ids) {
-                        await performDeleteProject(id);
-                    }
-                    openAlert("Sucesso", `${ids.length} projetos excluídos.`);
-                } catch (error) {
-                    console.error(error);
-                    openAlert("Erro", "Falha ao excluir alguns projetos em massa.");
-                } finally {
-                    setLoading(false);
-                }
-            }
-        );
-    };
+    // const handleBulkDeleteProject = async (ids) => {
+    //     if (ids.length === 0) return;
+    //     openConfirm(
+    //         "Excluir Projetos",
+    //         `ATENÇÃO: Esta ação é IRREVERSÍVEL.\n\nIsso apagará PERMANENTEMENTE os ${ids.length} projetos selecionados e seus dados.\n\nDeseja realmente continuar?`,
+    //         async () => {
+    //             setLoading(true);
+    //             try {
+    //                 for (const id of ids) {
+    //                     await performDeleteProject(id);
+    //                 }
+    //                 openAlert("Sucesso", `${ids.length} projetos excluídos.`);
+    //             } catch (error) {
+    //                 console.error(error);
+    //                 openAlert("Erro", "Falha ao excluir alguns projetos em massa.");
+    //             } finally {
+    //                 setLoading(false);
+    //             }
+    //         }
+    //     );
+    // };
 
     const handleBulkToggleProjectVisibility = (ids) => {
         setVisibleProjectIds(prev => {
@@ -2989,6 +3119,9 @@ const App = () => {
 
     const handleEnd = (e, node) => {
         if (draggingNode?.isMultiSelect) { setSelectedItemsOffset({ dx: 0, dy: 0 }); } if (e.touches && e.touches.length < 2) { touchRef.current.dist = 0; } if (interactionMode === 'SELECT') { if (node) { const pos = getClientPos(e.changedTouches ? e.changedTouches[0] : e); const dist = Math.sqrt(Math.pow(pos.x - dragStartPosRef.current.x, 2) + Math.pow(pos.y - dragStartPosRef.current.y, 2)); if (dist < 5) { if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current); clickTimeoutRef.current = setTimeout(() => { setSelectedIds(new Set([node.id])); setDetailId(null); }, 250); } } else { const pos = getClientPos(e.changedTouches ? e.changedTouches[0] : e); const dist = Math.sqrt(Math.pow(pos.x - dragStartPosRef.current.x, 2) + Math.pow(pos.y - dragStartPosRef.current.y, 2)); if (dist < 5) { setSelectedIds(new Set()); setDetailId(null); } } } else if (interactionMode === 'DRAW_CABLE' && node) {
+
+            if (!activeProjectGuard()) return; //Impede o usuario de criar um nó sem que um projeto esteja selecionado
+
             // USA REF para evitar stale closure (igual ao modo mapa)
             const currentStart = cableStartNodeRef.current;
             if (!currentStart) {
@@ -3090,6 +3223,8 @@ const App = () => {
         const clickY = (e.clientY - rect.top - pan.y) / scale;
 
         if (interactionMode === 'ADD_NODE' && nodeTypeToAdd) {
+            if (!activeProjectGuard()) return; //Impede o usuario de criar um nó sem que um projeto esteja selecionado
+
             setModalConfig({
                 mode: 'NODE',
                 itemType: nodeTypeToAdd,
@@ -3099,6 +3234,8 @@ const App = () => {
             });
         }
         else if (interactionMode === 'ADD_CLIENT') {
+            if (!activeProjectGuard()) return; //Impede o usuario de criar um nó sem que um projeto esteja selecionado
+
             // MUDANÇA: Guarda na memória dedicada
             setNewClientPosition({ x: clickX, y: clickY });
             setClientWizard({ step: 'NAME', data: {} });
@@ -4874,6 +5011,7 @@ const App = () => {
                 pendingInvites={pendingInvites}
                 outgoingInvites={outgoingInvites}
                 onRevokeShare={handleRevokeShare}
+                onBulkRevokeShare={handleBulkRevokeShare}
                 onUpdateSharePermission={handleUpdateSharePermission}
                 activeProjectId={activeProjectId}
                 visibleProjectIds={visibleProjectIds}
@@ -5417,7 +5555,7 @@ const App = () => {
                     />
                 }
                 {infoModalConfig && <InfoModal {...infoModalConfig} />}
-                {confirmConfig && <ConfirmModal {...confirmConfig} />}
+                {confirmConfig && <ConfirmModal {...confirmConfig} onClose={() => setConfirmConfig(null)} />}
                 {alertConfig && <AlertModal {...alertConfig} />}
                 {reportOpen && (<ReportModal items={items} connections={connections} onAlertRequest={openAlert} onClose={() => setReportOpen(false)} />)}
 

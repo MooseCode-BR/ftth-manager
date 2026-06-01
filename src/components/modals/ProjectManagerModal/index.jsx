@@ -7,7 +7,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
     Folder, Trash2, Eye, EyeOff, Edit3, Check, PenTool, FolderOpen, Search, Tag,
-    Share2, UserCheck, Inbox, UserMinus, Users, ArrowRightLeft, AlertTriangle,
+    Share2, UserCheck, Inbox, UserMinus, Users, ArrowRightLeft, AlertTriangle, ArrowDownAZ, Clock,
     Square, CheckSquare, Plus, ChevronDown, ChevronUp, X, Focus, UserPen, HardHat, LogOut
 } from 'lucide-react';
 
@@ -31,6 +31,7 @@ const ProjectManagerModal = ({
     onBulkToggleVisibility,
     onRespondInvite,
     onRevokeShare,
+    onBulkRevokeShare,
     onUpdateSharePermission,
     onAcceptTransfer,
     onConfirmRequest,
@@ -45,6 +46,9 @@ const ProjectManagerModal = ({
     const [isCreating, setIsCreating] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [editNameValue, setEditNameValue] = useState('');
+
+    // --- ESTADO DE ORDENAÇÃO ---
+    const [sortMode, setSortMode] = useState('ALPHABETICAL'); // Pode ser 'ALPHABETICAL' ou 'DATE'
 
     // --- ESTADOS DE EXPANSÃO (Sanfona) ---
     // Guarda quais projetos estão com a lista de compartilhamento aberta
@@ -68,13 +72,50 @@ const ProjectManagerModal = ({
     }, [outgoingInvites]);
 
     // Ordenação alfabética dos projetos
-    const sortedMyProjects = useMemo(() => {
-        return [...myProjects].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-    }, [myProjects]);
+    // const sortedMyProjects = useMemo(() => {
+    //     return [...myProjects].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    // }, [myProjects]);
 
+    // const sortedSharedProjects = useMemo(() => {
+    //     return [...sharedProjects].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    // }, [sharedProjects]);
+
+    // Helper function para extrair a data de criação com precisão (independente do formato do Firebase)
+    const getSortValue = (proj) => {
+        if (!proj.createdAt) return 0;
+        if (typeof proj.createdAt.toMillis === 'function') return proj.createdAt.toMillis();
+        if (proj.createdAt.seconds) return proj.createdAt.seconds * 1000;
+        return new Date(proj.createdAt).getTime() || 0;
+    };
+
+    // Ordenação dos meus projetos
+    const sortedMyProjects = useMemo(() => {
+        const list = [...myProjects];
+        if (sortMode === 'DATE') {
+            return list.sort((a, b) => {
+                const valA = getSortValue(a);
+                const valB = getSortValue(b);
+                if (valA === valB) return (a.name || "").localeCompare(b.name || ""); // Desempate alfabético
+                return valB - valA; // Mais recente no topo
+            });
+        }
+        // Padrão: Alfabética
+        return list.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    }, [myProjects, sortMode]);
+
+    // Ordenação dos projetos compartilhados
     const sortedSharedProjects = useMemo(() => {
-        return [...sharedProjects].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-    }, [sharedProjects]);
+        const list = [...sharedProjects];
+        if (sortMode === 'DATE') {
+            return list.sort((a, b) => {
+                const valA = getSortValue(a);
+                const valB = getSortValue(b);
+                if (valA === valB) return (a.name || "").localeCompare(b.name || "");
+                return valB - valA;
+            });
+        }
+        return list.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    }, [sharedProjects, sortMode]);
 
     // --- ESTADO E LÓGICA DE BUSCA (FILTRO) ---
     const [searchQuery, setSearchQuery] = useState('');
@@ -116,23 +157,40 @@ const ProjectManagerModal = ({
 
     // --- LÓGICA DE SELEÇÃO EM MASSA (INTELIGENTE COM O FILTRO) ---
     // 1. Variável que verifica se TODOS os projetos que estão na tela estão selecionados
-    const isAllVisibleSelected = filteredMyProjects.length > 0 &&
-        filteredMyProjects.every(p => selectedIds.has(p.id));
+    // const isAllVisibleSelected = filteredMyProjects.length > 0 &&
+    //     filteredMyProjects.every(p => selectedIds.has(p.id));
 
-    // 2. A nova função de "Selecionar Todos"
+    // // 2. A nova função de "Selecionar Todos"
+    // const toggleSelectAll = () => {
+    //     // Criamos uma cópia da seleção atual para não perdermos o que já estava marcado em outras abas/buscas
+    //     const newSelection = new Set(selectedIds);
+
+    //     if (isAllVisibleSelected) {
+    //         // Se todos da tela já estão selecionados, nós DESMARCAMOS apenas eles
+    //         filteredMyProjects.forEach(p => newSelection.delete(p.id));
+    //     } else {
+    //         // Se faltar algum, nós MARCAMOS todos os que estão na tela
+    //         filteredMyProjects.forEach(p => newSelection.add(p.id));
+    //     }
+
+    //     setSelectedIds(newSelection); // Atualiza o estado
+    // };
+
+    // --- LÓGICA DE SELEÇÃO EM MASSA (INTELIGENTE COM O FILTRO E ABAS) ---
+    // Descobre qual lista estamos visualizando
+    const activeList = activeTab === 'MY_PROJECTS' ? filteredMyProjects : (activeTab === 'SHARED' ? filteredSharedProjects : []);
+
+    const isAllVisibleSelected = activeList.length > 0 &&
+        activeList.every(p => selectedIds.has(p.id));
+
     const toggleSelectAll = () => {
-        // Criamos uma cópia da seleção atual para não perdermos o que já estava marcado em outras abas/buscas
         const newSelection = new Set(selectedIds);
-
         if (isAllVisibleSelected) {
-            // Se todos da tela já estão selecionados, nós DESMARCAMOS apenas eles
-            filteredMyProjects.forEach(p => newSelection.delete(p.id));
+            activeList.forEach(p => newSelection.delete(p.id));
         } else {
-            // Se faltar algum, nós MARCAMOS todos os que estão na tela
-            filteredMyProjects.forEach(p => newSelection.add(p.id));
+            activeList.forEach(p => newSelection.add(p.id));
         }
-
-        setSelectedIds(newSelection); // Atualiza o estado
+        setSelectedIds(newSelection);
     };
 
     // --- FUNÇÕES DE EXPANSÃO ---
@@ -291,7 +349,7 @@ const ProjectManagerModal = ({
             {/* Abas */}
             <div className="flex border-b border-gray-200 dark:border-neutral-900 shrink-0 px-2">
                 <button
-                    onClick={() => setActiveTab('MY_PROJECTS')}
+                    onClick={() => { setActiveTab('MY_PROJECTS'); setSelectedIds(new Set()); }}
                     className={`flex-1 py-3 lg:py-2 text-sm lg:text-xs font-bold flex items-center justify-center gap-1.5 border-b-2 transition-colors
                         ${activeTab === 'MY_PROJECTS'
                             ? 'border-black text-black dark:border-white dark:text-white'
@@ -300,7 +358,7 @@ const ProjectManagerModal = ({
                     <Folder size={14} /> Meus
                 </button>
                 <button
-                    onClick={() => setActiveTab('SHARED')}
+                    onClick={() => { setActiveTab('SHARED'); setSelectedIds(new Set()); }}
                     className={`flex-1 py-3 lg:py-2 text-sm lg:text-xs font-bold flex items-center justify-center gap-1.5 border-b-2 transition-colors
                         ${activeTab === 'SHARED'
                             ? 'border-black text-black dark:border-white dark:text-white'
@@ -309,7 +367,7 @@ const ProjectManagerModal = ({
                     <UserCheck size={14} /> Compart.
                 </button>
                 <button
-                    onClick={() => setActiveTab('INBOX')}
+                    onClick={() => { setActiveTab('INBOX'); setSelectedIds(new Set()); }}
                     className={`flex-1 py-3 lg:py-2 text-sm lg:text-xs font-bold flex items-center justify-center gap-1.5 border-b-2 transition-colors relative
                         ${activeTab === 'INBOX'
                             ? 'border-black text-black dark:border-white dark:text-white'
@@ -325,7 +383,7 @@ const ProjectManagerModal = ({
             </div>
 
             {/* --- BARRA DE BUSCA GERAL --- */}
-            <div className="px-4 lg:px-3 py-3 border-b border-gray-200 dark:border-neutral-900 shrink-0">
+            {/* <div className="px-4 lg:px-3 py-3 border-b border-gray-200 dark:border-neutral-900 shrink-0">
                 <div className="relative flex items-center">
                     <Search size={14} className="absolute left-3 text-gray-400 dark:text-gray-500" />
                     <input
@@ -343,21 +401,46 @@ const ProjectManagerModal = ({
                         </button>
                     )}
                 </div>
+            </div> */}
+
+            {/* --- BARRA DE BUSCA GERAL E ORDENAÇÃO --- */}
+            <div className="px-4 lg:px-3 py-3 border-b border-gray-200 dark:border-neutral-900 shrink-0 flex gap-2">
+
+                {/* Input de Busca */}
+                <div className="relative flex flex-1 items-center">
+                    <Search size={14} className="absolute left-3 text-gray-400 dark:text-gray-500" />
+                    <input
+                        type="text"
+                        placeholder="Buscar projetos"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 text-base lg:text-xs rounded-lg outline-none transition-colors
+                                   bg-gray-100 text-black border border-transparent focus:border-gray-300
+                                   dark:bg-neutral-900 dark:text-white dark:focus:border-neutral-700"
+                    />
+                    {searchQuery && (
+                        <button onClick={() => setSearchQuery('')} className="absolute right-3 p-1 rounded-full text-gray-400 hover:text-black dark:hover:text-white transition-colors">
+                            <X size={12} />
+                        </button>
+                    )}
+                </div>
+
+                {/* Botão de Alternar Ordenação */}
+                <button
+                    onClick={() => setSortMode(prev => prev === 'ALPHABETICAL' ? 'DATE' : 'ALPHABETICAL')}
+                    className="flex items-center justify-center px-3 py-2 bg-gray-100 dark:bg-neutral-900 border border-transparent hover:border-gray-300 dark:hover:border-neutral-700 rounded-lg text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
+                    title={sortMode === 'ALPHABETICAL' ? "Alternar para Data de Criação (Mais recentes primeiro)" : "Alternar para Ordem Alfabética"}
+                >
+                    {sortMode === 'ALPHABETICAL' ? <ArrowDownAZ size={16} /> : <Clock size={16} />}
+                </button>
             </div>
 
-            {/* --- BARRA DE SELEÇÃO EM MASSA --- */}
-            {activeTab === 'MY_PROJECTS' && filteredMyProjects.length > 0 && (
+            {/* --- BARRA DE SELEÇÃO EM MASSA DINÂMICA --- */}
+            {(activeTab === 'MY_PROJECTS' || activeTab === 'SHARED') && activeList.length > 0 && (
                 <div className="bg-gray-50 dark:bg-neutral-900 border-b border-gray-200 dark:border-neutral-800 px-4 lg:px-3 py-2 flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-2">
-                        <button
-                            onClick={toggleSelectAll}
-                            className="p-1 rounded text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors"
-                            title="Selecionar Todos"
-                        >
-                            {/* AQUI ESTÁ A MUDANÇA: Usamos a nossa nova variável isAllVisibleSelected */}
-                            {isAllVisibleSelected
-                                ? <CheckSquare size={16} className="text-black dark:text-white" />
-                                : <Square size={16} />}
+                        <button onClick={toggleSelectAll} className="p-1 rounded text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors" title="Selecionar Todos">
+                            {isAllVisibleSelected ? <CheckSquare size={16} className="text-black dark:text-white" /> : <Square size={16} />}
                         </button>
                         <span className="font-medium text-xs text-gray-600 dark:text-gray-400">
                             Selecionar Todos ({selectedIds.size})
@@ -373,20 +456,40 @@ const ProjectManagerModal = ({
                             >
                                 <Eye size={16} />
                             </button>
-                            <button
-                                onClick={() => setBulkAction('SHARE')}
-                                className="p-1.5 rounded text-gray-500 hover:bg-gray-200 hover:text-black dark:text-gray-400 dark:hover:bg-neutral-800 dark:hover:text-white transition-colors"
-                                title="Compartilhar Selecionados"
-                            >
-                                <Share2 size={16} />
-                            </button>
-                            <button
-                                onClick={() => { onBulkDelete(Array.from(selectedIds)); setSelectedIds(new Set()); }}
-                                className="p-1.5 rounded text-gray-500 hover:bg-red-100 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-900/30 dark:hover:text-red-500 transition-colors"
-                                title="Excluir Selecionados"
-                            >
-                                <Trash2 size={16} />
-                            </button>
+
+                            {/* Compartilhar é restrito apenas a Projetos Próprios */}
+                            {activeTab === 'MY_PROJECTS' && (
+                                <button
+                                    onClick={() => setBulkAction('SHARE')}
+                                    className="p-1.5 rounded text-gray-500 hover:bg-gray-200 hover:text-black dark:text-gray-400 dark:hover:bg-neutral-800 dark:hover:text-white transition-colors"
+                                    title="Compartilhar Selecionados"
+                                >
+                                    <Share2 size={16} />
+                                </button>
+                            )}
+
+                            {/* Botão de Excluir / Sair Múltiplo Dinâmico */}
+                            {activeTab === 'MY_PROJECTS' ? (
+                                <button
+                                    onClick={() => { onBulkDelete(Array.from(selectedIds)); setSelectedIds(new Set()); }}
+                                    className="p-1.5 rounded text-gray-500 hover:bg-red-100 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-900/30 dark:hover:text-red-500 transition-colors"
+                                    title="Excluir Selecionados"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => {
+                                        const invitesToRevoke = sharedProjects.filter(p => selectedIds.has(p.id)).map(p => p.inviteId);
+                                        if (onBulkRevokeShare) onBulkRevokeShare(invitesToRevoke);
+                                        setSelectedIds(new Set());
+                                    }}
+                                    className="p-1.5 rounded text-gray-500 hover:bg-red-100 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-900/30 dark:hover:text-red-500 transition-colors"
+                                    title="Sair dos Projetos Selecionados"
+                                >
+                                    <LogOut size={16} />
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>
@@ -634,74 +737,81 @@ const ProjectManagerModal = ({
                                                 'border-gray-200 dark:border-neutral-800 hover:border-gray-300 dark:hover:border-neutral-700'}`}>
 
                                         <div className="p-3 lg:p-2.5 flex items-center justify-between">
-                                            <div className="flex flex-col flex-1 min-w-0 mr-1 gap-1.5">
+                                            <div className="flex items-center gap-2.5 overflow-hidden flex-1">
 
-                                                <div className="flex items-center gap-2">
-                                                    <span className={`font-bold text-sm lg:text-xs truncate transition-colors ${isActive ? 'text-black dark:text-white' : 'text-gray-800 dark:text-gray-200'}`}>
-                                                        {proj.name}
-                                                    </span>
-                                                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest flex items-center gap-1 border
+                                                {/* CHECKBOX */}
+                                                <button onClick={() => toggleSelection(proj.id)} className="shrink-0 p-1 text-gray-400 hover:text-black dark:text-gray-500 dark:hover:text-white transition-colors">
+                                                    {isSelected ? <CheckSquare size={18} className="text-black dark:text-white" /> : <Square size={18} />}
+                                                </button>
+
+                                                <div className="flex flex-col flex-1 min-w-0 mr-1 gap-1.5">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`font-bold text-sm lg:text-xs truncate transition-colors ${isActive ? 'text-black dark:text-white' : 'text-gray-800 dark:text-gray-200'}`}>
+                                                            {proj.name}
+                                                        </span>
+                                                        <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest flex items-center gap-1 border
                                                         ${proj.permission === 'READ_ONLY_GEOMETRY'
-                                                            ? 'bg-transparent text-gray-500 border-gray-300 dark:border-neutral-700'
-                                                            : 'bg-black text-white dark:bg-white dark:text-black border-transparent'}`}>
-                                                        {proj.permission === 'READ_ONLY_GEOMETRY' ? 'Ativação' : 'Projetista'}
-                                                    </span>
-                                                </div>
+                                                                ? 'bg-transparent text-gray-500 border-gray-300 dark:border-neutral-700'
+                                                                : 'bg-black text-white dark:bg-white dark:text-black border-transparent'}`}>
+                                                            {proj.permission === 'READ_ONLY_GEOMETRY' ? 'Ativação' : 'Projetista'}
+                                                        </span>
+                                                    </div>
 
-                                                {/* Botões */}
-                                                <div className="flex items-center gap-0.5 shrink-0">
-                                                    <button
-                                                        onClick={() => { onFocusProject(proj.id); setSelectedIds(new Set()); }}
-                                                        className="p-1.5 rounded text-gray-400 hover:text-black hover:bg-gray-100 dark:hover:text-white dark:hover:bg-neutral-800 transition-colors"
-                                                        title="Centralizar no Projeto"
-                                                    >
-                                                        <Focus size={14} />
-                                                    </button>
-
-                                                    {proj.permission !== 'READ_ONLY_GEOMETRY' && (
+                                                    {/* Botões */}
+                                                    <div className="flex items-center gap-0.5 shrink-0">
                                                         <button
-                                                            onClick={() => { onSetActive(proj); setSelectedIds(new Set()); }}
-                                                            className={`p-1.5 rounded transition-colors ${isActive ? 'bg-black text-white dark:bg-white dark:text-black' : 'text-gray-400 hover:text-black hover:bg-gray-100 dark:hover:text-white dark:hover:bg-neutral-800'}`}
-                                                            title={isActive ? "Desativar Edição de Projeto" : "Ativar Edição de Projeto"}
+                                                            onClick={() => { onFocusProject(proj.id); setSelectedIds(new Set()); }}
+                                                            className="p-1.5 rounded text-gray-400 hover:text-black hover:bg-gray-100 dark:hover:text-white dark:hover:bg-neutral-800 transition-colors"
+                                                            title="Centralizar no Projeto"
                                                         >
-                                                            <PenTool size={14} />
+                                                            <Focus size={14} />
                                                         </button>
-                                                    )}
 
-                                                    <button
-                                                        onClick={() => { onToggleVisibility(proj.id); setSelectedIds(new Set()); }}
-                                                        className={`p-1.5 rounded transition-colors ${isVisible ? 'text-black bg-gray-100 dark:text-white dark:bg-neutral-800' : 'text-gray-400 hover:text-black hover:bg-gray-100 dark:hover:text-white dark:hover:bg-neutral-800'}`}
-                                                        title={isVisible ? "Ocultar Projeto" : "Ver Projeto"}
-                                                    >
-                                                        {isVisible ? <Eye size={14} /> : <EyeOff size={14} />}
-                                                    </button>
+                                                        {proj.permission !== 'READ_ONLY_GEOMETRY' && (
+                                                            <button
+                                                                onClick={() => { onSetActive(proj); setSelectedIds(new Set()); }}
+                                                                className={`p-1.5 rounded transition-colors ${isActive ? 'bg-black text-white dark:bg-white dark:text-black' : 'text-gray-400 hover:text-black hover:bg-gray-100 dark:hover:text-white dark:hover:bg-neutral-800'}`}
+                                                                title={isActive ? "Desativar Edição de Projeto" : "Ativar Edição de Projeto"}
+                                                            >
+                                                                <PenTool size={14} />
+                                                            </button>
+                                                        )}
 
-                                                    {/* --- Botão de Gerenciamento de Tags do Projeto --- */}
-                                                    <button
-                                                        onClick={() => onOpenProjectTags(proj)}
-                                                        className="p-1 text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 rounded transition-colors"
-                                                        title="Gerenciar Tags do Projeto"
-                                                    >
-                                                        <Tag size={16} />
-                                                    </button>
-                                                </div>
+                                                        <button
+                                                            onClick={() => { onToggleVisibility(proj.id); setSelectedIds(new Set()); }}
+                                                            className={`p-1.5 rounded transition-colors ${isVisible ? 'text-black bg-gray-100 dark:text-white dark:bg-neutral-800' : 'text-gray-400 hover:text-black hover:bg-gray-100 dark:hover:text-white dark:hover:bg-neutral-800'}`}
+                                                            title={isVisible ? "Ocultar Projeto" : "Ver Projeto"}
+                                                        >
+                                                            {isVisible ? <Eye size={14} /> : <EyeOff size={14} />}
+                                                        </button>
 
-                                                {/* Status e Dono */}
-                                                <div className="flex items-center gap-2 mt-1 text-[10px] lg:text-[9px]">
-                                                    {isActive && <span className="font-bold uppercase text-black dark:text-white">● Ativo</span>}
-                                                    {isVisible && <span className="font-bold uppercase text-gray-500 dark:text-gray-400">● Visível</span>}
+                                                        {/* --- Botão de Gerenciamento de Tags do Projeto --- */}
+                                                        <button
+                                                            onClick={() => onOpenProjectTags(proj)}
+                                                            className="p-1 text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 rounded transition-colors"
+                                                            title="Gerenciar Tags do Projeto"
+                                                        >
+                                                            <Tag size={16} />
+                                                        </button>
+                                                    </div>
 
-                                                    <span className="flex items-center gap-1 font-medium text-gray-500 dark:text-gray-500 truncate max-w-[150px]">
-                                                        <Users size={10} /> Dono: {proj.fromEmail || "Desconhecido"}
-                                                    </span>
+                                                    {/* Status e Dono */}
+                                                    <div className="flex items-center gap-2 mt-1 text-[10px] lg:text-[9px]">
+                                                        {isActive && <span className="font-bold uppercase text-black dark:text-white">● Ativo</span>}
+                                                        {isVisible && <span className="font-bold uppercase text-gray-500 dark:text-gray-400">● Visível</span>}
 
-                                                    <button
-                                                        onClick={() => onRevokeShare(proj.inviteId)}
-                                                        className="ml-auto p-1.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-500 dark:hover:bg-red-900/20 transition-colors"
-                                                        title="Sair do projeto"
-                                                    >
-                                                        <LogOut size={12} />
-                                                    </button>
+                                                        <span className="flex items-center gap-1 font-medium text-gray-500 dark:text-gray-500 truncate max-w-[150px]">
+                                                            <Users size={10} /> Dono: {proj.fromEmail || "Desconhecido"}
+                                                        </span>
+
+                                                        <button
+                                                            onClick={() => onRevokeShare(proj.inviteId)}
+                                                            className="ml-auto p-1.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-500 dark:hover:bg-red-900/20 transition-colors"
+                                                            title="Sair do projeto"
+                                                        >
+                                                            <LogOut size={12} />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
