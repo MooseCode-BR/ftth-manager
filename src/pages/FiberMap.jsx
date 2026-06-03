@@ -90,6 +90,7 @@ let DefaultIcon = L.icon({
 });
 
 L.Marker.prototype.options.icon = DefaultIcon;
+L.Marker.prototype.options.keyboard = false; // Desativa o foco no teclado para evitar que o navegador role a tela e desalinhe o mapa quando estiver rotacionado.
 
 // Waypoints - Bolinhas d edição do cabo
 // Adicionei 'item' como último parâmetro
@@ -1151,16 +1152,27 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
 
     return (
         <>
-            {/* Contorno */}
+            {/* Linha Invisivel - Auxilia no clique */}
             <Polyline
                 positions={positions}
-                pathOptions={{ 
-                    color: 'black', 
-                    weight: isSelected ? 10 : 6 }}
+                pathOptions={{
+                    color: 'transparent',
+                    weight: 12
+                }}
                 eventHandlers={{ click: handleLineClick, dblclick: handleLineDblClick, contextmenu: (e) => setContextMenuPin(e.latlng) }}
             />
 
-            {/* Linha Visível */}
+            {/* Contorno */}
+            <Polyline
+                positions={positions}
+                pathOptions={{
+                    color: 'black',
+                    weight: isSelected ? 10 : 6
+                }}
+                eventHandlers={{ click: handleLineClick, dblclick: handleLineDblClick, contextmenu: (e) => setContextMenuPin(e.latlng) }}
+            />
+
+            {/* Preenchimento */}
             <Polyline
                 positions={positions}
                 pathOptions={{

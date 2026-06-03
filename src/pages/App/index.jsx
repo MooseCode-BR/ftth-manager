@@ -209,7 +209,7 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
 
                         {/* 2. Botões de Ação (Lista Vertical) */}
                         <div className="flex flex-col gap-1 w-full min-w-[170px]">
-                            
+
                             {/* TRAVAR / DESTRAVAR */}
                             <button
                                 onClick={(e) => { e.stopPropagation(); setIsUnlocked(!isUnlocked); }}
@@ -383,14 +383,14 @@ const CableLine = memo(({ cable, nodeA, nodeB, index, count, itemTypes, onSelect
             <DraggableToolbar>
                 {/* 1. Nome no Topo */}
                 <div className="w-full text-center border-b border-gray-300/50 dark:border-gray-600/50 px-2.5 py-2 mb-1.5">
-                            <span className="text-xs font-bold text-black dark:text-white block truncate max-w-[200px]">
+                    <span className="text-xs font-bold text-black dark:text-white block truncate max-w-[200px]">
                         {cable.name}
                     </span>
                 </div>
 
                 {/* 2. Botões (Lista Vertical) */}
                 <div className="flex flex-col gap-1 w-full min-w-[170px]">
-                    
+
                     {/* DETALHES */}
                     <button
                         onClick={(e) => { e.stopPropagation(); if (onOpen) onOpen(cable.id); }}
@@ -506,7 +506,7 @@ const DropLine = memo(({ x1, y1, x2, y2 }) => {
 // Componente Input otimizado para não "comer" letras durante digitação rápida
 const DebouncedInput = ({ value, onChange, ...props }) => {
     const [localValue, setLocalValue] = useState(value);
-    
+
     // Ref para blindar a digitação. Impede que o estado atrasado do pai sobrescreva o que o usuário está digitando agora.
     const isTyping = useRef(false);
     const lastSentValue = useRef(value);
@@ -524,11 +524,11 @@ const DebouncedInput = ({ value, onChange, ...props }) => {
     useEffect(() => {
         const handler = setTimeout(() => {
             isTyping.current = false; // Tempo suficiente passou, consideramos que a rajada de digitação pausou
-            
+
             // Só avisa o pai se o valor realmente mudou e é diferente do último que enviamos
             if (localValue !== lastSentValue.current) {
                 lastSentValue.current = localValue;
-                onChange(localValue); 
+                onChange(localValue);
             }
         }, 350); // Aumentado para 350ms para garantir extrema fluidez antes de forçar o re-render do sistema
 
@@ -537,7 +537,7 @@ const DebouncedInput = ({ value, onChange, ...props }) => {
 
     return (
         <input
-            {...props} 
+            {...props}
             id='barra-de-busca'
             name='Barra de Busca'
             value={localValue}
@@ -576,6 +576,7 @@ const App = () => {
     const [userRole, setUserRole] = useState('OWNER'); //funçãoDoUsuario, definirFunçãoDoUsuario
 
     const [user, setUser] = useState(null); //Usuario
+    const [authLoading, setAuthLoading] = useState(true); // Controle de carregamento da autenticação
     // Hook customizado movido para cá (pois depende de 'user')
     const {
         incomingTransfers,
@@ -691,6 +692,7 @@ const App = () => {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
             setUser(currentUser); // Atualiza o estado: O React agora sabe que você logou!
+            setAuthLoading(false); // O carregamento da autenticação terminou
 
             if (currentUser) {
                 // Sincroniza perfil do usuário no Firestore (para lookup dinâmico)
@@ -4927,7 +4929,7 @@ const App = () => {
     }, []);
 
     // --- 1. TELA DE CARREGAMENTO (SPLASH SCREEN) ---
-    if (isLoading) {
+    if (isLoading || authLoading) {
         return <LoadScreen />;
     }
     // Se não tiver usuário, mostra Login
