@@ -129,6 +129,44 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
         if (!isSelected) setIsUnlocked(false);
     }, [isSelected]);
 
+    // --- ATALHOS DE TECLADO DO MENU ---
+    useEffect(() => {
+        if (!isSelected || isCableStart) return;
+
+        const handleKeyDown = (e) => {
+            if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+            if (e.repeat) return; // Evita disparo múltiplo segurando a tecla
+
+            switch (e.key.toLowerCase()) {
+                case 'd':
+                    e.preventDefault();
+                    setIsUnlocked(prev => !prev);
+                    break;
+                case 'enter':
+                    e.preventDefault();
+                    if (onOpen) onOpen(node.id);
+                    break;
+                case 'e':
+                    e.preventDefault();
+                    if (onEdit) onEdit(node.id, node.name);
+                    break;
+                case 'a':
+                    e.preventDefault();
+                    if (onFlyToMap) onFlyToMap(node);
+                    break;
+                case 'delete':
+                    e.preventDefault();
+                    if (onDelete) onDelete(node.id);
+                    break;
+                default:
+                    break;
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isSelected, isCableStart, node, onOpen, onEdit, onDelete, onFlyToMap, setIsUnlocked]);
+
     // LÓGICA DE CLIQUE E ARRASTE
     const handleNodeClick = (e) => {
         e.stopPropagation();
@@ -220,7 +258,8 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
                                 title={isUnlocked ? "Bloquear Posição" : "Liberar Movimento"}
                             >
                                 {isUnlocked ? <Unlock size={16} /> : <Lock size={16} />}
-                                {isUnlocked ? "Travar Posição" : "Destravar Posição"}
+                                <span className="flex-1">{isUnlocked ? "Travar Posição" : "Destravar Posição"}</span>
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">D</span>
                             </button>
 
                             {/* DETALHES */}
@@ -229,7 +268,8 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
                                 className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
                             >
                                 <DoorOpen size={16} />
-                                Abrir Detalhes
+                                <span className="flex-1">Abrir Detalhes</span>
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">Enter</span>
                             </button>
 
                             {/* EDITAR */}
@@ -238,7 +278,8 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
                                 className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
                             >
                                 <Edit3 size={16} />
-                                Editar Equipamento
+                                <span className="flex-1">Editar Equipamento</span>
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">E</span>
                             </button>
 
                             {/* MAPA (Voar para o nó) */}
@@ -247,7 +288,8 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
                                 className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-transparent hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors text-left"
                             >
                                 <MapPinned size={16} />
-                                Ver no Mapa
+                                <span className="flex-1">Ver no Mapa</span>
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">A</span>
                             </button>
 
                             {/* Linha Divisória */}
@@ -259,7 +301,8 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
                                 className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-transparent hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-left"
                             >
                                 <Trash2 size={16} />
-                                Excluir Equipamento
+                                <span className="flex-1">Excluir Equipamento</span>
+                                <span className="text-[10px] text-red-400 font-bold px-1 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">Del</span>
                             </button>
 
                         </div>

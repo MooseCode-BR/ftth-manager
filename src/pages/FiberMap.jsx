@@ -810,6 +810,50 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
     }, [isUnlocked, isSelected, item._readOnly]);
     // --------------------------------------------------------------
 
+    // --- ATALHOS DE TECLADO DO MENU ---
+    useEffect(() => {
+        if (!isSelected || isPickingMode) return;
+
+        const handleKeyDown = (e) => {
+            // Ignora se estiver digitando em um input
+            if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+            if (e.repeat) return; // Evita disparo múltiplo segurando a tecla
+
+            switch (e.key.toLowerCase()) {
+                case 'd':
+                    e.preventDefault();
+                    setIsUnlocked(prev => !prev);
+                    break;
+                case 'enter':
+                    e.preventDefault();
+                    if (onOpen) onOpen(item.id);
+                    break;
+                case 'e':
+                    e.preventDefault();
+                    if (onEdit) onEdit(item.id, item.name);
+                    break;
+                case 'c':
+                    e.preventDefault();
+                    navigator.clipboard.writeText(`${item.lat}, ${item.lng}`);
+                    break;
+                case 'a':
+                    e.preventDefault();
+                    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}`;
+                    window.open(mapsUrl, '_blank', 'noopener,noreferrer');
+                    break;
+                case 'delete':
+                    e.preventDefault();
+                    if (onDelete) onDelete(item.id);
+                    break;
+                default:
+                    break;
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isSelected, isPickingMode, item, onOpen, onEdit, onDelete, setIsUnlocked]);
+
     const icon = useMemo(() => {
         const typeInfo = ITEM_TYPES[item.type];
         const color = item.color || typeInfo?.defaultColor || '#000';
@@ -918,7 +962,8 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                                 title={isUnlocked ? "Bloquear Posição" : "Liberar Movimento"}
                             >
                                 {isUnlocked ? <Unlock size={16} /> : <Lock size={16} />}
-                                {isUnlocked ? "Travar Posição" : "Destravar Posição"}
+                                <span className="flex-1">{isUnlocked ? "Travar Posição" : "Destravar Posição"}</span>
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">D</span>
                             </button>
 
                             {/* Botão DETALHES */}
@@ -930,7 +975,8 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                                 className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
                             >
                                 <DoorOpen size={16} />
-                                Abrir Detalhes
+                                <span className="flex-1">Abrir Detalhes</span>
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">Enter</span>
                             </button>
 
                             {/* Botão EDITAR */}
@@ -942,7 +988,8 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                                 className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
                             >
                                 <Edit3 size={16} />
-                                Editar Item
+                                <span className="flex-1">Editar Item</span>
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">E</span>
                             </button>
 
                             {/* Botão COPIAR COORDENADAS */}
@@ -954,7 +1001,8 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                                 className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
                             >
                                 <Copy size={16} />
-                                Copiar Coodenadas
+                                <span className="flex-1">Copiar Coordenadas</span>
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">C</span>
                             </button>
 
                             {/* Botão ABRIR NO MAPS */}
@@ -967,7 +1015,8 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                                 className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-transparent hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors text-left"
                             >
                                 <Navigation size={16} />
-                                Abrir no Maps
+                                <span className="flex-1">Abrir no Maps</span>
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">A</span>
                             </button>
 
                             {/* Linha Divisória */}
@@ -982,7 +1031,8 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                                 className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-transparent hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-left"
                             >
                                 <Trash2 size={16} />
-                                Excluir Item
+                                <span className="flex-1">Excluir Item</span>
+                                <span className="text-[10px] text-red-400 font-bold px-1 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">Del</span>
                             </button>
 
                         </div>
@@ -1027,6 +1077,46 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
         }
     }, [forcedPosition, isSelected]);
     // ---------------------------------
+
+    // --- ATALHOS DE TECLADO DO MENU ---
+    useEffect(() => {
+        // Se o cabo não estiver selecionado, ou o menu não estiver visível (clickPosition ausente)
+        if (!isSelected || !clickPosition) return;
+
+        const handleKeyDown = (e) => {
+            // Ignora se estiver digitando em um input
+            if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+            if (e.repeat) return;
+
+            switch (e.key.toLowerCase()) {
+                case 'd':
+                    e.preventDefault();
+                    setIsUnlocked(prev => !prev);
+                    break;
+                case 'enter':
+                    e.preventDefault();
+                    if (onOpen) onOpen(cable.id, clickPosition);
+                    break;
+                case 'e':
+                    e.preventDefault();
+                    if (onEdit) onEdit(cable.id, cable.name);
+                    break;
+                case 'c':
+                    e.preventDefault();
+                    if (onSplit) onSplit(cable.id, clickPosition);
+                    break;
+                case 'delete':
+                    e.preventDefault();
+                    if (onDelete) onDelete(cable.id);
+                    break;
+                default:
+                    break;
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isSelected, clickPosition, cable, onOpen, onEdit, onSplit, onDelete, setIsUnlocked]);
 
     const waypointsArr = useMemo(() => (cable.waypoints || []).map(wp => [wp.lat, wp.lng]), [cable.waypoints]);
     const positions = [posA, ...waypointsArr, posB];
@@ -1213,7 +1303,8 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
                                 title={isUnlocked ? "Bloquear" : "Desbloquear"}
                             >
                                 {isUnlocked ? <Unlock size={16} /> : <Lock size={16} />}
-                                {isUnlocked ? "Bloquear Cabo" : "Desbloquear Cabo"}
+                                <span className="flex-1">{isUnlocked ? "Bloquear Cabo" : "Desbloquear Cabo"}</span>
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">D</span>
                             </button>
 
                             {/* Botão DETALHES */}
@@ -1222,7 +1313,8 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
                                 className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
                             >
                                 <DoorOpen size={16} />
-                                Abrir Detalhes
+                                <span className="flex-1">Abrir Detalhes</span>
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">Enter</span>
                             </button>
 
                             {/* Botão EDITAR */}
@@ -1231,7 +1323,8 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
                                 className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
                             >
                                 <Edit3 size={16} />
-                                Editar Cabo
+                                <span className="flex-1">Editar Cabo</span>
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">E</span>
                             </button>
 
                             {/* Botão SECCIONAR (CORTAR) */}
@@ -1240,7 +1333,8 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
                                 className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-orange-600 dark:text-orange-400 bg-transparent hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors text-left"
                             >
                                 <Scissors size={16} className="rotate-90" />
-                                Cortar Cabo Aqui
+                                <span className="flex-1">Cortar Cabo Aqui</span>
+                                <span className="text-[10px] text-orange-400 font-bold px-1 rounded bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">C</span>
                             </button>
 
                             {/* Linha Divisória */}
@@ -1252,7 +1346,8 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
                                 className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-transparent hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-left"
                             >
                                 <Trash2 size={16} />
-                                Excluir Cabo
+                                <span className="flex-1">Excluir Cabo</span>
+                                <span className="text-[10px] text-red-400 font-bold px-1 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">Del</span>
                             </button>
                         </div>
                     </DraggableToolbar>
