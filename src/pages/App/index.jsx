@@ -129,6 +129,44 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
         if (!isSelected) setIsUnlocked(false);
     }, [isSelected]);
 
+    // --- ATALHOS DE TECLADO DO MENU ---
+    useEffect(() => {
+        if (!isSelected || isCableStart) return;
+
+        const handleKeyDown = (e) => {
+            if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+            if (e.repeat) return; // Evita disparo múltiplo segurando a tecla
+
+            switch (e.key.toLowerCase()) {
+                case 'd':
+                    e.preventDefault();
+                    setIsUnlocked(prev => !prev);
+                    break;
+                case 'enter':
+                    e.preventDefault();
+                    if (onOpen) onOpen(node.id);
+                    break;
+                case 'e':
+                    e.preventDefault();
+                    if (onEdit) onEdit(node.id, node.name);
+                    break;
+                case 'a':
+                    e.preventDefault();
+                    if (onFlyToMap) onFlyToMap(node);
+                    break;
+                case 'delete':
+                    e.preventDefault();
+                    if (onDelete) onDelete(node.id);
+                    break;
+                default:
+                    break;
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isSelected, isCableStart, node, onOpen, onEdit, onDelete, onFlyToMap, setIsUnlocked]);
+
     // LÓGICA DE CLIQUE E ARRASTE
     const handleNodeClick = (e) => {
         e.stopPropagation();
@@ -209,7 +247,7 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
 
                         {/* 2. Botões de Ação (Lista Vertical) */}
                         <div className="flex flex-col gap-1 w-full min-w-[170px]">
-                            
+
                             {/* TRAVAR / DESTRAVAR */}
                             <button
                                 onClick={(e) => { e.stopPropagation(); setIsUnlocked(!isUnlocked); }}
@@ -220,7 +258,8 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
                                 title={isUnlocked ? "Bloquear Posição" : "Liberar Movimento"}
                             >
                                 {isUnlocked ? <Unlock size={16} /> : <Lock size={16} />}
-                                {isUnlocked ? "Travar Posição" : "Destravar Posição"}
+                                <span className="flex-1">{isUnlocked ? "Travar Posição" : "Destravar Posição"}</span>
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">D</span>
                             </button>
 
                             {/* DETALHES */}
@@ -229,7 +268,8 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
                                 className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
                             >
                                 <DoorOpen size={16} />
-                                Abrir Detalhes
+                                <span className="flex-1">Abrir Detalhes</span>
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">Enter</span>
                             </button>
 
                             {/* EDITAR */}
@@ -238,7 +278,8 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
                                 className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
                             >
                                 <Edit3 size={16} />
-                                Editar Equipamento
+                                <span className="flex-1">Editar Equipamento</span>
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">E</span>
                             </button>
 
                             {/* MAPA (Voar para o nó) */}
@@ -247,7 +288,8 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
                                 className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-transparent hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors text-left"
                             >
                                 <MapPinned size={16} />
-                                Ver no Mapa
+                                <span className="flex-1">Ver no Mapa</span>
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">A</span>
                             </button>
 
                             {/* Linha Divisória */}
@@ -259,7 +301,8 @@ const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, 
                                 className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-transparent hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-left"
                             >
                                 <Trash2 size={16} />
-                                Excluir Equipamento
+                                <span className="flex-1">Excluir Equipamento</span>
+                                <span className="text-[10px] text-red-400 font-bold px-1 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">Del</span>
                             </button>
 
                         </div>
@@ -383,14 +426,14 @@ const CableLine = memo(({ cable, nodeA, nodeB, index, count, itemTypes, onSelect
             <DraggableToolbar>
                 {/* 1. Nome no Topo */}
                 <div className="w-full text-center border-b border-gray-300/50 dark:border-gray-600/50 px-2.5 py-2 mb-1.5">
-                            <span className="text-xs font-bold text-black dark:text-white block truncate max-w-[200px]">
+                    <span className="text-xs font-bold text-black dark:text-white block truncate max-w-[200px]">
                         {cable.name}
                     </span>
                 </div>
 
                 {/* 2. Botões (Lista Vertical) */}
                 <div className="flex flex-col gap-1 w-full min-w-[170px]">
-                    
+
                     {/* DETALHES */}
                     <button
                         onClick={(e) => { e.stopPropagation(); if (onOpen) onOpen(cable.id); }}
@@ -506,7 +549,7 @@ const DropLine = memo(({ x1, y1, x2, y2 }) => {
 // Componente Input otimizado para não "comer" letras durante digitação rápida
 const DebouncedInput = ({ value, onChange, ...props }) => {
     const [localValue, setLocalValue] = useState(value);
-    
+
     // Ref para blindar a digitação. Impede que o estado atrasado do pai sobrescreva o que o usuário está digitando agora.
     const isTyping = useRef(false);
     const lastSentValue = useRef(value);
@@ -524,11 +567,11 @@ const DebouncedInput = ({ value, onChange, ...props }) => {
     useEffect(() => {
         const handler = setTimeout(() => {
             isTyping.current = false; // Tempo suficiente passou, consideramos que a rajada de digitação pausou
-            
+
             // Só avisa o pai se o valor realmente mudou e é diferente do último que enviamos
             if (localValue !== lastSentValue.current) {
                 lastSentValue.current = localValue;
-                onChange(localValue); 
+                onChange(localValue);
             }
         }, 350); // Aumentado para 350ms para garantir extrema fluidez antes de forçar o re-render do sistema
 
@@ -537,7 +580,7 @@ const DebouncedInput = ({ value, onChange, ...props }) => {
 
     return (
         <input
-            {...props} 
+            {...props}
             id='barra-de-busca'
             name='Barra de Busca'
             value={localValue}
@@ -576,6 +619,7 @@ const App = () => {
     const [userRole, setUserRole] = useState('OWNER'); //funçãoDoUsuario, definirFunçãoDoUsuario
 
     const [user, setUser] = useState(null); //Usuario
+    const [authLoading, setAuthLoading] = useState(true); // Controle de carregamento da autenticação
     // Hook customizado movido para cá (pois depende de 'user')
     const {
         incomingTransfers,
@@ -691,6 +735,7 @@ const App = () => {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
             setUser(currentUser); // Atualiza o estado: O React agora sabe que você logou!
+            setAuthLoading(false); // O carregamento da autenticação terminou
 
             if (currentUser) {
                 // Sincroniza perfil do usuário no Firestore (para lookup dinâmico)
@@ -1474,8 +1519,8 @@ const App = () => {
         if (inheritedProjectId) {
             finalProjectId = inheritedProjectId; // Se tem pai, herda do pai obrigatoriamente
         } else if (modalConfig.mode === 'CABLE') {
-            // Se for cabo, prioriza o projeto ativo. Apenas como último recurso tenta o fromNode
-            finalProjectId = activeProjectId || (modalConfig.fromNode && modalConfig.fromNode._projectId);
+            // Se for cabo, herda o projeto do fromNode
+            finalProjectId = modalConfig.fromNode && modalConfig.fromNode._projectId;
         }
 
         // >>> LOGS DE DEPURAÇÃO PARA O CONSOLE <<<
@@ -1592,7 +1637,6 @@ const App = () => {
     const handleMapNodeClick = (node) => {
         // Lógica de desenhar cabo (Igual ao Canvas)
         if (interactionMode === 'DRAW_CABLE') {
-            if (!activeProjectGuard()) return; //Impede o usuario de criar um nó sem que um projeto esteja selecionado
 
             // LÊ o valor ATUAL via ref (sem stale closure)
             const currentStart = cableStartNodeRef.current;
@@ -1671,11 +1715,20 @@ const App = () => {
         if (existingItem) {
             // CASO 1: EDIÇÃO -> Mantém o projeto original do item (não importa qual está ativo)
             finalProjectId = existingItem._projectId;
+        } else if (item._projectId) {
+            // CASO 2: PROJETO FORÇADO -> Ex: Caixa criada ao seccionar um cabo
+            finalProjectId = item._projectId;
         } else if (item.parentId) {
-            // CASO 2: NOVO ITEM DENTRO DE OUTRO (Ex: Placa na OLT) -> Herda do Pai
+            // CASO 3: NOVO ITEM DENTRO DE OUTRO (Ex: Placa na OLT) -> Herda do Pai
             const parent = items.find(i => i.id === item.parentId);
             if (parent) {
                 finalProjectId = parent._projectId;
+            }
+        } else if (item.type === 'CABLE' && item.fromNode) {
+            // CASO 4: NOVO CABO -> Herda do Nó de origem (fromNode)
+            const fromNodeItem = items.find(i => i.id === item.fromNode);
+            if (fromNodeItem) {
+                finalProjectId = fromNodeItem._projectId;
             }
         }
 
@@ -3120,8 +3173,6 @@ const App = () => {
     const handleEnd = (e, node) => {
         if (draggingNode?.isMultiSelect) { setSelectedItemsOffset({ dx: 0, dy: 0 }); } if (e.touches && e.touches.length < 2) { touchRef.current.dist = 0; } if (interactionMode === 'SELECT') { if (node) { const pos = getClientPos(e.changedTouches ? e.changedTouches[0] : e); const dist = Math.sqrt(Math.pow(pos.x - dragStartPosRef.current.x, 2) + Math.pow(pos.y - dragStartPosRef.current.y, 2)); if (dist < 5) { if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current); clickTimeoutRef.current = setTimeout(() => { setSelectedIds(new Set([node.id])); setDetailId(null); }, 250); } } else { const pos = getClientPos(e.changedTouches ? e.changedTouches[0] : e); const dist = Math.sqrt(Math.pow(pos.x - dragStartPosRef.current.x, 2) + Math.pow(pos.y - dragStartPosRef.current.y, 2)); if (dist < 5) { setSelectedIds(new Set()); setDetailId(null); } } } else if (interactionMode === 'DRAW_CABLE' && node) {
 
-            if (!activeProjectGuard()) return; //Impede o usuario de criar um nó sem que um projeto esteja selecionado
-
             // USA REF para evitar stale closure (igual ao modo mapa)
             const currentStart = cableStartNodeRef.current;
             if (!currentStart) {
@@ -3918,6 +3969,7 @@ const App = () => {
                 id: newBoxId,
                 type: 'CEO',
                 name: 'CX Emenda (Reparo)',
+                _projectId: cable._projectId,
                 x: midX,
                 y: midY,
                 ...(finalLat !== null && { lat: finalLat }),
@@ -4927,7 +4979,7 @@ const App = () => {
     }, []);
 
     // --- 1. TELA DE CARREGAMENTO (SPLASH SCREEN) ---
-    if (isLoading) {
+    if (isLoading || authLoading) {
         return <LoadScreen />;
     }
     // Se não tiver usuário, mostra Login
@@ -5524,7 +5576,7 @@ const App = () => {
                             let targetProjId = activeProjectId;
 
                             if (modalConfig.mode === 'CABLE') {
-                                targetProjId = activeProjectId || (modalConfig.fromNode && modalConfig.fromNode._projectId);
+                                targetProjId = modalConfig.fromNode && modalConfig.fromNode._projectId;
                             } else if (modalConfig.parentId) {
                                 const pItem = items.find(i => i.id === modalConfig.parentId);
                                 if (pItem && pItem._projectId) targetProjId = pItem._projectId;
