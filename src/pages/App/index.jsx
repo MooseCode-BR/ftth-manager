@@ -49,7 +49,7 @@ import { ITEM_TYPES, ICON_MAP, VERSAO } from '../../config/constants';
 // downloadKML: Exporta projeto para formato KML (Google Earth)
 // parseKMLImport: Importa e processa arquivos KML
 // analyzeDuplicates: Detecta e analisa itens duplicados na importação
-import { findConnection, downloadKML, parseKMLImport, analyzeDuplicates } from '../../utils';
+import { findConnection, downloadKML, parseKMLImport, analyzeDuplicates, calculateCirclePositions } from '../../utils';
 
 // Sistema de Backup
 // generateBackupFile: Cria arquivo de backup completo do projeto
@@ -84,6 +84,7 @@ import BackupModal from '../../components/modals/BackupModal'; // Novo modal de 
 import KMLExportModal from '../../components/modals/KMLExportModal'; // Modal de seleção de projetos para exportar KML
 import StandardsModal from '../../components/modals/StandardModal'; // Padrões de cores de cabos
 import TraceModal from '../../components/modals/TraceModal'; // Rastreamento de sinal óptico
+import AreaModal from '../../components/modals/AreaModal'; // Novo modal de Área
 import DetailPanel from '../DetailPanel'; // Painel lateral de detalhes
 import { LoadScreen } from '../../components/LoadScreen';
 import InstallPwaPopup from '../../components/InstallPwaPopup';
@@ -637,8 +638,9 @@ const App = () => {
     const [cableColorStandards, setCableColorStandards] = useState({}); //Padrao de cores dos cabos (definidos pelo usuario)
     const [nodeColorSettings, setNodeColorSettings] = useState({}); //Padrao de cores dos nós (definidos pelo usuario)
     const [favoriteColors, setFavoriteColors] = useState([]); //Cores favoritas (definidos pelo usuario)
-    const [nodeColorsModalOpen, setNodeColorsModalOpen] = useState(false); //Modal padrao de cores dos nós
-    const [loading, setLoading] = useState(false);
+    const [nodeColorsModalOpen, setNodeColorsModalOpen] = useState(false);
+    const [areaModalConfig, setAreaModalConfig] = useState(null);
+    const [previewAreaConfig, setPreviewAreaConfig] = useState(null);
     const [reportOpen, setReportOpen] = useState(false); //Modal Relatório
     const [clientWizard, setClientWizard] = useState({ step: null, data: {} });
     const [photoModalData, setPhotoModalData] = useState(null); //Modal fotos
@@ -1010,13 +1012,13 @@ const App = () => {
         setPortLabels(mergedPortLabels);
         setProjectTags(mergedTags);
 
-        setLoading(false);
+        setIsLoading(false);
 
     }, [projectDataCache, visibleProjectIds]);
 
     // Centralizar em um node
     useEffect(() => {
-        if (!loading && items.length > 0 && !hasCentered) {
+        if (!isLoading && items.length > 0 && !hasCentered) {
             const visibleNodes = items.filter(i => !i.parentId && ITEM_TYPES[i.type]?.category === 'NODE');
             if (visibleNodes.length > 0) {
                 let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -1045,7 +1047,7 @@ const App = () => {
                 setHasCentered(true);
             }
         }
-    }, [loading, items.length, hasCentered]);
+    }, [isLoading, items.length, hasCentered]);
 
     // Função auxiliar: obtém a localização atual do usuário via GPS
     // Retorna { lat, lng } ou null se não conseguir (sem travar a busca)
@@ -1605,6 +1607,40 @@ const App = () => {
         setInteractionMode('SELECT');
     };
 
+    const handleSaveArea = async (data) => {
+        const { name, color, fillColor, fillOpacity, radius, angle, tags } = data;
+        
+        let finalPositions = [];
+        if (areaModalConfig.isCircleMode) {
+            const { center } = areaModalConfig;
+            const { direction = 0 } = data; // data contém direction agora
+            finalPositions = calculateCirclePositions(center, radius, angle, direction);
+        } else {
+            finalPositions = areaModalConfig.positions;
+        }
+
+        // Descobre qual projeto é dono (para salvar tags no lugar certo no Firestore)
+        const allProjects = [...myProjects, ...sharedProjects];
+        const targetProj = allProjects.find(p => p.id === activeProjectId);
+        const ownerId = targetProj ? targetProj.ownerId : projectOwnerId;
+
+        const processedTagIds = await processAndSaveTags(tags, activeProjectId, ownerId);
+
+        saveItem({
+            id: areaModalConfig.id || uuidv4(),
+            type: 'AREA',
+            name: name || 'Nova Área',
+            color: color || '#3b82f6',
+            fillColor: fillColor || '#3b82f6',
+            fillOpacity: fillOpacity,
+            positions: finalPositions,
+            tags: processedTagIds,
+            _projectId: activeProjectId
+        });
+
+        setAreaModalConfig(null);
+    };
+
     // 1. Clique no Fundo do Mapa (Adicionar Nó)
     const handleMapBgClick = (latlng) => {
         if (!latlng) {
@@ -1629,6 +1665,15 @@ const App = () => {
             // MUDANÇA: Guarda na memória dedicada
             setNewClientPosition({ lat: latlng.lat, lng: latlng.lng });
             setClientWizard({ step: 'NAME', data: {} });
+            setInteractionMode('SELECT');
+        }
+        else if (interactionMode === 'ADD_CIRCLE_AREA') {
+            if (!activeProjectGuard()) return;
+            setAreaModalConfig({
+                isCircleMode: true,
+                center: latlng,
+                defaultName: `Área ${items.filter(i => i.type === 'AREA').length + 1}`
+            });
             setInteractionMode('SELECT');
         }
     };
@@ -5028,6 +5073,15 @@ const App = () => {
             setInteractionMode('ADD_NODE');
             setNodeTypeToAdd('OBJECT');
         }
+        // Áreas
+        else if (toolId === 'ADD_AREA') {
+            if (!activeProjectGuard()) return;
+            setInteractionMode('ADD_AREA');
+        }
+        else if (toolId === 'ADD_CIRCLE_AREA') {
+            if (!activeProjectGuard()) return;
+            setInteractionMode('ADD_CIRCLE_AREA');
+        }
         // 3. Clientes
         else if (toolId === 'ADD_CLIENT') {
             setInteractionMode('ADD_CLIENT');
@@ -5041,6 +5095,8 @@ const App = () => {
         if (interactionMode === 'MEASURE') return 'MEASURE';
         if (interactionMode === 'DRAW_CABLE') return 'ADD_CABLE';
         if (interactionMode === 'ADD_CLIENT') return 'ADD_CLIENT';
+        if (interactionMode === 'ADD_AREA') return 'ADD_AREA';
+        if (interactionMode === 'ADD_CIRCLE_AREA') return 'ADD_CIRCLE_AREA';
         if (interactionMode === 'ADD_NODE') {
             if (nodeTypeToAdd === 'POP') return 'ADD_POP';
             if (nodeTypeToAdd === 'CEO') return 'ADD_CEO';
@@ -5229,6 +5285,8 @@ const App = () => {
                                 connections={visibleConnections}
                                 signalNames={signalNames}
 
+                                previewAreaConfig={previewAreaConfig}
+                                onUpdatePreviewAreaConfig={setPreviewAreaConfig}
                                 interactionMode={interactionMode}
                                 onMapClick={handleMapBgClick}
                                 onNodeClick={handleMapNodeClick}
@@ -5257,6 +5315,15 @@ const App = () => {
                                 onSwitchToCanvas={() => setViewMode('CANVAS')}
                                 cableStartNodeId={cableStartNode?.id}
                                 onLocationFound={(latlng) => setUserLocation({ lat: latlng.lat, lng: latlng.lng })}
+                                onAreaDrawComplete={(positions) => {
+                                    if (!activeProjectGuard()) return;
+                                    setAreaModalConfig({
+                                        isCircleMode: false,
+                                        positions,
+                                        defaultName: `Área ${items.filter(i => i.type === 'AREA').length + 1}`
+                                    });
+                                    setInteractionMode('SELECT');
+                                }}
 
                             />
                         </div>
@@ -5595,6 +5662,22 @@ const App = () => {
                         onConfirm={handleModalSubmit}
                         onCancel={() => { setModalConfig(null); cableStartNodeRef.current = null; setCableStartNode(null); }}
                     />
+                )}
+                {areaModalConfig && (
+                    <div className={areaModalConfig.isCircleMode ? "z-[2000]" : ""}>
+                        <AreaModal
+                            isCircleMode={areaModalConfig.isCircleMode}
+                            initialValue={areaModalConfig.defaultName}
+                            availableTags={Object.values(projectTags).filter(t => t._projectId === activeProjectId)}
+                            onConfirm={handleSaveArea}
+                            onCancel={() => {
+                                setAreaModalConfig(null);
+                                setPreviewAreaConfig(null);
+                            }}
+                            onLiveUpdate={(config) => setPreviewAreaConfig(prev => ({ ...areaModalConfig, ...prev, ...config }))}
+                            currentDirection={previewAreaConfig?.direction}
+                        />
+                    </div>
                 )}
                 {editModalConfig && <ItemModal mode="edit" {...editModalConfig} standards={cableColorStandards} nodeColorSettings={nodeColorSettings} favoriteColors={favoriteColors} onCancel={() => setEditModalConfig(null)} />}
                 {standardsModalOpen && <StandardsModal standards={cableColorStandards} onClose={() => setStandardsModalOpen(false)} onSave={(newStds) => { updateStandardsDB(newStds); setStandardsModalOpen(false); }} />}

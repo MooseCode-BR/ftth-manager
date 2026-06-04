@@ -35,6 +35,7 @@ export const ITEM_TYPES = {
     TOWER: { label: 'Torre', icon: RadioTower, category: 'NODE', defaultPorts: 0, defaultColor: '#8888ff', width: 160 }, // Tipo azul
     POST: { label: 'Poste', icon: PostIcon, category: 'NODE', defaultPorts: 0, defaultColor: '#0000ff', width: 160 },
     OBJECT: { label: 'Objeto', icon: MapPin, category: 'NODE', defaultPorts: 0, defaultColor: '#ff0000', width: 160 },
+    AREA: { label: 'Área', icon: null, category: 'MAP', defaultColor: '#3b82f6' }, // Hexagon doesn't exist yet, we can import or use null
     CABLE: { label: 'Cabo Externo', icon: Route, category: 'LINK', defaultPorts: 12, color: 'stroke-slate-800' },
 
 

@@ -1,9 +1,10 @@
 import React, { useMemo, useEffect, useState, useRef, memo, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline, useMapEvents, LayersControl, useMap, CircleMarker, ZoomControl, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, Polygon, useMapEvents, LayersControl, useMap, CircleMarker, ZoomControl, Popup } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ITEM_TYPES, ICON_MAP } from '../config/constants';
+import { calculateCirclePositions, getDistanceInMeters } from '../utils';
 import { CompassIcon } from '../components/icons';
 import {
     ChevronUp, Info, Lock, Unlock, Edit3, Trash2, Ruler, MapPin, Scissors,
@@ -227,7 +228,7 @@ const MapClickHandler = ({ onMapBgClick, interactionMode, onDeselect, setContext
             // 1. Limpa o pino do clique longo/botão direito se o usuário der um clique normal
             if (setContextMenuPin) setContextMenuPin(null);
 
-            if (interactionMode === 'ADD_NODE' || interactionMode === 'ADD_CLIENT' || interactionMode === 'ADD_OBJECT') {
+            if (interactionMode === 'ADD_NODE' || interactionMode === 'ADD_CLIENT' || interactionMode === 'ADD_OBJECT' || interactionMode === 'ADD_CIRCLE_AREA') {
                 // Usa o centro do mapa (mira) em vez do local do clique
                 onMapBgClick(map.getCenter());
             } else {
@@ -1494,10 +1495,277 @@ const RulerTool = ({ isActive, onDistanceChange }) => {
     );
 };
 
+// --- FERRAMENTA DE DESENHO DE ÁREAS ---
+const AreaDrawTool = ({ isActive, onAreaDrawComplete }) => {
+    const map = useMap();
+    const [points, setPoints] = useState([]);
+    const [centerPos, setCenterPos] = useState(null);
+
+    const isCloseToStart = useMemo(() => {
+        if (!isActive || points.length < 3 || !centerPos) return false;
+        try {
+            const ptCenter = map.latLngToContainerPoint(centerPos);
+            const ptFirst = map.latLngToContainerPoint(points[0]);
+            return ptCenter.distanceTo(ptFirst) <= 25; // 25px de tolerância
+        } catch (e) {
+            return false;
+        }
+    }, [isActive, points, centerPos, map]);
+
+    useEffect(() => {
+        if (isActive) {
+            setCenterPos(map.getCenter());
+        } else {
+            setPoints([]);
+            setCenterPos(null);
+        }
+    }, [isActive, map]);
+
+    useMapEvents({
+        move() {
+            if (!isActive) return;
+            setCenterPos(map.getCenter());
+        },
+        click() {
+            if (!isActive) return;
+            const currentCenter = map.getCenter();
+            
+            if (points.length >= 3) {
+                try {
+                    const ptCenter = map.latLngToContainerPoint(currentCenter);
+                    const ptFirst = map.latLngToContainerPoint(points[0]);
+                    if (ptCenter.distanceTo(ptFirst) <= 25) {
+                        const positions = points.map(p => ({ lat: p.lat, lng: p.lng }));
+                        onAreaDrawComplete(positions);
+                        setPoints([]);
+                        return;
+                    }
+                } catch (e) {}
+            }
+            
+            setPoints(prev => [...prev, currentCenter]);
+        },
+        contextmenu(e) {
+            if (!isActive) return;
+            L.DomEvent.stopPropagation(e);
+            e.originalEvent.preventDefault();
+            setPoints(prev => prev.slice(0, -1));
+        }
+    });
+
+    const finishDrawing = (e) => {
+        if (e) L.DomEvent.stopPropagation(e);
+        if (points.length >= 3) {
+            const positions = points.map(p => ({ lat: p.lat, lng: p.lng }));
+            onAreaDrawComplete(positions);
+            setPoints([]); // Reseta após concluir
+        } else {
+            alert('Uma área precisa de pelo menos 3 pontos.');
+        }
+    };
+
+    if (!isActive) return null;
+
+    return (
+        <>
+            {points.length > 0 && centerPos && (
+                <Polygon
+                    positions={[...points, centerPos]}
+                    pathOptions={{ color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.3, weight: 2, dashArray: '5, 5' }}
+                    interactive={false}
+                />
+            )}
+
+            {points.map((p, i) => (
+                <CircleMarker
+                    key={i}
+                    center={p}
+                    radius={i === 0 ? 8 : 4} // O primeiro ponto é maior para facilitar o clique final
+                    pathOptions={{ color: '#fff', fillColor: i === 0 ? '#ef4444' : '#3b82f6', fillOpacity: 1, weight: 2 }}
+                    eventHandlers={i === 0 ? { click: finishDrawing } : {}}
+                />
+            ))}
+
+            <div className="map-regua">
+                <Crosshair size={25} strokeWidth={2} style={{ filter: 'drop-shadow(0 0 0 2px black)', color: '#3b82f6' }} />
+                {isCloseToStart && (
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-10 z-[1000] bg-blue-600 text-white px-2 py-1 rounded-md shadow-lg font-bold text-xs whitespace-nowrap animate-in fade-in zoom-in pointer-events-none">
+                        Clique para concluir
+                    </div>
+                )}
+            </div>
+        </>
+    );
+};
+
+// --- ÁREAS RENDERIZADAS NO MAPA ---
+const EditableArea = memo(({ area, onEdit, onDelete, onOpen }) => {
+    const [isSelected, setIsSelected] = useState(false);
+
+    const positions = useMemo(() => {
+        if (!area.positions || !Array.isArray(area.positions)) return [];
+        return area.positions.map(p => {
+            if (Array.isArray(p)) return [p[0], p[1]];
+            return [p.lat, p.lng];
+        });
+    }, [area.positions]);
+
+    if (positions.length < 3) return null; // Áreas precisam de no mínimo 3 pontos
+
+    return (
+        <>
+            <Polygon
+                positions={positions}
+                pathOptions={{
+                    color: area.color || '#3b82f6',
+                    weight: isSelected ? 4 : 2,
+                    fillColor: area.fillColor || '#3b82f6',
+                    fillOpacity: (area.fillOpacity != null ? area.fillOpacity : 40) / 100
+                }}
+                eventHandlers={{
+                    click: (e) => {
+                        L.DomEvent.stopPropagation(e);
+                        setIsSelected(true);
+                    }
+                }}
+            />
+
+            {isSelected && (
+                <Popup
+                    position={positions[0]}
+                    onClose={() => setIsSelected(false)}
+                    autoPan={false}
+                    closeButton={false}
+                    className="custom-popup"
+                >
+                    <DraggableToolbar>
+                        <div className="w-full text-center border-b border-gray-300/50 dark:border-gray-600/50 px-2.5 py-2 mb-1.5 flex flex-col">
+                            <span className="text-xs font-bold text-black dark:text-white truncate max-w-[200px]">
+                                {area.name}
+                            </span>
+                            <span className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Área</span>
+                        </div>
+
+                        <div className="flex flex-col gap-1 w-full min-w-[170px]">
+                            {/* Botão ABRIR */}
+                            <button
+                                onClick={(e) => { e.stopPropagation(); if (onOpen) onOpen(area.id); setIsSelected(false); }}
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-lg transition-colors text-left"
+                            >
+                                <Info size={16} className="text-blue-500" />
+                                <span className="flex-1">Abrir Detalhes</span>
+                            </button>
+
+                            {/* Botão EDITAR */}
+                            <button
+                                onClick={(e) => { e.stopPropagation(); if (onEdit) onEdit(area.id, area.name); setIsSelected(false); }}
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-lg transition-colors text-left"
+                            >
+                                <Edit3 size={16} className="text-indigo-500" />
+                                <span className="flex-1">Editar Área</span>
+                            </button>
+
+                            <div className="h-px bg-gray-300/50 dark:bg-gray-600/50 my-0.5 mx-1"></div>
+
+                            {/* Botão EXCLUIR */}
+                            <button
+                                onClick={(e) => { e.stopPropagation(); if (onDelete) onDelete(area.id); }}
+                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-transparent hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-left"
+                            >
+                                <Trash2 size={16} />
+                                <span className="flex-1">Excluir Área</span>
+                            </button>
+                        </div>
+                    </DraggableToolbar>
+                </Popup>
+            )}
+        </>
+    );
+}, (prev, next) => {
+    return (
+        prev.area.id === next.area.id &&
+        prev.area.name === next.area.name &&
+        prev.area.color === next.area.color &&
+        prev.area.fillColor === next.area.fillColor &&
+        prev.area.fillOpacity === next.area.fillOpacity &&
+        JSON.stringify(prev.area.positions) === JSON.stringify(next.area.positions)
+    );
+});
+
+const handleIcon = L.divIcon({
+    className: 'custom-handle-icon',
+    html: '<div style="width:14px; height:14px; background:#3b82f6; border:2px solid white; border-radius:50%; box-shadow:0 0 4px rgba(0,0,0,0.5); cursor:pointer;"></div>',
+    iconSize: [14, 14],
+    iconAnchor: [7, 7]
+});
+
+const CircleAreaPreview = ({ config, onUpdateConfig }) => {
+    const map = useMap();
+    const { center, radius, angle, direction, fillColor, fillOpacity, color } = config;
+    
+    const positions = useMemo(() => {
+        if (!center || !radius || !angle) return [];
+        return calculateCirclePositions(center, radius, angle, direction || 0);
+    }, [center, radius, angle, direction]);
+
+    const handlePos = useMemo(() => {
+        if (!center || !radius) return null;
+        const pts = calculateCirclePositions(center, radius, 0, direction || 0);
+        return pts[1] || pts[0]; // pts[0] é o centro se angle < 360, pts[1] é a borda
+    }, [center, radius, direction]);
+
+    const handleDrag = useCallback((e) => {
+        const markerPos = e.target.getLatLng();
+        const ptCenter = map.latLngToContainerPoint(center);
+        const ptCursor = map.latLngToContainerPoint(markerPos);
+        
+        const dx = ptCursor.x - ptCenter.x;
+        const dy = ptCursor.y - ptCenter.y;
+        
+        let angleRad = Math.atan2(dy, dx);
+        let compassAngle = (angleRad * 180 / Math.PI) + 90;
+        
+        if (compassAngle < 0) compassAngle += 360;
+        if (compassAngle >= 360) compassAngle -= 360;
+        
+        onUpdateConfig({ ...config, direction: Math.round(compassAngle) });
+        
+        // Forçar o marker a voltar pra borda real calculada em handlePos
+        // Como o Leaflet atualiza a posição do DOM no drag, podemos resetar o DOM via setLatLng
+        const realPts = calculateCirclePositions(center, radius, 0, Math.round(compassAngle));
+        e.target.setLatLng(realPts[0]);
+    }, [center, radius, config, onUpdateConfig, map]);
+
+    if (!positions.length) return null;
+
+    return (
+        <>
+            <Polygon 
+                positions={positions}
+                color={color || '#3b82f6'}
+                fillColor={fillColor || '#3b82f6'}
+                fillOpacity={(fillOpacity || 40) / 100}
+                weight={2}
+                interactive={false}
+            />
+            {handlePos && (
+                <Marker
+                    position={handlePos}
+                    icon={handleIcon}
+                    draggable={true}
+                    eventHandlers={{
+                        drag: handleDrag
+                    }}
+                />
+            )}
+        </>
+    );
+};
 
 const FiberMap = ({
     items, saveItem, isDarkMode, interactionMode, onMapClick, onNodeClick, isPickingMode, flyToCoords,
-    allItems, onEdit, onDelete, onOpen, onSplit, onClearSearch, cableStartNodeId, onLocationFound, onAlertRequest
+    allItems, onEdit, onDelete, onOpen, onSplit, onClearSearch, cableStartNodeId, onLocationFound, onAlertRequest, onAreaDrawComplete,
+    previewAreaConfig, onUpdatePreviewAreaConfig
 }) => {
 
     // Estado para enviar a posição do clique do menu de desambiguação para dentro do cabo
@@ -1591,7 +1859,7 @@ const FiberMap = ({
         <div className="w-full h-full relative z-0">
 
             {/* --- MIRA CENTRAL (adição de nodes/clientes por centro) --- */}
-            {(interactionMode === 'ADD_NODE' || interactionMode === 'ADD_CLIENT' || interactionMode === 'ADD_OBJECT') && (
+            {(interactionMode === 'ADD_NODE' || interactionMode === 'ADD_CLIENT' || interactionMode === 'ADD_OBJECT' || interactionMode === 'ADD_CIRCLE_AREA') && (
                 <div
                     className="absolute inset-0 pointer-events-none z-[900] flex items-center justify-center"
                     aria-hidden="true"
@@ -1739,6 +2007,14 @@ const FiberMap = ({
                     </Marker>
                 )}
 
+
+                {previewAreaConfig && previewAreaConfig.isCircleMode && (
+                    <CircleAreaPreview
+                        config={previewAreaConfig}
+                        onUpdateConfig={onUpdatePreviewAreaConfig}
+                    />
+                )}
+
                 <MapClickHandler onMapBgClick={onMapClick} interactionMode={interactionMode} onDeselect={() => { setSelectedId(null); if (onClearSearch) onClearSearch(); }} setContextMenuPin={setContextMenuPin} />
 
                 {/* Aqui está o segredo do zoom: Só atualiza estado se mudar a visibilidade */}
@@ -1747,6 +2023,11 @@ const FiberMap = ({
                 <RulerTool
                     isActive={interactionMode === 'MEASURE'}
                     onDistanceChange={setMeasureDistance}
+                />
+
+                <AreaDrawTool
+                    isActive={interactionMode === 'ADD_AREA'}
+                    onAreaDrawComplete={onAreaDrawComplete}
                 />
 
                 <RotationHandler />
@@ -1773,6 +2054,16 @@ const FiberMap = ({
                     }
                     return null;
                 })} */}
+                {items.filter(i => i.type === 'AREA').map(area => (
+                    <EditableArea
+                        key={area.id}
+                        area={area}
+                        onEdit={onEdit}
+                        onDelete={onDelete}
+                        onOpen={onOpen}
+                    />
+                ))}
+
                 {mapCables.map(cable => {
                     const posA = getNodePosition(cable.fromNode);
                     const posB = getNodePosition(cable.toNode);

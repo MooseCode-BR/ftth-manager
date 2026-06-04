@@ -384,7 +384,8 @@ export const downloadKML = async (selectedProjects, data, signalConfigs) => {
             }
 
             // Separa nós e cabos
-            const nodes = projectItems.filter(i => !i.parentId && i.type !== 'CABLE');
+            const areas = projectItems.filter(i => i.type === 'AREA');
+            const nodes = projectItems.filter(i => !i.parentId && i.type !== 'CABLE' && i.type !== 'AREA');
             const cables = projectItems.filter(i => i.type === 'CABLE');
 
             // Monta o KML do projeto
@@ -418,6 +419,51 @@ export const downloadKML = async (selectedProjects, data, signalConfigs) => {
             <Point>
                 <coordinates>${node.lng},${node.lat},0</coordinates>
             </Point>
+        </Placemark>`;
+                }
+            });
+
+            // --- ÁREAS (Polígonos) ---
+            areas.forEach(area => {
+                if (area.positions && area.positions.length >= 3) {
+                    const strokeColor = hexToKmlColor(area.color || '#3b82f6');
+                    const fillColor = hexToKmlColor(area.fillColor || '#3b82f6');
+                    
+                    const opacityHex = Math.round((area.fillOpacity || 40) * 2.55).toString(16).padStart(2, '0');
+                    const kmlFillColor = opacityHex + fillColor.substring(2);
+
+                    let coordsString = '';
+                    area.positions.forEach(p => { 
+                        const lat = Array.isArray(p) ? p[0] : p.lat;
+                        const lng = Array.isArray(p) ? p[1] : p.lng;
+                        coordsString += `${lng},${lat},0 `; 
+                    });
+                    const firstLat = Array.isArray(area.positions[0]) ? area.positions[0][0] : area.positions[0].lat;
+                    const firstLng = Array.isArray(area.positions[0]) ? area.positions[0][1] : area.positions[0].lng;
+                    coordsString += `${firstLng},${firstLat},0`;
+
+                    kmlContent += `
+        <Placemark>
+            <name>${area.name || 'Área'}</name>
+            <Style>
+                <LineStyle>
+                    <color>${strokeColor}</color>
+                    <width>2</width>
+                </LineStyle>
+                <PolyStyle>
+                    <color>${kmlFillColor}</color>
+                    <fill>1</fill>
+                    <outline>1</outline>
+                </PolyStyle>
+            </Style>
+            <Polygon>
+                <tessellate>1</tessellate>
+                <outerBoundaryIs>
+                    <LinearRing>
+                        <coordinates>${coordsString}</coordinates>
+                    </LinearRing>
+                </outerBoundaryIs>
+            </Polygon>
         </Placemark>`;
                 }
             });
@@ -563,6 +609,7 @@ export const parseKMLImport = (kmlText) => {
     let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
     const rawPoints = [];
     const rawLines = [];
+    const rawAreas = [];
 
     // O processPlacemark agora recebe as pastas (tags) onde ele se encontra
     const processPlacemark = (p, currentTags) => {
@@ -613,6 +660,37 @@ export const parseKMLImport = (kmlText) => {
                 }
             }
         }
+        else {
+            const polygon = p.getElementsByTagName("Polygon")[0];
+            if (polygon) {
+                const coordString = polygon.getElementsByTagName("coordinates")[0]?.textContent;
+                if (coordString) {
+                    const points = coordString.trim().split(/\s+/).map(c => {
+                        const [lng, lat] = c.split(',').map(Number);
+                        return { lat, lng };
+                    }).filter(p => !isNaN(p.lat) && !isNaN(p.lng));
+
+                    if (points.length >= 3) {
+                        let fillColor = itemColor;
+                        let fillOpacity = 40;
+                        
+                        if (inlineStyle) {
+                            const polyStyle = inlineStyle.getElementsByTagName("PolyStyle")[0];
+                            if (polyStyle) {
+                                const polyColor = polyStyle.getElementsByTagName("color")[0]?.textContent;
+                                if (polyColor) {
+                                    fillColor = kmlColorToHex(polyColor.trim());
+                                    const alphaHex = polyColor.trim().substring(0, 2);
+                                    fillOpacity = Math.round(parseInt(alphaHex, 16) / 2.55);
+                                }
+                            }
+                        }
+
+                        rawAreas.push({ name, positions: points, color: itemColor, fillColor, fillOpacity, notes: description, tempTags: currentTags });
+                    }
+                }
+            }
+        }
     };
 
     // Função de travessia inteligente que acumula os nomes das pastas
@@ -646,7 +724,7 @@ export const parseKMLImport = (kmlText) => {
     traverse(xmlDoc.documentElement, []);
 
     // 3. GERAÇÃO DOS ITENS
-    if (rawPoints.length === 0 && rawLines.length === 0) return [];
+    if (rawPoints.length === 0 && rawLines.length === 0 && rawAreas.length === 0) return [];
 
     const CANVAS_SIZE = 5000;
     const latRange = maxLat - minLat || 0.001;
@@ -715,6 +793,21 @@ export const parseKMLImport = (kmlText) => {
             _endCoords: endPt,
             notes: line.notes,
             _tempTagNames: line.tempTags || []
+        });
+    });
+
+    // Áreas
+    rawAreas.forEach((area, index) => {
+        newItems.push({
+            id: `imp_area_${Date.now()}_${index}`,
+            type: 'AREA',
+            name: area.name || `Área ${index}`,
+            positions: area.positions,
+            color: area.color || '#3b82f6',
+            fillColor: area.fillColor || '#3b82f6',
+            fillOpacity: area.fillOpacity || 40,
+            notes: area.notes,
+            _tempTagNames: area.tempTags || []
         });
     });
 
@@ -874,3 +967,31 @@ const deleteNodeImages = async (node) => {
     await Promise.all(deletePromises);
 };
 //=================================================//
+
+export const calculateCirclePositions = (center, radius, angle, direction) => {
+    let finalPositions = [];
+    const pointsCount = 64;
+    const R = 6378137;
+    const rLat = radius / R;
+    const rLng = radius / (R * Math.cos(Math.PI * center.lat / 180));
+    
+    // Se o ângulo é menor que 360, incluímos o centro para fechar o "fatia de pizza"
+    if (angle < 360) {
+        finalPositions.push({ lat: center.lat, lng: center.lng });
+    }
+    
+    const startCompassAngle = direction - (angle / 2);
+    
+    for (let i = 0; i <= (angle < 360 ? pointsCount : pointsCount - 1); i++) {
+        const fraction = i / pointsCount;
+        const currentCompassAngle = startCompassAngle + (fraction * angle);
+        
+        // Converte de "Compass Angle" (0=Norte) para trigonométrico (0=Leste)
+        const theta = (90 - currentCompassAngle) * (Math.PI / 180);
+        
+        const ptLat = center.lat + (rLat * Math.sin(theta)) * (180 / Math.PI);
+        const ptLng = center.lng + (rLng * Math.cos(theta)) * (180 / Math.PI);
+        finalPositions.push({ lat: ptLat, lng: ptLng });
+    }
+    return finalPositions;
+};
