@@ -1476,8 +1476,8 @@ const App = () => {
         if (inheritedProjectId) {
             finalProjectId = inheritedProjectId; // Se tem pai, herda do pai obrigatoriamente
         } else if (modalConfig.mode === 'CABLE') {
-            // Se for cabo, prioriza o projeto ativo. Apenas como último recurso tenta o fromNode
-            finalProjectId = activeProjectId || (modalConfig.fromNode && modalConfig.fromNode._projectId);
+            // Se for cabo, herda o projeto do fromNode
+            finalProjectId = modalConfig.fromNode && modalConfig.fromNode._projectId;
         }
 
         // >>> LOGS DE DEPURAÇÃO PARA O CONSOLE <<<
@@ -1594,7 +1594,6 @@ const App = () => {
     const handleMapNodeClick = (node) => {
         // Lógica de desenhar cabo (Igual ao Canvas)
         if (interactionMode === 'DRAW_CABLE') {
-            if (!activeProjectGuard()) return; //Impede o usuario de criar um nó sem que um projeto esteja selecionado
 
             // LÊ o valor ATUAL via ref (sem stale closure)
             const currentStart = cableStartNodeRef.current;
@@ -1673,11 +1672,20 @@ const App = () => {
         if (existingItem) {
             // CASO 1: EDIÇÃO -> Mantém o projeto original do item (não importa qual está ativo)
             finalProjectId = existingItem._projectId;
+        } else if (item._projectId) {
+            // CASO 2: PROJETO FORÇADO -> Ex: Caixa criada ao seccionar um cabo
+            finalProjectId = item._projectId;
         } else if (item.parentId) {
-            // CASO 2: NOVO ITEM DENTRO DE OUTRO (Ex: Placa na OLT) -> Herda do Pai
+            // CASO 3: NOVO ITEM DENTRO DE OUTRO (Ex: Placa na OLT) -> Herda do Pai
             const parent = items.find(i => i.id === item.parentId);
             if (parent) {
                 finalProjectId = parent._projectId;
+            }
+        } else if (item.type === 'CABLE' && item.fromNode) {
+            // CASO 4: NOVO CABO -> Herda do Nó de origem (fromNode)
+            const fromNodeItem = items.find(i => i.id === item.fromNode);
+            if (fromNodeItem) {
+                finalProjectId = fromNodeItem._projectId;
             }
         }
 
@@ -3122,8 +3130,6 @@ const App = () => {
     const handleEnd = (e, node) => {
         if (draggingNode?.isMultiSelect) { setSelectedItemsOffset({ dx: 0, dy: 0 }); } if (e.touches && e.touches.length < 2) { touchRef.current.dist = 0; } if (interactionMode === 'SELECT') { if (node) { const pos = getClientPos(e.changedTouches ? e.changedTouches[0] : e); const dist = Math.sqrt(Math.pow(pos.x - dragStartPosRef.current.x, 2) + Math.pow(pos.y - dragStartPosRef.current.y, 2)); if (dist < 5) { if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current); clickTimeoutRef.current = setTimeout(() => { setSelectedIds(new Set([node.id])); setDetailId(null); }, 250); } } else { const pos = getClientPos(e.changedTouches ? e.changedTouches[0] : e); const dist = Math.sqrt(Math.pow(pos.x - dragStartPosRef.current.x, 2) + Math.pow(pos.y - dragStartPosRef.current.y, 2)); if (dist < 5) { setSelectedIds(new Set()); setDetailId(null); } } } else if (interactionMode === 'DRAW_CABLE' && node) {
 
-            if (!activeProjectGuard()) return; //Impede o usuario de criar um nó sem que um projeto esteja selecionado
-
             // USA REF para evitar stale closure (igual ao modo mapa)
             const currentStart = cableStartNodeRef.current;
             if (!currentStart) {
@@ -3920,6 +3926,7 @@ const App = () => {
                 id: newBoxId,
                 type: 'CEO',
                 name: 'CX Emenda (Reparo)',
+                _projectId: cable._projectId,
                 x: midX,
                 y: midY,
                 ...(finalLat !== null && { lat: finalLat }),
@@ -5526,7 +5533,7 @@ const App = () => {
                             let targetProjId = activeProjectId;
 
                             if (modalConfig.mode === 'CABLE') {
-                                targetProjId = activeProjectId || (modalConfig.fromNode && modalConfig.fromNode._projectId);
+                                targetProjId = modalConfig.fromNode && modalConfig.fromNode._projectId;
                             } else if (modalConfig.parentId) {
                                 const pItem = items.find(i => i.id === modalConfig.parentId);
                                 if (pItem && pItem._projectId) targetProjId = pItem._projectId;

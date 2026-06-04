@@ -1925,6 +1925,8 @@ const FiberMap = ({
                                     <li><strong>Clique no 1º equipamento</strong> para definir a origem do cabo.</li>
                                     <li><strong>Clique no 2º equipamento</strong> para definir o destino e criar o cabo.</li>
                                     <li>Após criar, selecione o cabo e desbloqueie o cadeado para ajustar a rota.</li>
+                                    <br />
+                                    <li><strong>OBS.: </strong> Um novo cabo sempre irá pertencer ao mesmo projeto que o 1º equipamento clicado (Origem).</li>
                                 </ul>
                             </>
                         ) : (
