@@ -430,7 +430,9 @@ export const downloadKML = async (selectedProjects, data, signalConfigs) => {
                     const fillColor = hexToKmlColor(area.fillColor || '#3b82f6');
                     
                     const opacityHex = Math.round((area.fillOpacity || 40) * 2.55).toString(16).padStart(2, '0');
+                    const strokeOpacityHex = Math.round((area.colorOpacity != null ? area.colorOpacity : 100) * 2.55).toString(16).padStart(2, '0');
                     const kmlFillColor = opacityHex + fillColor.substring(2);
+                    const kmlStrokeColor = strokeOpacityHex + strokeColor.substring(2);
 
                     let coordsString = '';
                     area.positions.forEach(p => { 
@@ -445,9 +447,10 @@ export const downloadKML = async (selectedProjects, data, signalConfigs) => {
                     kmlContent += `
         <Placemark>
             <name>${area.name || 'Área'}</name>
+            <description><![CDATA[${area.notes || ''}]]></description>
             <Style>
                 <LineStyle>
-                    <color>${strokeColor}</color>
+                    <color>${kmlStrokeColor}</color>
                     <width>2</width>
                 </LineStyle>
                 <PolyStyle>
@@ -540,6 +543,26 @@ const kmlColorToHex = (kmlColor) => {
     }
     return '#000000';
 };
+const kmlColorToHexAndOpacity = (kmlColor) => {
+    if (!kmlColor) return { hex: '#000000', opacity: 100 };
+    let c = kmlColor.trim();
+    if (c.length === 8) {
+        const alphaHex = c.substring(0, 2);
+        const blue = c.substring(2, 4);
+        const green = c.substring(4, 6);
+        const red = c.substring(6, 8);
+        return {
+            hex: `#${red}${green}${blue}`,
+            opacity: Math.round(parseInt(alphaHex, 16) / 2.55) || 100
+        };
+    } else if (c.length === 6) {
+        const blue = c.substring(0, 2);
+        const green = c.substring(2, 4);
+        const red = c.substring(4, 6);
+        return { hex: `#${red}${green}${blue}`, opacity: 100 };
+    }
+    return { hex: '#000000', opacity: 100 };
+};
 // 1. Função que tenta adivinhar o tipo do item pelo nome
 const guessTypeByName = (name) => {
     const n = name.toUpperCase();
@@ -557,6 +580,8 @@ export const parseKMLImport = (kmlText) => {
     const xmlDoc = parser.parseFromString(kmlText, "text/xml");
 
     const styleMap = {};
+    const polyStyleMap = {};
+    const lineStyleMap = {};
 
     // 1. MAPEAMENTO DE ESTILOS
     const styles = xmlDoc.getElementsByTagName("Style");
@@ -571,12 +596,22 @@ export const parseKMLImport = (kmlText) => {
             // Tenta pegar a cor do ícone (Nós/Caixas)
             const iconStyle = style.getElementsByTagName("IconStyle")[0];
             const iconColor = iconStyle?.getElementsByTagName("color")[0]?.textContent;
+            
+            // Tenta pegar a cor do polígono (Preenchimento)
+            const polyStyle = style.getElementsByTagName("PolyStyle")[0];
+            const polyColor = polyStyle?.getElementsByTagName("color")[0]?.textContent;
 
             // Define a cor a ser usada (prioriza a cor do ícone, depois a da linha)
             const colorToUse = iconColor || lineColor;
 
             if (colorToUse) {
                 styleMap[`#${id}`] = kmlColorToHex(colorToUse.trim());
+            }
+            if (polyColor) {
+                polyStyleMap[`#${id}`] = polyColor.trim();
+            }
+            if (lineColor) {
+                lineStyleMap[`#${id}`] = lineColor.trim();
             }
         }
     }
@@ -599,8 +634,10 @@ export const parseKMLImport = (kmlText) => {
             if (!targetStyleUrl && pairs.length > 0) {
                 targetStyleUrl = pairs[0].getElementsByTagName("styleUrl")[0]?.textContent?.trim();
             }
-            if (targetStyleUrl && styleMap[targetStyleUrl]) {
-                styleMap[`#${id}`] = styleMap[targetStyleUrl];
+            if (targetStyleUrl) {
+                if (styleMap[targetStyleUrl]) styleMap[`#${id}`] = styleMap[targetStyleUrl];
+                if (polyStyleMap[targetStyleUrl]) polyStyleMap[`#${id}`] = polyStyleMap[targetStyleUrl];
+                if (lineStyleMap[targetStyleUrl]) lineStyleMap[`#${id}`] = lineStyleMap[targetStyleUrl];
             }
         }
     }
@@ -611,13 +648,27 @@ export const parseKMLImport = (kmlText) => {
     const rawLines = [];
     const rawAreas = [];
 
+    const getTextByTagName = (parent, tagName) => {
+        let nodes = parent.getElementsByTagName(tagName);
+        if (nodes.length === 0) nodes = parent.getElementsByTagNameNS("*", tagName);
+        if (nodes.length === 0) {
+            // Tenta achar ignorando prefixos manualmente caso o parser falhe
+            const children = parent.children;
+            for (let i = 0; i < children.length; i++) {
+                const childName = (children[i].localName || children[i].nodeName || '').replace(/^.*:/, '').toLowerCase();
+                if (childName === tagName.toLowerCase()) return children[i].textContent;
+            }
+        }
+        return nodes.length > 0 ? nodes[0].textContent : "";
+    };
+
     // O processPlacemark agora recebe as pastas (tags) onde ele se encontra
     const processPlacemark = (p, currentTags) => {
-        const name = p.getElementsByTagName("name")[0]?.textContent || "";
-        const description = p.getElementsByTagName("description")[0]?.textContent?.trim() || "";
+        const name = getTextByTagName(p, "name").trim() || "";
+        const description = getTextByTagName(p, "description").trim() || "";
 
         let itemColor = null;
-        const styleUrl = p.getElementsByTagName("styleUrl")[0]?.textContent?.trim();
+        const styleUrl = getTextByTagName(p, "styleUrl").trim();
         if (styleUrl && styleMap[styleUrl]) {
             itemColor = styleMap[styleUrl];
         }
@@ -671,22 +722,45 @@ export const parseKMLImport = (kmlText) => {
                     }).filter(p => !isNaN(p.lat) && !isNaN(p.lng));
 
                     if (points.length >= 3) {
-                        let fillColor = itemColor;
+                        let fillColor = itemColor || '#3b82f6';
                         let fillOpacity = 40;
+                        let outlineColor = itemColor || '#3b82f6';
+                        let colorOpacity = 100;
                         
+                        // Check if we mapped PolyStyle and LineStyle specifically
+                        if (styleUrl && polyStyleMap[styleUrl]) {
+                            const polyRes = kmlColorToHexAndOpacity(polyStyleMap[styleUrl]);
+                            fillColor = polyRes.hex;
+                            fillOpacity = polyRes.opacity;
+                        }
+                        if (styleUrl && lineStyleMap[styleUrl]) {
+                            const lineRes = kmlColorToHexAndOpacity(lineStyleMap[styleUrl]);
+                            outlineColor = lineRes.hex;
+                            colorOpacity = lineRes.opacity;
+                        }
+
                         if (inlineStyle) {
                             const polyStyle = inlineStyle.getElementsByTagName("PolyStyle")[0];
                             if (polyStyle) {
                                 const polyColor = polyStyle.getElementsByTagName("color")[0]?.textContent;
                                 if (polyColor) {
-                                    fillColor = kmlColorToHex(polyColor.trim());
-                                    const alphaHex = polyColor.trim().substring(0, 2);
-                                    fillOpacity = Math.round(parseInt(alphaHex, 16) / 2.55);
+                                    const polyRes = kmlColorToHexAndOpacity(polyColor);
+                                    fillColor = polyRes.hex;
+                                    fillOpacity = polyRes.opacity;
+                                }
+                            }
+                            const lineStyle = inlineStyle.getElementsByTagName("LineStyle")[0];
+                            if (lineStyle) {
+                                const lineColor = lineStyle.getElementsByTagName("color")[0]?.textContent;
+                                if (lineColor) {
+                                    const lineRes = kmlColorToHexAndOpacity(lineColor);
+                                    outlineColor = lineRes.hex;
+                                    colorOpacity = lineRes.opacity;
                                 }
                             }
                         }
 
-                        rawAreas.push({ name, positions: points, color: itemColor, fillColor, fillOpacity, notes: description, tempTags: currentTags });
+                        rawAreas.push({ name, positions: points, color: outlineColor, colorOpacity, fillColor, fillOpacity, notes: description, tempTags: currentTags });
                     }
                 }
             }
@@ -804,8 +878,9 @@ export const parseKMLImport = (kmlText) => {
             name: area.name || `Área ${index}`,
             positions: area.positions,
             color: area.color || '#3b82f6',
+            colorOpacity: area.colorOpacity !== undefined ? area.colorOpacity : 100,
             fillColor: area.fillColor || '#3b82f6',
-            fillOpacity: area.fillOpacity || 40,
+            fillOpacity: area.fillOpacity !== undefined ? area.fillOpacity : 40,
             notes: area.notes,
             _tempTagNames: area.tempTags || []
         });
@@ -843,12 +918,12 @@ export const analyzeDuplicates = (newItems, existingItems) => {
     newItems.forEach(newItem => {
         let match = null;
 
-        // 1. Verifica CABOS (Pelo nome exato)
-        if (newItem.type === 'CABLE') {
+        // 1. Verifica CABOS e ÁREAS (Pelo nome exato)
+        if (newItem.type === 'CABLE' || newItem.type === 'AREA') {
             match = existingItems.find(existing =>
-                existing.type === 'CABLE' &&
+                existing.type === newItem.type &&
                 newItem.name && existing.name &&
-                newItem.name.trim() === existing.name.trim()
+                String(newItem.name).trim() === String(existing.name).trim()
             );
         }
         // 2. Verifica NÓS (Distância + Tipo)

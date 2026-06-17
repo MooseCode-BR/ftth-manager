@@ -6,10 +6,11 @@ const AreaModal = ({
     isCircleMode = false,
     initialValue = '',
     initialColor = '#3b82f6',
+    initialColorOpacity = 100,
     initialFillColor = '#3b82f6',
     initialFillOpacity = 40,
-    initialRadius = 50,
-    initialAngle = 360,
+    initialRadius = 10,
+    initialAngle = 90,
     initialDirection = 0,
     availableTags = [],
     initialTags = [],
@@ -19,12 +20,13 @@ const AreaModal = ({
     currentDirection
 }) => {
     const [mountTime] = useState(Date.now());
-    
+
     const [name, setName] = useState(initialValue);
     const [color, setColor] = useState(initialColor);
+    const [colorOpacity, setColorOpacity] = useState(initialColorOpacity != null ? initialColorOpacity : 100);
     const [fillColor, setFillColor] = useState(initialFillColor);
-    const [fillOpacity, setFillOpacity] = useState(initialFillOpacity);
-    
+    const [fillOpacity, setFillOpacity] = useState(initialFillOpacity != null ? initialFillOpacity : 100);
+
     const [radius, setRadius] = useState(initialRadius);
     const [angle, setAngle] = useState(initialAngle);
     const [direction, setDirection] = useState(initialDirection);
@@ -32,7 +34,7 @@ const AreaModal = ({
     const [itemTags, setItemTags] = useState(initialTags || []);
     const [tagInput, setTagInput] = useState('');
     const [showTagSuggestions, setShowTagSuggestions] = useState(false);
-    
+
     const [isMinimized, setIsMinimized] = useState(false);
 
     useEffect(() => {
@@ -46,6 +48,7 @@ const AreaModal = ({
             onLiveUpdate({
                 name,
                 color,
+                colorOpacity: parseInt(colorOpacity, 10),
                 fillColor,
                 fillOpacity: parseInt(fillOpacity, 10),
                 radius: isCircleMode ? parseFloat(radius) : null,
@@ -54,7 +57,7 @@ const AreaModal = ({
                 tags: itemTags
             });
         }
-    }, [name, color, fillColor, fillOpacity, radius, angle, direction, itemTags]);
+    }, [name, color, colorOpacity, fillColor, fillOpacity, radius, angle, direction, itemTags]);
 
     const handleAddTag = (tagText) => {
         const val = tagText.trim().toUpperCase();
@@ -89,10 +92,11 @@ const AreaModal = ({
                 return;
             }
         }
-        
+
         onConfirm({
             name,
             color,
+            colorOpacity: parseInt(colorOpacity, 10),
             fillColor,
             fillOpacity: parseInt(fillOpacity, 10),
             radius: isCircleMode ? parseFloat(radius) : null,
@@ -115,7 +119,7 @@ const AreaModal = ({
     if (isMinimized) {
         return (
             <div className="fixed top-24 right-4 md:right-10 z-[2000] pointer-events-auto">
-                <button 
+                <button
                     onClick={() => setIsMinimized(false)}
                     className="bg-white dark:bg-gray-800 p-4 rounded-full shadow-2xl border-2 border-blue-500 text-blue-500 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center animate-bounce"
                     title="Restaurar Configuração da Área"
@@ -127,7 +131,7 @@ const AreaModal = ({
     }
 
     // Se isCircleMode for verdadeiro, mudamos o overlay para não bloquear o mapa e ficamos à direita
-    const overlayClass = isCircleMode 
+    const overlayClass = isCircleMode
         ? "fixed inset-0 z-[2000] flex justify-end items-start p-4 md:p-8 pointer-events-none"
         : "item-modal-overlay";
 
@@ -144,8 +148,8 @@ const AreaModal = ({
                         {isCircleMode ? 'Configurar Área Circular' : 'Configurar Área'}
                     </div>
                     {isCircleMode && (
-                        <button 
-                            type="button" 
+                        <button
+                            type="button"
                             onClick={() => setIsMinimized(true)}
                             className="p-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-md text-gray-500 transition-colors"
                             title="Minimizar"
@@ -159,7 +163,7 @@ const AreaModal = ({
                         <label className="input-label text-gray-900 dark:text-gray-400">Nome da Área</label>
                         <input autoFocus className="input-field" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleConfirm()} placeholder="Ex: Área de Cobertura POP 1" />
                     </div>
-                    
+
                     {isCircleMode && (
                         <div className="flex gap-4 mt-2">
                             <div className="flex-1">
@@ -193,13 +197,23 @@ const AreaModal = ({
                             </div>
                         </div>
                     </div>
-                    
-                    <div className="mt-2">
-                        <label className="input-label text-gray-900 dark:text-gray-400 flex justify-between">
-                            <span>Opacidade do Preenchimento</span>
-                            <span>{fillOpacity}%</span>
-                        </label>
-                        <input type="range" min="0" max="100" className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700" value={fillOpacity} onChange={e => setFillOpacity(e.target.value)} />
+
+                    <div className="flex gap-4 mt-2">
+                        <div className="flex-1 mt-2">
+                            <label className="input-label text-gray-900 dark:text-gray-400 flex justify-between">
+                                <span>Opacidade do Contorno</span>
+                                <span>{colorOpacity}%</span>
+                            </label>
+                            <input type="range" min="0" max="100" className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700" value={colorOpacity} onChange={e => setColorOpacity(e.target.value)} />
+                        </div>
+
+                        <div className="flex-1 mt-2">
+                            <label className="input-label text-gray-900 dark:text-gray-400 flex justify-between">
+                                <span>Opacidade do Preenchimento</span>
+                                <span>{fillOpacity}%</span>
+                            </label>
+                            <input type="range" min="0" max="100" className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700" value={fillOpacity} onChange={e => setFillOpacity(e.target.value)} />
+                        </div>
                     </div>
 
                     <div className="mt-2">

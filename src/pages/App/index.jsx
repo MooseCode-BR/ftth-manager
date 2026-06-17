@@ -1608,8 +1608,8 @@ const App = () => {
     };
 
     const handleSaveArea = async (data) => {
-        const { name, color, fillColor, fillOpacity, radius, angle, tags } = data;
-        
+        const { name, color, colorOpacity, fillColor, fillOpacity, radius, angle, tags } = data;
+
         let finalPositions = [];
         if (areaModalConfig.isCircleMode) {
             const { center } = areaModalConfig;
@@ -1619,26 +1619,32 @@ const App = () => {
             finalPositions = areaModalConfig.positions;
         }
 
+        const existingArea = items.find(i => i.id === areaModalConfig.id) || {};
+        const targetProjectId = existingArea._projectId || activeProjectId;
+
         // Descobre qual projeto é dono (para salvar tags no lugar certo no Firestore)
         const allProjects = [...myProjects, ...sharedProjects];
-        const targetProj = allProjects.find(p => p.id === activeProjectId);
+        const targetProj = allProjects.find(p => p.id === targetProjectId);
         const ownerId = targetProj ? targetProj.ownerId : projectOwnerId;
 
-        const processedTagIds = await processAndSaveTags(tags, activeProjectId, ownerId);
+        const processedTagIds = await processAndSaveTags(tags, targetProjectId, ownerId);
 
         saveItem({
+            ...existingArea,
             id: areaModalConfig.id || uuidv4(),
             type: 'AREA',
             name: name || 'Nova Área',
             color: color || '#3b82f6',
+            colorOpacity: colorOpacity,
             fillColor: fillColor || '#3b82f6',
             fillOpacity: fillOpacity,
             positions: finalPositions,
             tags: processedTagIds,
-            _projectId: activeProjectId
+            _projectId: targetProjectId
         });
 
         setAreaModalConfig(null);
+        setPreviewAreaConfig(null);
     };
 
     // 1. Clique no Fundo do Mapa (Adicionar Nó)
@@ -2094,7 +2100,7 @@ const App = () => {
     //         requireTextMatch: projectName, // <-- A MÁGICA DE SEGURANÇA AQUI
     //         onClose: () => setConfirmConfig(null), // Repassamos a função para o botão cancelar funcionar
     //         onConfirm: async () => {
-    //             setLoading(true);
+    //             setIsLoading(true);
     //             try {
     //                 await performDeleteProject(id);
     //                 openAlert("Sucesso", "Projeto excluído.");
@@ -2106,7 +2112,7 @@ const App = () => {
     //                     openAlert("Erro", "Falha ao excluir projeto.");
     //                 }
     //             } finally {
-    //                 setLoading(false);
+    //                 setIsLoading(false);
     //             }
     //         }
     //     });
@@ -2123,7 +2129,7 @@ const App = () => {
             requireTextMatch: projectName, // <-- Trava de segurança ativada com o nome do projeto
             onClose: () => setConfirmConfig(null),
             onConfirm: async () => {
-                setLoading(true);
+                setIsLoading(true);
                 try {
                     // Usando a sua função nativa que já apaga as coleções e imagens corretamente!
                     await performDeleteProject(id);
@@ -2136,7 +2142,7 @@ const App = () => {
                         openAlert("Erro", "Falha ao excluir projeto.");
                     }
                 } finally {
-                    setLoading(false);
+                    setIsLoading(false);
                 }
             }
         });
@@ -2151,7 +2157,7 @@ const App = () => {
             requireTextMatch: "Excluir projetos", // <-- Trava de segurança coletiva ativada
             onClose: () => setConfirmConfig(null),
             onConfirm: async () => {
-                setLoading(true);
+                setIsLoading(true);
                 try {
                     // Executa a sua deleção nativa para cada projeto selecionado
                     for (const id of ids) {
@@ -2162,7 +2168,7 @@ const App = () => {
                     console.error(error);
                     openAlert("Erro", "Falha ao excluir alguns projetos em massa.");
                 } finally {
-                    setLoading(false);
+                    setIsLoading(false);
                 }
             }
         });
@@ -2247,7 +2253,7 @@ const App = () => {
     const handleBulkShare = async (projectIds, emails, permission = 'FULL_ACCESS') => {
         if (projectIds.length === 0 || emails.length === 0) return;
 
-        setLoading(true);
+        setIsLoading(true);
         try {
             const allOperations = [];
             const timestamp = new Date().toISOString();
@@ -2292,7 +2298,7 @@ const App = () => {
             console.error("Erro no envio em massa:", error);
             openAlert("Erro", "Falha ao enviar convites em massa.");
         } finally {
-            setLoading(false);
+            setIsLoading(false);
         }
     };
 
@@ -2368,7 +2374,7 @@ const App = () => {
             "Sair dos Projetos",
             `\nDeseja realmente sair de ${inviteIds.length} projetos simultaneamente? Você perderá permanentemente o acesso a eles.\n\nContinuar?`,
             async () => {
-                setLoading(true);
+                setIsLoading(true);
                 try {
                     const batch = writeBatch(db);
                     // O "Confirmar" em lote num projeto compartilhado significa apenas apagar o próprio convite
@@ -2381,7 +2387,7 @@ const App = () => {
                     console.error("Erro ao sair em massa:", error);
                     openAlert("Erro", "Falha ao sair dos projetos compartilhados.");
                 } finally {
-                    setLoading(false);
+                    setIsLoading(false);
                 }
             }
         );
@@ -2407,7 +2413,7 @@ const App = () => {
             "Transferir Projetos",
             `ATENÇÃO: Você vai transferir ${projectIds.length} projetos para ${email}.\n\nVocê perderá o acesso a todos eles se o destinatário aceitar.\n\nContinuar?`,
             async () => {
-                setLoading(true);
+                setIsLoading(true);
                 try {
                     const batch = writeBatch(db);
                     projectIds.forEach(pid => {
@@ -2431,7 +2437,7 @@ const App = () => {
                     console.error(error);
                     openAlert("Erro", "Falha na transferência em massa.");
                 } finally {
-                    setLoading(false);
+                    setIsLoading(false);
                 }
             }
         );
@@ -2443,7 +2449,7 @@ const App = () => {
     //         "Excluir Projetos",
     //         `ATENÇÃO: Esta ação é IRREVERSÍVEL.\n\nIsso apagará PERMANENTEMENTE os ${ids.length} projetos selecionados e seus dados.\n\nDeseja realmente continuar?`,
     //         async () => {
-    //             setLoading(true);
+    //             setIsLoading(true);
     //             try {
     //                 for (const id of ids) {
     //                     await performDeleteProject(id);
@@ -2453,7 +2459,7 @@ const App = () => {
     //                 console.error(error);
     //                 openAlert("Erro", "Falha ao excluir alguns projetos em massa.");
     //             } finally {
-    //                 setLoading(false);
+    //                 setIsLoading(false);
     //             }
     //         }
     //     );
@@ -3061,13 +3067,6 @@ const App = () => {
         const item = items.find(i => i.id === id);
         if (!item) return;
 
-        const initialColor = item.color ||
-            (item.type === 'CABLE' ? item.color :
-                (nodeColorSettings && nodeColorSettings[item.type]) ||
-                ITEM_TYPES[item.type]?.defaultColor || '#000000');
-
-        const showPicker = item.type === 'CABLE' || ['POP', 'CEO', 'CTO', 'TOWER', 'POST', 'OBJECT'].includes(item.type);
-
         // REGRA DE OURO: O targetProjectId pertence ao item. Fallback apenas se o item for órfão na UI (raro)
         const targetProjectId = item._projectId || activeProjectId;
 
@@ -3077,9 +3076,39 @@ const App = () => {
             .filter(Boolean)
             .map(t => ({ id: t.id, name: t.name }));
         const cleanTargetProjectId = String(targetProjectId || '').trim();
-        const availableTagsList = Object.values(projectTags).filter(t =>
-            String(t._projectId || '').trim() === cleanTargetProjectId
-        );
+        const cleanActiveProjectId = String(activeProjectId || '').trim();
+        const availableTagsList = Object.values(projectTags).filter(t => {
+            const pId = String(t._projectId || '').trim();
+            return pId === cleanTargetProjectId || pId === cleanActiveProjectId;
+        });
+
+        // Se for uma área, usa o AreaModal
+        if (item.type === 'AREA') {
+            setAreaModalConfig({
+                id: item.id,
+                projectId: item._projectId,
+                isCircleMode: item.isCircle || false,
+                defaultName: item.name,
+                color: item.color,
+                colorOpacity: item.colorOpacity,
+                fillColor: item.fillColor,
+                fillOpacity: item.fillOpacity,
+                radius: item.radius,
+                angle: item.angle,
+                direction: item.direction,
+                tags: itemTagsList,
+                positions: item.positions,
+                center: item.center // Pode ser nulo, mas garantimos repassar caso seja círculo no futuro
+            });
+            return;
+        }
+
+        const initialColor = item.color ||
+            (item.type === 'CABLE' ? item.color :
+                (nodeColorSettings && nodeColorSettings[item.type]) ||
+                ITEM_TYPES[item.type]?.defaultColor || '#000000');
+
+        const showPicker = item.type === 'CABLE' || ['POP', 'CEO', 'CTO', 'TOWER', 'POST', 'OBJECT'].includes(item.type);
 
         openEditModal(
             "Editar Item",            // 1. Título
@@ -4608,12 +4637,12 @@ const App = () => {
         reader.onload = async (e) => {
             const text = e.target.result;
             try {
-                setLoading(true);
+                setIsLoading(true);
                 const importedItems = parseKMLImport(text);
 
                 if (importedItems.length === 0) {
                     openAlert("Erro", "Nenhum item válido encontrado no KML.");
-                    setLoading(false);
+                    setIsLoading(false);
                     return;
                 }
 
@@ -4624,7 +4653,7 @@ const App = () => {
                 if (conflicts.length > 0) {
                     setTempCleanItems(cleanItems); // Guarda os bons
                     setDuplicatesData(conflicts);  // Mostra os ruins
-                    setLoading(false);
+                    setIsLoading(false);
                     return; // PAUSA O PROCESSO AQUI
                 }
 
@@ -4634,7 +4663,7 @@ const App = () => {
             } catch (error) {
                 console.error("Erro na importação:", error);
                 openAlert("Erro", "Falha ao ler o arquivo KML.");
-                setLoading(false);
+                setIsLoading(false);
             } finally {
                 if (fileInputRef.current) fileInputRef.current.value = "";
             }
@@ -4646,7 +4675,7 @@ const App = () => {
     const proceedToConfiguration = (finalItemsList) => {
         if (finalItemsList.length === 0) {
             openAlert("Info", "Nenhum item selecionado para importação.");
-            setLoading(false);
+            setIsLoading(false);
             return;
         }
 
@@ -4657,12 +4686,12 @@ const App = () => {
             items: finalItemsList,
             colors: uniqueColors
         });
-        setLoading(false);
+        setIsLoading(false);
     };
 
     const processImportConfiguration = async ({ colorMap, textRules }) => {
         if (!importModalData) return;
-        setLoading(true);
+        setIsLoading(true);
 
         const { items } = importModalData;
 
@@ -4701,7 +4730,7 @@ const App = () => {
             return item;
         });
 
-        setLoading(false);
+        setIsLoading(false);
         setImportModalData(null);
         setFixConnectionsData(updatedItems);
     };
@@ -4719,7 +4748,7 @@ const App = () => {
     // Passo 3: Salva tudo no banco após correções
     const saveImportedData = async (fixes) => {
         if (!fixConnectionsData) return;
-        setLoading(true);
+        setIsLoading(true);
 
         // Identifica quais cabos o usuário marcou para excluir
         // Se alguma ponta (A ou B) estiver marcada como DELETE, deletamos o cabo inteiro
@@ -4876,14 +4905,14 @@ const App = () => {
             // PASSO 2: Dá um micro-respiro para o React processar a desmontagem e atualizar o mapa,
             // e só então tira o loading e mostra o alerta final.
             setTimeout(() => {
-                setLoading(false);
+                setIsLoading(false);
                 openAlert("Importação Concluída", msg);
             }, 100);
 
         } catch (error) {
             console.error(error);
             setFixConnectionsData(null);
-            setLoading(false);
+            setIsLoading(false);
             openAlert("Erro", "Falha ao salvar itens.");
         }
         // OBS: Removemos o bloco 'finally', pois gerenciamos os estados manualmente acima.
@@ -5047,14 +5076,17 @@ const App = () => {
         }
         // 2. Ferramentas de Desenho
         else if (toolId === 'ADD_POP') {
+            if (!activeProjectGuard()) return;
             setInteractionMode('ADD_NODE');
             setNodeTypeToAdd('POP');
         }
         else if (toolId === 'ADD_CEO') {
+            if (!activeProjectGuard()) return;
             setInteractionMode('ADD_NODE');
             setNodeTypeToAdd('CEO');
         }
         else if (toolId === 'ADD_CTO') {
+            if (!activeProjectGuard()) return;
             setInteractionMode('ADD_NODE');
             setNodeTypeToAdd('CTO');
         }
@@ -5062,14 +5094,17 @@ const App = () => {
             setInteractionMode('DRAW_CABLE');
         }
         else if (toolId === 'ADD_TOWER') {
+            if (!activeProjectGuard()) return;
             setInteractionMode('ADD_NODE');
             setNodeTypeToAdd('TOWER');
         }
         else if (toolId === 'ADD_POST') {
+            if (!activeProjectGuard()) return;
             setInteractionMode('ADD_NODE');
             setNodeTypeToAdd('POST');
         }
         else if (toolId === 'ADD_OBJECT') {
+            if (!activeProjectGuard()) return;
             setInteractionMode('ADD_NODE');
             setNodeTypeToAdd('OBJECT');
         }
@@ -5533,7 +5568,7 @@ const App = () => {
                         setDetailId(null);
                         return null;
                     }
-                    if (detailedItem.type === 'POST' || detailedItem.type === 'OBJECT') {
+                    if (detailedItem.type === 'POST' || detailedItem.type === 'OBJECT' || detailedItem.type === 'AREA') {
                         return (
                             <GenericModal
                                 item={detailedItem}
@@ -5666,9 +5701,23 @@ const App = () => {
                 {areaModalConfig && (
                     <div className={areaModalConfig.isCircleMode ? "z-[2000]" : ""}>
                         <AreaModal
+                            key={areaModalConfig.id || 'new-area'}
                             isCircleMode={areaModalConfig.isCircleMode}
                             initialValue={areaModalConfig.defaultName}
-                            availableTags={Object.values(projectTags).filter(t => t._projectId === activeProjectId)}
+                            initialColor={areaModalConfig.color}
+                            initialColorOpacity={areaModalConfig.colorOpacity}
+                            initialFillColor={areaModalConfig.fillColor}
+                            initialFillOpacity={areaModalConfig.fillOpacity}
+                            initialTags={areaModalConfig.tags}
+                            initialRadius={areaModalConfig.radius}
+                            initialAngle={areaModalConfig.angle}
+                            initialDirection={areaModalConfig.direction}
+                            availableTags={Object.values(projectTags).filter(t => {
+                                const targetId = String(areaModalConfig.projectId || activeProjectId || '').trim();
+                                const activeId = String(activeProjectId || '').trim();
+                                const pId = String(t._projectId || '').trim();
+                                return pId === targetId || pId === activeId;
+                            })}
                             onConfirm={handleSaveArea}
                             onCancel={() => {
                                 setAreaModalConfig(null);

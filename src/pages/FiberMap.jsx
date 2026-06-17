@@ -1062,14 +1062,20 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
 const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect, onEdit, onDelete, onOpen, onSplit, allCables, setOverlappingMenu, getNodePosition, forcedPosition }) => {
     const [isUnlocked, setIsUnlocked] = useState(false);
     const [clickPosition, setClickPosition] = useState(null);
+    const [previewWaypoints, setPreviewWaypoints] = useState(null);
 
     // Reseta estado se perder seleção
     useEffect(() => {
         if (!isSelected) {
             setIsUnlocked(false);
             setClickPosition(null);
+            setPreviewWaypoints(null);
         }
     }, [isSelected]);
+
+    useEffect(() => {
+        setPreviewWaypoints(null);
+    }, [cable.waypoints]);
 
     // Puxa a coordenada exata enviada pelo menu de sobreposição
     useEffect(() => {
@@ -1120,7 +1126,8 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
     }, [isSelected, clickPosition, cable, onOpen, onEdit, onSplit, onDelete, setIsUnlocked]);
 
     const waypointsArr = useMemo(() => (cable.waypoints || []).map(wp => [wp.lat, wp.lng]), [cable.waypoints]);
-    const positions = [posA, ...waypointsArr, posB];
+    const displayWaypoints = previewWaypoints || waypointsArr;
+    const positions = [posA, ...displayWaypoints, posB];
 
     // Clique na Linha
     // const handleLineClick = (e) => {
@@ -1241,6 +1248,35 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
 
     const showEditControls = isSelected && isUnlocked;
 
+    const markers = useMemo(() => {
+        if (!showEditControls) return null;
+        return waypointsArr.map((wp, idx) => (
+            <Marker
+                key={`${cable.id}-wp-${idx}`}
+                position={wp}
+                icon={createHandleIcon()}
+                draggable={true}
+                eventHandlers={{
+                    drag: (e) => {
+                        const { lat, lng } = e.target.getLatLng();
+                        setPreviewWaypoints(prev => {
+                            const newPos = prev ? [...prev] : [...waypointsArr];
+                            newPos[idx] = [lat, lng];
+                            return newPos;
+                        });
+                    },
+                    dragend: (e) => {
+                        const { lat, lng } = e.target.getLatLng();
+                        handleDragHandle(idx, lat, lng);
+                    },
+                    contextmenu: (e) => { L.DomEvent.stopPropagation(e); handleRemoveHandle(idx); },
+                    click: (e) => L.DomEvent.stopPropagation(e)
+                }}
+            />
+        ));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [showEditControls, waypointsArr, cable.id]);
+
     return (
         <>
             {/* Linha Invisivel - Auxilia no clique */}
@@ -1356,19 +1392,7 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
             )}
 
             {/* Waypoints (Handles) */}
-            {showEditControls && waypointsArr.map((wp, idx) => (
-                <Marker
-                    key={`${cable.id}-wp-${idx}`}
-                    position={wp}
-                    icon={createHandleIcon()}
-                    draggable={true}
-                    eventHandlers={{
-                        dragend: (e) => { const { lat, lng } = e.target.getLatLng(); handleDragHandle(idx, lat, lng); },
-                        contextmenu: (e) => { L.DomEvent.stopPropagation(e); handleRemoveHandle(idx); },
-                        click: (e) => L.DomEvent.stopPropagation(e)
-                    }}
-                />
-            ))}
+            {markers}
         </>
     );
 }, (prev, next) => {
@@ -1598,9 +1622,84 @@ const AreaDrawTool = ({ isActive, onAreaDrawComplete }) => {
     );
 };
 
+// --- FUNÇÃO AUXILIAR PARA RÓTULO DA ÁREA ---
+const createAreaLabelIcon = (name) => {
+    const svgString = renderToStaticMarkup(
+        <div style={{
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+            fontSize: '12px',
+            color: '#ffffff',
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+            fontWeight: 'bold',
+            textShadow: '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000'
+        }}>
+            {name}
+        </div>
+    );
+
+    return L.divIcon({
+        html: svgString,
+        className: 'bg-transparent',
+        iconSize: [0, 0],
+    });
+};
+
 // --- ÁREAS RENDERIZADAS NO MAPA ---
-const EditableArea = memo(({ area, onEdit, onDelete, onOpen }) => {
-    const [isSelected, setIsSelected] = useState(false);
+const EditableArea = memo(({ area, onEdit, onDelete, onOpen, isSelected, onSelect, saveItem, showLabels, previewAreaConfig }) => {
+    const [isUnlocked, setIsUnlocked] = useState(false);
+    const [clickPosition, setClickPosition] = useState(null);
+    const [previewPositions, setPreviewPositions] = useState(null);
+
+    // Reseta estado se perder seleção ou se a posição da área mudar no backend
+    useEffect(() => {
+        if (!isSelected) {
+            setIsUnlocked(false);
+            setClickPosition(null);
+            setPreviewPositions(null);
+        }
+    }, [isSelected]);
+
+    useEffect(() => {
+        setPreviewPositions(null);
+    }, [area.positions]);
+
+    // Atalhos de teclado
+    useEffect(() => {
+        if (!isSelected || !clickPosition) return;
+
+        const handleKeyDown = (e) => {
+            if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+            if (e.repeat) return;
+
+            switch (e.key.toLowerCase()) {
+                case 'd':
+                    e.preventDefault();
+                    setIsUnlocked(prev => !prev);
+                    break;
+                case 'e':
+                    e.preventDefault();
+                    if (onEdit) onEdit(area.id, area.name);
+                    break;
+                case 'enter':
+                    e.preventDefault();
+                    if (onOpen) onOpen(area.id, clickPosition);
+                    break;
+                case 'delete':
+                    e.preventDefault();
+                    if (onDelete) onDelete(area.id);
+                    break;
+                default:
+                    break;
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isSelected, clickPosition, area, onEdit, onDelete]);
 
     const positions = useMemo(() => {
         if (!area.positions || !Array.isArray(area.positions)) return [];
@@ -1610,33 +1709,139 @@ const EditableArea = memo(({ area, onEdit, onDelete, onOpen }) => {
         });
     }, [area.positions]);
 
+    const centerPos = useMemo(() => {
+        if (positions.length < 3) return null;
+        try {
+            const bounds = L.polygon(positions).getBounds();
+            return bounds.getCenter();
+        } catch (e) {
+            return positions[0];
+        }
+    }, [positions]);
+
     if (positions.length < 3) return null; // Áreas precisam de no mínimo 3 pontos
+
+    const handlePolygonClick = (e) => {
+        L.DomEvent.stopPropagation(e);
+
+        if (isSelected && isUnlocked && !area.isCircle) {
+            const { lat, lng } = e.latlng;
+            const newPositions = [...area.positions];
+            const clickPt = L.latLng(lat, lng);
+            
+            let bestIndex = 0;
+            let minAddedDist = Infinity;
+            
+            const len = newPositions.length;
+            for (let i = 0; i < len; i++) {
+                const p1Pos = newPositions[i];
+                const p2Pos = newPositions[(i + 1) % len];
+                const p1 = L.latLng(Array.isArray(p1Pos) ? p1Pos : [p1Pos.lat, p1Pos.lng]);
+                const p2 = L.latLng(Array.isArray(p2Pos) ? p2Pos : [p2Pos.lat, p2Pos.lng]);
+                
+                const originalDist = p1.distanceTo(p2);
+                const newDist = p1.distanceTo(clickPt) + clickPt.distanceTo(p2);
+                const addedDist = newDist - originalDist;
+                
+                if (addedDist < minAddedDist) {
+                    minAddedDist = addedDist;
+                    bestIndex = i + 1;
+                }
+            }
+            
+            newPositions.splice(bestIndex, 0, { lat, lng });
+            saveItem({ ...area, positions: newPositions });
+            return;
+        }
+
+        setClickPosition(e.latlng);
+        if (!isSelected) {
+            onSelect(area.id);
+        }
+    };
+
+    const handleDragHandle = (index, lat, lng) => {
+        const newPositions = [...area.positions];
+        newPositions[index] = { lat, lng };
+        saveItem({ ...area, positions: newPositions });
+    };
+
+    const handleRemoveHandle = (index) => {
+        if (area.positions.length <= 3) {
+            alert('Uma área precisa de pelo menos 3 pontos.');
+            return;
+        }
+        const newPositions = area.positions.filter((_, i) => i !== index);
+        saveItem({ ...area, positions: newPositions });
+    };
+
+    const showEditControls = isSelected && isUnlocked && !area.isCircle;
+    const displayPositions = previewPositions || positions;
+
+    // Memoriza os marcadores para que eles não re-renderizem e percam o evento de drag
+    // quando o estado previewPositions for atualizado
+    const markers = useMemo(() => {
+        if (!showEditControls) return null;
+        return positions.map((wp, idx) => (
+            <Marker
+                key={`${area.id}-wp-${idx}`}
+                position={wp}
+                icon={createHandleIcon()}
+                draggable={true}
+                eventHandlers={{
+                    drag: (e) => {
+                        const { lat, lng } = e.target.getLatLng();
+                        setPreviewPositions(prev => {
+                            const newPos = prev ? [...prev] : [...positions];
+                            newPos[idx] = { lat, lng };
+                            return newPos;
+                        });
+                    },
+                    dragend: (e) => {
+                        const { lat, lng } = e.target.getLatLng();
+                        handleDragHandle(idx, lat, lng);
+                    },
+                    contextmenu: (e) => { L.DomEvent.stopPropagation(e); handleRemoveHandle(idx); },
+                    click: (e) => L.DomEvent.stopPropagation(e)
+                }}
+            />
+        ));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [showEditControls, positions, area.id]);
+
+    const currentOutlineColor = previewAreaConfig?.color ?? area.color ?? '#3b82f6';
+    const currentOutlineOpacity = previewAreaConfig?.colorOpacity ?? area.colorOpacity ?? 100;
+    const currentFillColor = previewAreaConfig?.fillColor ?? area.fillColor ?? '#3b82f6';
+    const currentFillOpacity = previewAreaConfig?.fillOpacity ?? area.fillOpacity ?? 40;
 
     return (
         <>
             <Polygon
-                positions={positions}
+                positions={displayPositions}
                 pathOptions={{
-                    color: area.color || '#3b82f6',
+                    color: currentOutlineColor,
+                    opacity: currentOutlineOpacity / 100,
                     weight: isSelected ? 4 : 2,
-                    fillColor: area.fillColor || '#3b82f6',
-                    fillOpacity: (area.fillOpacity != null ? area.fillOpacity : 40) / 100
+                    fillColor: currentFillColor,
+                    fillOpacity: currentFillOpacity / 100,
+                    dashArray: showEditControls ? '10, 10' : null
                 }}
                 eventHandlers={{
-                    click: (e) => {
-                        L.DomEvent.stopPropagation(e);
-                        setIsSelected(true);
-                    }
+                    click: handlePolygonClick
                 }}
             />
 
-            {isSelected && (
+            {(showLabels || isSelected) && centerPos && (
+                <Marker position={centerPos} icon={createAreaLabelIcon(area.name)} interactive={false} />
+            )}
+
+            {isSelected && clickPosition && (
                 <Popup
-                    position={positions[0]}
-                    onClose={() => setIsSelected(false)}
-                    autoPan={false}
+                    position={clickPosition}
                     closeButton={false}
-                    className="custom-popup"
+                    className="hide-leaflet-popup-tail"
+                    offset={[20, 20]}
+                    autoPan={false}
                 >
                     <DraggableToolbar>
                         <div className="w-full text-center border-b border-gray-300/50 dark:border-gray-600/50 px-2.5 py-2 mb-1.5 flex flex-col">
@@ -1647,22 +1852,40 @@ const EditableArea = memo(({ area, onEdit, onDelete, onOpen }) => {
                         </div>
 
                         <div className="flex flex-col gap-1 w-full min-w-[170px]">
-                            {/* Botão ABRIR */}
+                            {/* Botão BLOQUEAR / DESBLOQUEAR */}
+                            {!area.isCircle && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setIsUnlocked(!isUnlocked); }}
+                                    className={`w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium rounded-lg transition-colors text-left ${isUnlocked
+                                        ? 'bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20'
+                                        : 'bg-transparent text-gray-700 dark:text-gray-200 hover:bg-white/50 dark:hover:bg-neutral-800'
+                                        }`}
+                                    title={isUnlocked ? "Bloquear" : "Desbloquear"}
+                                >
+                                    {isUnlocked ? <Unlock size={16} /> : <Lock size={16} />}
+                                    <span className="flex-1">{isUnlocked ? "Bloquear Área" : "Desbloquear Área"}</span>
+                                    <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">D</span>
+                                </button>
+                            )}
+
+                            {/* Botão ABRIR DETALHES */}
                             <button
-                                onClick={(e) => { e.stopPropagation(); if (onOpen) onOpen(area.id); setIsSelected(false); }}
+                                onClick={(e) => { e.stopPropagation(); if (onOpen) onOpen(area.id, clickPosition); }}
                                 className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-lg transition-colors text-left"
                             >
                                 <Info size={16} className="text-blue-500" />
                                 <span className="flex-1">Abrir Detalhes</span>
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">Enter</span>
                             </button>
 
                             {/* Botão EDITAR */}
                             <button
-                                onClick={(e) => { e.stopPropagation(); if (onEdit) onEdit(area.id, area.name); setIsSelected(false); }}
+                                onClick={(e) => { e.stopPropagation(); if (onEdit) onEdit(area.id, area.name); }}
                                 className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-lg transition-colors text-left"
                             >
                                 <Edit3 size={16} className="text-indigo-500" />
                                 <span className="flex-1">Editar Área</span>
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">E</span>
                             </button>
 
                             <div className="h-px bg-gray-300/50 dark:bg-gray-600/50 my-0.5 mx-1"></div>
@@ -1674,11 +1897,14 @@ const EditableArea = memo(({ area, onEdit, onDelete, onOpen }) => {
                             >
                                 <Trash2 size={16} />
                                 <span className="flex-1">Excluir Área</span>
+                                <span className="text-[10px] text-red-400 font-bold px-1 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">Del</span>
                             </button>
                         </div>
                     </DraggableToolbar>
                 </Popup>
             )}
+
+            {markers}
         </>
     );
 }, (prev, next) => {
@@ -1686,9 +1912,14 @@ const EditableArea = memo(({ area, onEdit, onDelete, onOpen }) => {
         prev.area.id === next.area.id &&
         prev.area.name === next.area.name &&
         prev.area.color === next.area.color &&
+        prev.area.colorOpacity === next.area.colorOpacity &&
         prev.area.fillColor === next.area.fillColor &&
         prev.area.fillOpacity === next.area.fillOpacity &&
-        JSON.stringify(prev.area.positions) === JSON.stringify(next.area.positions)
+        JSON.stringify(prev.area.tags) === JSON.stringify(next.area.tags) &&
+        JSON.stringify(prev.area.positions) === JSON.stringify(next.area.positions) &&
+        prev.isSelected === next.isSelected &&
+        prev.showLabels === next.showLabels &&
+        JSON.stringify(prev.previewAreaConfig) === JSON.stringify(next.previewAreaConfig)
     );
 });
 
@@ -1701,7 +1932,7 @@ const handleIcon = L.divIcon({
 
 const CircleAreaPreview = ({ config, onUpdateConfig }) => {
     const map = useMap();
-    const { center, radius, angle, direction, fillColor, fillOpacity, color } = config;
+    const { center, radius, angle, direction, fillColor, fillOpacity, color, colorOpacity } = config;
     
     const positions = useMemo(() => {
         if (!center || !radius || !angle) return [];
@@ -1742,10 +1973,13 @@ const CircleAreaPreview = ({ config, onUpdateConfig }) => {
         <>
             <Polygon 
                 positions={positions}
-                color={color || '#3b82f6'}
-                fillColor={fillColor || '#3b82f6'}
-                fillOpacity={(fillOpacity || 40) / 100}
-                weight={2}
+                pathOptions={{
+                    color: color || '#3b82f6',
+                    opacity: (colorOpacity != null ? colorOpacity : 100) / 100,
+                    weight: 2,
+                    fillColor: fillColor || '#3b82f6',
+                    fillOpacity: (fillOpacity || 40) / 100
+                }}
                 interactive={false}
             />
             {handlePos && (
@@ -2061,6 +2295,11 @@ const FiberMap = ({
                         onEdit={onEdit}
                         onDelete={onDelete}
                         onOpen={onOpen}
+                        isSelected={selectedId === area.id}
+                        onSelect={handleSelection}
+                        saveItem={saveItem}
+                        showLabels={showLabels}
+                        previewAreaConfig={previewAreaConfig?.id === area.id ? previewAreaConfig : null}
                     />
                 ))}
 
