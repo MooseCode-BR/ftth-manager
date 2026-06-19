@@ -1640,7 +1640,16 @@ const App = () => {
             fillOpacity: fillOpacity,
             positions: finalPositions,
             tags: processedTagIds,
-            _projectId: targetProjectId
+            _projectId: targetProjectId,
+            ...(areaModalConfig.isCircleMode ? {
+                isCircle: true,
+                center: areaModalConfig.center,
+                radius: radius,
+                angle: angle,
+                direction: data.direction || 0
+            } : {
+                isCircle: false
+            })
         });
 
         setAreaModalConfig(null);

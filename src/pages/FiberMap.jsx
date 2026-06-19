@@ -1939,60 +1939,20 @@ const CircleAreaPreview = ({ config, onUpdateConfig }) => {
         return calculateCirclePositions(center, radius, angle, direction || 0);
     }, [center, radius, angle, direction]);
 
-    const handlePos = useMemo(() => {
-        if (!center || !radius) return null;
-        const pts = calculateCirclePositions(center, radius, 0, direction || 0);
-        return pts[1] || pts[0]; // pts[0] é o centro se angle < 360, pts[1] é a borda
-    }, [center, radius, direction]);
-
-    const handleDrag = useCallback((e) => {
-        const markerPos = e.target.getLatLng();
-        const ptCenter = map.latLngToContainerPoint(center);
-        const ptCursor = map.latLngToContainerPoint(markerPos);
-        
-        const dx = ptCursor.x - ptCenter.x;
-        const dy = ptCursor.y - ptCenter.y;
-        
-        let angleRad = Math.atan2(dy, dx);
-        let compassAngle = (angleRad * 180 / Math.PI) + 90;
-        
-        if (compassAngle < 0) compassAngle += 360;
-        if (compassAngle >= 360) compassAngle -= 360;
-        
-        onUpdateConfig({ ...config, direction: Math.round(compassAngle) });
-        
-        // Forçar o marker a voltar pra borda real calculada em handlePos
-        // Como o Leaflet atualiza a posição do DOM no drag, podemos resetar o DOM via setLatLng
-        const realPts = calculateCirclePositions(center, radius, 0, Math.round(compassAngle));
-        e.target.setLatLng(realPts[0]);
-    }, [center, radius, config, onUpdateConfig, map]);
-
     if (!positions.length) return null;
 
     return (
-        <>
-            <Polygon 
-                positions={positions}
-                pathOptions={{
-                    color: color || '#3b82f6',
-                    opacity: (colorOpacity != null ? colorOpacity : 100) / 100,
-                    weight: 2,
-                    fillColor: fillColor || '#3b82f6',
-                    fillOpacity: (fillOpacity || 40) / 100
-                }}
-                interactive={false}
-            />
-            {handlePos && (
-                <Marker
-                    position={handlePos}
-                    icon={handleIcon}
-                    draggable={true}
-                    eventHandlers={{
-                        drag: handleDrag
-                    }}
-                />
-            )}
-        </>
+        <Polygon 
+            positions={positions}
+            pathOptions={{
+                color: color || '#3b82f6',
+                opacity: (colorOpacity != null ? colorOpacity : 100) / 100,
+                weight: 2,
+                fillColor: fillColor || '#3b82f6',
+                fillOpacity: (fillOpacity || 40) / 100
+            }}
+            interactive={false}
+        />
     );
 };
 

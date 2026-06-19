@@ -428,17 +428,17 @@ export const downloadKML = async (selectedProjects, data, signalConfigs) => {
                 if (area.positions && area.positions.length >= 3) {
                     const strokeColor = hexToKmlColor(area.color || '#3b82f6');
                     const fillColor = hexToKmlColor(area.fillColor || '#3b82f6');
-                    
+
                     const opacityHex = Math.round((area.fillOpacity || 40) * 2.55).toString(16).padStart(2, '0');
                     const strokeOpacityHex = Math.round((area.colorOpacity != null ? area.colorOpacity : 100) * 2.55).toString(16).padStart(2, '0');
                     const kmlFillColor = opacityHex + fillColor.substring(2);
                     const kmlStrokeColor = strokeOpacityHex + strokeColor.substring(2);
 
                     let coordsString = '';
-                    area.positions.forEach(p => { 
+                    area.positions.forEach(p => {
                         const lat = Array.isArray(p) ? p[0] : p.lat;
                         const lng = Array.isArray(p) ? p[1] : p.lng;
-                        coordsString += `${lng},${lat},0 `; 
+                        coordsString += `${lng},${lat},0 `;
                     });
                     const firstLat = Array.isArray(area.positions[0]) ? area.positions[0][0] : area.positions[0].lat;
                     const firstLng = Array.isArray(area.positions[0]) ? area.positions[0][1] : area.positions[0].lng;
@@ -596,7 +596,7 @@ export const parseKMLImport = (kmlText) => {
             // Tenta pegar a cor do ícone (Nós/Caixas)
             const iconStyle = style.getElementsByTagName("IconStyle")[0];
             const iconColor = iconStyle?.getElementsByTagName("color")[0]?.textContent;
-            
+
             // Tenta pegar a cor do polígono (Preenchimento)
             const polyStyle = style.getElementsByTagName("PolyStyle")[0];
             const polyColor = polyStyle?.getElementsByTagName("color")[0]?.textContent;
@@ -726,7 +726,7 @@ export const parseKMLImport = (kmlText) => {
                         let fillOpacity = 40;
                         let outlineColor = itemColor || '#3b82f6';
                         let colorOpacity = 100;
-                        
+
                         // Check if we mapped PolyStyle and LineStyle specifically
                         if (styleUrl && polyStyleMap[styleUrl]) {
                             const polyRes = kmlColorToHexAndOpacity(polyStyleMap[styleUrl]);
@@ -1049,21 +1049,21 @@ export const calculateCirclePositions = (center, radius, angle, direction) => {
     const R = 6378137;
     const rLat = radius / R;
     const rLng = radius / (R * Math.cos(Math.PI * center.lat / 180));
-    
+
     // Se o ângulo é menor que 360, incluímos o centro para fechar o "fatia de pizza"
     if (angle < 360) {
         finalPositions.push({ lat: center.lat, lng: center.lng });
     }
-    
+
     const startCompassAngle = direction - (angle / 2);
-    
+
     for (let i = 0; i <= (angle < 360 ? pointsCount : pointsCount - 1); i++) {
         const fraction = i / pointsCount;
         const currentCompassAngle = startCompassAngle + (fraction * angle);
-        
+
         // Converte de "Compass Angle" (0=Norte) para trigonométrico (0=Leste)
         const theta = (90 - currentCompassAngle) * (Math.PI / 180);
-        
+
         const ptLat = center.lat + (rLat * Math.sin(theta)) * (180 / Math.PI);
         const ptLng = center.lng + (rLng * Math.cos(theta)) * (180 / Math.PI);
         finalPositions.push({ lat: ptLat, lng: ptLng });
