@@ -1467,7 +1467,7 @@ const App = () => {
             openAlert(
                 "Atenção",
                 <span className="flex items-center gap-1.5 flex-wrap">
-                    Para criar um item, é necessário existir ao menos um projeto e sua função "Editar<PenTool size={14} className="text-blue-600 dark:text-blue-400" />" estar habilitada!
+                    Para criar ou importar um item, é necessário existir ao menos um projeto e sua função "Editar <PenTool size={14} className="text-blue-600 dark:text-blue-400" />" estar habilitada!
                 </span>
             );
 

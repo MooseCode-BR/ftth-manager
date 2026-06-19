@@ -206,6 +206,21 @@ export const calculatePower = (items, connections, itemId, portId, side = 'A', v
 
 
 
+// Escapa caracteres especiais XML para evitar que quebrem o arquivo KML
+const escapeXML = (str) => {
+    if (typeof str !== 'string') return str;
+    return str.replace(/[<>&'"]/g, (c) => {
+        switch (c) {
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+            case '&': return '&amp;';
+            case '\'': return '&apos;';
+            case '"': return '&quot;';
+            default: return c;
+        }
+    });
+};
+
 // EXPORTAÇÃO KML =================================//
 // 1. Função auxiliar para converter cor HEX (#RRGGBB) para KML (aabbggrr)
 const hexToKmlColor = (hex) => {
@@ -227,33 +242,19 @@ const hexToKmlColor = (hex) => {
 };
 // 1. Gera o mapa de sinais do Cabo (Fibra a Fibra)
 const generateCableDescription = (cable, allItems, connections, signalConfigs) => {
-    let html = `
-        <div style="font-family: Arial, sans-serif; font-size: 12px;">
-        <h3>Mapa de Sinais</h3>
-        <table border="1" cellpadding="2" cellspacing="0" style="border-collapse: collapse; width: 100%;">
-            <tr style="background-color: #f0f0f0;">
-                <th>Fibra</th>
-                <th>Sinal Passante</th>
-            </tr>
-    `;
+    let text = `=== MAPA DE SINAIS ===\n\n`;
 
     for (let i = 0; i < cable.ports; i++) {
         // Pega o sinal (Lado A é suficiente para verificar o que passa na fibra)
         const signals = getSignalInfo(allItems, connections, {}, signalConfigs, cable.id, i, 'A');
         const signalText = signals.length > 0
-            ? signals.map(s => `<b>${s.name}</b>`).join(', ')
-            : '<span style="color: #ccc;">Sem sinal</span>';
+            ? signals.map(s => s.name).join(', ')
+            : 'Sem sinal';
 
-        html += `
-            <tr>
-                <td style="text-align: center;">${i + 1}</td>
-                <td>${signalText}</td>
-            </tr>
-        `;
+        text += `[Fibra ${i + 1}]: ${signalText}\n`;
     }
 
-    html += `</table></div>`;
-    return `<![CDATA[${html}]]>`; // Envolve em CDATA para o KML aceitar HTML
+    return `<![CDATA[${escapeXML(text.trim())}]]>`; // CDATA evita problemas com caracteres especiais
 };
 // 2. Gera o Plano de Fusão do Nó (O que conecta com o que)
 const generateNodeDescription = (node, allItems, connections, signalConfigs) => {
@@ -262,90 +263,94 @@ const generateNodeDescription = (node, allItems, connections, signalConfigs) => 
         i.type === 'CABLE' && (i.fromNode === node.id || i.toNode === node.id)
     );
 
+    let text = ``;
+
     // Se não tiver cabos, retorna descrição básica
     if (attachedCables.length === 0) {
-        return `<![CDATA[Tipo: ${node.type}<br>Sem cabos conectados.]]>`;
-    }
+        text += `Tipo: ${node.type}\nSem cabos conectados.\n\n`;
+    } else {
+        text += `=== PLANO DE FUSÃO: ${node.name || 'Sem nome'} ===\n\n`;
 
-    let html = `
-        <div style="font-family: Arial, sans-serif; font-size: 12px;">
-        <h3>Plano de Fusão - ${node.name}</h3>
-    `;
+        // Para cada cabo conectado a esta caixa...
+        attachedCables.forEach(cable => {
+            // Descobre qual lado do cabo entra nesta caixa (A ou B)
+            const mySide = cable.fromNode === node.id ? 'A' : 'B';
 
-    // Para cada cabo conectado a esta caixa...
-    attachedCables.forEach(cable => {
-        // Descobre qual lado do cabo entra nesta caixa (A ou B)
-        const mySide = cable.fromNode === node.id ? 'A' : 'B';
+            text += `--- Cabo: ${cable.name || 'Sem nome'} (Lado ${mySide}) ---\n`;
 
-        html += `<h4 style="margin-bottom: 5px; margin-top: 15px; color: ${cable.color || '#000'}; border-bottom: 1px solid #ccc;">
-            Cabo: ${cable.name} (Lado ${mySide})
-        </h4>`;
+            for (let i = 0; i < cable.ports; i++) {
+                // Busca o que está conectado nesta fibra, deste lado (mySide)
+                const conn = findConnection(connections, cable.id, i, mySide);
 
-        html += `
-        <table border="0" cellpadding="2" cellspacing="0" style="width: 100%; border-bottom: 1px solid #eee;">
-            <tr style="background-color: #f9f9f9; text-align: left;">
-                <th width="15%">Fibra</th>
-                <th width="45%">Conectado a</th>
-                <th width="40%">Sinal</th>
-            </tr>
-        `;
+                // Busca o sinal que passa aqui
+                const signals = getSignalInfo(allItems, connections, {}, signalConfigs, cable.id, i, mySide);
+                const signalText = signals.length > 0
+                    ? signals.map(s => s.name).join(', ')
+                    : '-';
 
-        for (let i = 0; i < cable.ports; i++) {
-            // Busca o que está conectado nesta fibra, deste lado (mySide)
-            const conn = findConnection(connections, cable.id, i, mySide);
+                let destText = 'Livre / Cortado';
 
-            // Busca o sinal que passa aqui
-            const signals = getSignalInfo(allItems, connections, {}, signalConfigs, cable.id, i, mySide);
-            const signalText = signals.length > 0
-                ? signals.map(s => `<span style="color:green">${s.name}</span>`).join(', ')
-                : '<span style="color:#ccc">-</span>';
+                if (conn) {
+                    // Identifica o destino
+                    const targetId = conn.toId === cable.id ? conn.fromId : conn.toId;
+                    let targetItem = allItems.find(x => x.id === targetId);
+                    const targetPort = conn.toId === cable.id ? conn.fromPort : conn.toPort;
 
-            let destText = '<span style="color: #999;">Livre / Cortado</span>';
+                    if (targetItem) {
+                        let targetName = targetItem.name || 'Sem nome';
+                        let targetDetail = '';
 
-            if (conn) {
-                // Identifica o destino
-                const targetId = conn.toId === cable.id ? conn.fromId : conn.toId;
-                let targetItem = allItems.find(x => x.id === targetId);
-                const targetPort = conn.toId === cable.id ? conn.fromPort : conn.toPort;
-
-                if (targetItem) {
-                    // Se o destino for um sub-item (Splitter/DIO dentro da caixa), pegamos o nome dele
-                    // Se for outro cabo (Fusão direta), pegamos o nome do cabo
-                    let targetName = targetItem.name;
-                    let targetDetail = '';
-
-                    if (targetItem.type === 'CABLE') {
-                        targetDetail = `(Fibra ${parseInt(targetPort) + 1})`;
-                        destText = `<b>${targetName}</b> ${targetDetail}`;
-                    }
-                    else if (targetItem.type === 'SPLITTER') {
-                        targetDetail = (targetPort === 0 || targetPort === '0') ? '(IN)' : `(OUT ${targetPort})`;
-                        destText = `<b>Splitter: ${targetName}</b> ${targetDetail}`;
-                    }
-                    else if (targetItem.type === 'DIO' || targetItem.type === 'OLT') {
-                        destText = `<b>${targetItem.type}: ${targetName}</b> (Porta ${parseInt(targetPort) + 1})`;
-                    }
-                    else {
-                        destText = `<b>${targetName}</b>`;
+                        if (targetItem.type === 'CABLE') {
+                            targetDetail = `(Fibra ${parseInt(targetPort) + 1})`;
+                            destText = `${targetName} ${targetDetail}`;
+                        }
+                        else if (targetItem.type === 'SPLITTER') {
+                            targetDetail = (targetPort === 0 || targetPort === '0') ? '(IN)' : `(OUT ${targetPort})`;
+                            destText = `Splitter: ${targetName} ${targetDetail}`;
+                        }
+                        else if (targetItem.type === 'DIO' || targetItem.type === 'OLT') {
+                            destText = `${targetItem.type}: ${targetName} (Porta ${parseInt(targetPort) + 1})`;
+                        }
+                        else {
+                            destText = `${targetName}`;
+                        }
                     }
                 }
+
+                text += `[Fibra ${i + 1}] -> ${destText} | Sinal: ${signalText}\n`;
             }
+            text += `\n`;
+        });
+    }
 
-            html += `
-                <tr>
-                    <td style="border-bottom: 1px solid #eee;">${i + 1}</td>
-                    <td style="border-bottom: 1px solid #eee;">${destText}</td>
-                    <td style="border-bottom: 1px solid #eee; font-size: 10px;">${signalText}</td>
-                </tr>
-            `;
-        }
-        html += `</table>`;
-    });
+    if (node.notes) {
+        text += `=== ANOTAÇÕES ===\n`;
+        text += `${node.notes}\n`;
+    }
 
-    html += `</div>`;
-    return `<![CDATA[${html}]]>`;
+    return `<![CDATA[${escapeXML(text.trim())}]]>`;
 };
-// 2. Função Principal de Download
+// 2. Retorna o ícone KML específico com base no tipo e iconType
+const getNodeKmlIcon = (node) => {
+    switch (node.type) {
+        case 'POP': return 'http://maps.google.com/mapfiles/kml/shapes/target.png';
+        case 'CEO': return 'http://maps.google.com/mapfiles/kml/shapes/triangle.png';
+        case 'CTO': return 'http://maps.google.com/mapfiles/kml/shapes/donut.png';
+        case 'TOWER': return 'http://maps.google.com/mapfiles/kml/paddle/wht-diamond.png';
+        case 'POST': return 'http://maps.google.com/mapfiles/kml/shapes/placemark_square.png';
+        case 'OBJECT':
+            switch (node.iconType) {
+                case 'MapPin': return 'http://maps.google.com/mapfiles/kml/pushpin/wht-pushpin.png';
+                case 'Home': return 'http://maps.google.com/mapfiles/kml/shapes/homegardenbusiness.png';
+                case 'Shell': return 'http://maps.google.com/mapfiles/kml/shapes/square.png';
+                case 'Diamond': return 'http://maps.google.com/mapfiles/kml/shapes/open-diamond.png';
+                default: return 'http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png';
+            }
+        default: return 'http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png';
+    }
+};
+
+// 3. Função Principal de Download
 export const downloadKML = async (selectedProjects, data, signalConfigs) => {
     if (!selectedProjects || selectedProjects.length === 0) return false;
 
@@ -392,7 +397,7 @@ export const downloadKML = async (selectedProjects, data, signalConfigs) => {
             let kmlContent = `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
     <Document>
-        <name>${project.name}</name>
+        <name>${escapeXML(project.name)}</name>
         <description>Exportado do FTTH Manager Cloud</description>`;
 
             // --- PONTOS (Caixas / Clientes) ---
@@ -400,16 +405,17 @@ export const downloadKML = async (selectedProjects, data, signalConfigs) => {
                 if (node.lat && node.lng) {
                     const color = hexToKmlColor(node.color || '#ffffff');
                     const description = generateNodeDescription(node, projectItems, projectConnections, projectSignalConfigs);
+                    const iconUrl = getNodeKmlIcon(node);
                     kmlContent += `
         <Placemark>
-            <name>${node.name || 'Sem Nome'}</name>
+            <name>${escapeXML(node.name || '')}</name>
             <description>${description}</description>
             <Style>
                 <IconStyle>
                     <color>${color}</color>
                     <scale>1.1</scale>
                     <Icon>
-                        <href>http://maps.google.com/mapfiles/kml/pushpin/wht-pushpin.png</href>
+                        <href>${iconUrl}</href>
                     </Icon>
                 </IconStyle>
                 <LabelStyle>
@@ -446,8 +452,8 @@ export const downloadKML = async (selectedProjects, data, signalConfigs) => {
 
                     kmlContent += `
         <Placemark>
-            <name>${area.name || 'Área'}</name>
-            <description><![CDATA[${area.notes || ''}]]></description>
+            <name>${escapeXML(area.name || 'Área')}</name>
+            <description>${escapeXML(area.notes || '')}</description>
             <Style>
                 <LineStyle>
                     <color>${kmlStrokeColor}</color>
@@ -488,7 +494,7 @@ export const downloadKML = async (selectedProjects, data, signalConfigs) => {
 
                     kmlContent += `
         <Placemark>
-            <name>${cable.name || 'Cabo'}</name>
+            <name>${escapeXML(cable.name || 'Cabo')}</name>
             <description>${description}</description>
             <Style>
                 <LineStyle>
