@@ -5545,6 +5545,11 @@ const App = () => {
                         setIsKMLExportModalOpen(true);
                     }}
                     onImportKML={() => {
+                        if (!activeProjectGuard()) {
+                            setIsSettingsOpen(false);
+                            return;
+                        }
+                        setIsSettingsOpen(false);
                         fileInputRef.current.click();
                     }}
                     onBackup={() => {
