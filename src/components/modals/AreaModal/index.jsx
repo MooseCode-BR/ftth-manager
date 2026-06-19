@@ -83,12 +83,20 @@ const AreaModal = ({
 
     const handleConfirm = () => {
         if (isCircleMode) {
-            if (angle <= 0 || angle > 360) {
+            const numAngle = parseFloat(angle);
+            const numRadius = parseFloat(radius);
+            const numDirection = parseFloat(direction);
+
+            if (isNaN(numAngle) || numAngle <= 0 || numAngle > 360) {
                 alert("O ângulo deve ser maior que 0 e menor ou igual a 360.");
                 return;
             }
-            if (radius <= 0) {
+            if (isNaN(numRadius) || numRadius <= 0) {
                 alert("A distância (raio) deve ser maior que 0.");
+                return;
+            }
+            if (isNaN(numDirection) || numDirection < 0 || numDirection > 360) {
+                alert("A direção deve ser entre 0 e 360.");
                 return;
             }
         }
@@ -121,42 +129,35 @@ const AreaModal = ({
             <div className="fixed top-24 right-4 md:right-10 z-[2000] pointer-events-auto">
                 <button
                     onClick={() => setIsMinimized(false)}
-                    className="bg-white dark:bg-gray-800 p-4 rounded-full shadow-2xl border-2 border-blue-500 text-blue-500 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center animate-bounce"
+                    className="bg-white dark:bg-gray-800 p-4 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-center"
                     title="Restaurar Configuração da Área"
                 >
-                    <CircleDashed size={24} />
+                    {isCircleMode ? <CircleDashed size={24} /> : <Hexagon size={24} />}
                 </button>
             </div>
         );
     }
 
-    // Se isCircleMode for verdadeiro, mudamos o overlay para não bloquear o mapa e ficamos à direita
-    const overlayClass = isCircleMode
-        ? "fixed inset-0 z-[2000] flex justify-end items-start p-4 md:p-8 pointer-events-none"
-        : "item-modal-overlay";
+    const overlayClass = "fixed inset-0 z-[2000] flex justify-end pointer-events-none";
 
-    const cardClass = isCircleMode
-        ? "item-modal-card pointer-events-auto mt-16 max-w-sm w-full shadow-2xl border border-gray-200 dark:border-gray-700 max-h-[85vh] overflow-y-auto"
-        : "item-modal-card";
+    const cardClass = "pointer-events-auto w-full md:max-w-sm h-[100dvh] overflow-y-auto bg-white/90 dark:bg-black/80 backdrop-blur-xl shadow-2xl border-l border-white/60 dark:border-white/20 flex flex-col p-5 animate-in slide-in-from-right duration-200";
 
     return (
-        <div className={overlayClass} onClick={() => { if (!isCircleMode && Date.now() - mountTime > 250) onCancel(); }}>
+        <div className={overlayClass}>
             <div className={cardClass} onClick={(e) => e.stopPropagation()}>
                 <h3 className="item-modal-header flex justify-between items-center">
                     <div className="flex items-center gap-2">
                         {isCircleMode ? <CircleDashed size={18} className="item-modal-header-icon" /> : <Hexagon size={18} className="item-modal-header-icon" />}
                         {isCircleMode ? 'Configurar Área Circular' : 'Configurar Área'}
                     </div>
-                    {isCircleMode && (
-                        <button
-                            type="button"
-                            onClick={() => setIsMinimized(true)}
-                            className="p-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-md text-gray-500 transition-colors"
-                            title="Minimizar"
-                        >
-                            <Minus size={16} />
-                        </button>
-                    )}
+                    <button
+                        type="button"
+                        onClick={() => setIsMinimized(true)}
+                        className="p-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-md text-gray-500 transition-colors"
+                        title="Minimizar"
+                    >
+                        <Minus size={16} />
+                    </button>
                 </h3>
                 <div className="item-modal-body">
                     <div>
@@ -165,54 +166,84 @@ const AreaModal = ({
                     </div>
 
                     {isCircleMode && (
-                        <div className="flex gap-4 mt-2">
-                            <div className="flex-1">
-                                <label className="input-label text-gray-900 dark:text-gray-400">Raio (m)</label>
-                                <input type="number" min="1" step="1" className="input-field" value={radius} onChange={e => setRadius(e.target.value)} />
-                            </div>
-                            <div className="flex-1">
-                                <label className="input-label text-gray-900 dark:text-gray-400">Abertura (1-360º)</label>
-                                <input type="number" min="1" max="360" step="1" className="input-field" value={angle} onChange={e => setAngle(e.target.value)} />
-                            </div>
-                            <div className="flex-1">
-                                <label className="input-label text-gray-900 dark:text-gray-400">Direção (0-360º)</label>
-                                <input type="number" min="0" max="360" step="1" className="input-field" value={direction} onChange={e => setDirection(e.target.value)} />
+                        <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 rounded-lg">
+                            <label className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-3 block uppercase tracking-wider">Dimensões</label>
+                            <div className="flex flex-col gap-3">
+                                <div>
+                                    <label className="input-label text-gray-900 dark:text-gray-400">Raio (m)</label>
+                                    <input type="number" min="1" step="1" className="input-field" value={radius} onChange={e => {
+                                        let val = e.target.value;
+                                        if (val === '') { setRadius(''); return; }
+                                        let num = parseFloat(val);
+                                        if (num < 1) num = 1;
+                                        setRadius(num);
+                                    }} />
+                                </div>
+                                <div className="flex gap-3">
+                                    <div className="flex-1">
+                                        <label className="input-label text-gray-900 dark:text-gray-400">Abertura (1-360º)</label>
+                                        <input type="number" min="1" max="360" step="1" className="input-field" value={angle} onChange={e => {
+                                            let val = e.target.value;
+                                            if (val === '') { setAngle(''); return; }
+                                            let num = parseFloat(val);
+                                            if (num < 1) num = 1;
+                                            if (num > 360) num = 360;
+                                            setAngle(num);
+                                        }} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className="input-label text-gray-900 dark:text-gray-400">Direção (0-360º)</label>
+                                        <input type="number" min="0" max="360" step="1" className="input-field" value={direction} onChange={e => {
+                                            let val = e.target.value;
+                                            if (val === '') { setDirection(''); return; }
+                                            let num = parseFloat(val);
+                                            if (num < 0) num = 0;
+                                            if (num > 360) num = 360;
+                                            setDirection(num);
+                                        }} />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     )}
 
-                    <div className="flex gap-4 mt-2">
-                        <div className="flex-1 color-settings-group">
-                            <label className="input-label text-gray-900 dark:text-gray-400">Cor do Contorno</label>
-                            <div className="manual-color-wrapper">
-                                <input type="color" className="color-input-picker" value={color} onChange={e => setColor(e.target.value)} />
-                                <input type="text" value={color} onChange={e => setColor(e.target.value)} className="color-input-text" />
+                    <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 rounded-lg">
+                        <label className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-3 block uppercase tracking-wider">Contorno</label>
+                        <div className="flex flex-col gap-3">
+                            <div className="color-settings-group">
+                                <label className="input-label text-gray-900 dark:text-gray-400">Cor</label>
+                                <div className="manual-color-wrapper">
+                                    <input type="color" className="color-input-picker" value={color} onChange={e => setColor(e.target.value)} />
+                                    <input type="text" value={color} onChange={e => setColor(e.target.value)} className="color-input-text flex-1" />
+                                </div>
                             </div>
-                        </div>
-                        <div className="flex-1 color-settings-group">
-                            <label className="input-label text-gray-900 dark:text-gray-400">Cor do Preenchimento</label>
-                            <div className="manual-color-wrapper">
-                                <input type="color" className="color-input-picker" value={fillColor} onChange={e => setFillColor(e.target.value)} />
-                                <input type="text" value={fillColor} onChange={e => setFillColor(e.target.value)} className="color-input-text" />
+                            <div>
+                                <label className="input-label text-gray-900 dark:text-gray-400 flex justify-between">
+                                    <span>Opacidade</span>
+                                    <span>{colorOpacity}%</span>
+                                </label>
+                                <input type="range" min="0" max="100" className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700" value={colorOpacity} onChange={e => setColorOpacity(e.target.value)} />
                             </div>
                         </div>
                     </div>
 
-                    <div className="flex gap-4 mt-2">
-                        <div className="flex-1 mt-2">
-                            <label className="input-label text-gray-900 dark:text-gray-400 flex justify-between">
-                                <span>Opacidade do Contorno</span>
-                                <span>{colorOpacity}%</span>
-                            </label>
-                            <input type="range" min="0" max="100" className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700" value={colorOpacity} onChange={e => setColorOpacity(e.target.value)} />
-                        </div>
-
-                        <div className="flex-1 mt-2">
-                            <label className="input-label text-gray-900 dark:text-gray-400 flex justify-between">
-                                <span>Opacidade do Preenchimento</span>
-                                <span>{fillOpacity}%</span>
-                            </label>
-                            <input type="range" min="0" max="100" className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700" value={fillOpacity} onChange={e => setFillOpacity(e.target.value)} />
+                    <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 rounded-lg">
+                        <label className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-3 block uppercase tracking-wider">Preenchimento</label>
+                        <div className="flex flex-col gap-3">
+                            <div className="color-settings-group">
+                                <label className="input-label text-gray-900 dark:text-gray-400">Cor</label>
+                                <div className="manual-color-wrapper">
+                                    <input type="color" className="color-input-picker" value={fillColor} onChange={e => setFillColor(e.target.value)} />
+                                    <input type="text" value={fillColor} onChange={e => setFillColor(e.target.value)} className="color-input-text flex-1" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="input-label text-gray-900 dark:text-gray-400 flex justify-between">
+                                    <span>Opacidade</span>
+                                    <span>{fillOpacity}%</span>
+                                </label>
+                                <input type="range" min="0" max="100" className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700" value={fillOpacity} onChange={e => setFillOpacity(e.target.value)} />
+                            </div>
                         </div>
                     </div>
 
