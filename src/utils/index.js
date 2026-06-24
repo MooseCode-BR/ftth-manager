@@ -249,9 +249,14 @@ const generateCableDescription = (cable, allItems, connections, signalConfigs) =
         const signals = getSignalInfo(allItems, connections, {}, signalConfigs, cable.id, i, 'A');
         const signalText = signals.length > 0
             ? signals.map(s => s.name).join(', ')
-            : 'Sem sinal';
+            : 'Livre';
 
-        text += `[Fibra ${i + 1}]: ${signalText}\n`;
+        text += `[FO ${i + 1}]: ${signalText}\n`;
+    }
+
+    if (cable.notes) {
+        text += `\n=== ANOTAÇÕES ===\n`;
+        text += `${cable.notes}\n`;
     }
 
     return `<![CDATA[${escapeXML(text.trim())}]]>`; // CDATA evita problemas com caracteres especiais
@@ -269,7 +274,7 @@ const generateNodeDescription = (node, allItems, connections, signalConfigs) => 
     if (attachedCables.length === 0) {
         text += `Tipo: ${node.type}\nSem cabos conectados.\n\n`;
     } else {
-        text += `=== PLANO DE FUSÃO: ${node.name || 'Sem nome'} ===\n\n`;
+        text += `=== PLANO DE FUSÃO ===\n\n`;
 
         // Para cada cabo conectado a esta caixa...
         attachedCables.forEach(cable => {
@@ -288,7 +293,7 @@ const generateNodeDescription = (node, allItems, connections, signalConfigs) => 
                     ? signals.map(s => s.name).join(', ')
                     : '-';
 
-                let destText = 'Livre / Cortado';
+                let destText = 'Livre';
 
                 if (conn) {
                     // Identifica o destino
@@ -317,7 +322,7 @@ const generateNodeDescription = (node, allItems, connections, signalConfigs) => 
                     }
                 }
 
-                text += `[Fibra ${i + 1}] -> ${destText} | Sinal: ${signalText}\n`;
+                text += `[FO ${i + 1}] -> ${destText} | Sinal: ${signalText}\n`;
             }
             text += `\n`;
         });
@@ -344,7 +349,7 @@ const getNodeKmlIcon = (node) => {
                 case 'Home': return 'http://maps.google.com/mapfiles/kml/shapes/homegardenbusiness.png';
                 case 'Shell': return 'http://maps.google.com/mapfiles/kml/shapes/square.png';
                 case 'Diamond': return 'http://maps.google.com/mapfiles/kml/shapes/open-diamond.png';
-                default: return 'http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png';
+                default: return 'http://maps.google.com/mapfiles/kml/pushpin/wht-pushpin.png';
             }
         default: return 'http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png';
     }
