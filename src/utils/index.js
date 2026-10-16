@@ -206,6 +206,21 @@ export const calculatePower = (items, connections, itemId, portId, side = 'A', v
 
 
 
+// Escapa caracteres especiais XML para evitar que quebrem o arquivo KML
+const escapeXML = (str) => {
+    if (typeof str !== 'string') return str;
+    return str.replace(/[<>&'"]/g, (c) => {
+        switch (c) {
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+            case '&': return '&amp;';
+            case '\'': return '&apos;';
+            case '"': return '&quot;';
+            default: return c;
+        }
+    });
+};
+
 // EXPORTAÇÃO KML =================================//
 // 1. Função auxiliar para converter cor HEX (#RRGGBB) para KML (aabbggrr)
 const hexToKmlColor = (hex) => {
@@ -227,33 +242,24 @@ const hexToKmlColor = (hex) => {
 };
 // 1. Gera o mapa de sinais do Cabo (Fibra a Fibra)
 const generateCableDescription = (cable, allItems, connections, signalConfigs) => {
-    let html = `
-        <div style="font-family: Arial, sans-serif; font-size: 12px;">
-        <h3>Mapa de Sinais</h3>
-        <table border="1" cellpadding="2" cellspacing="0" style="border-collapse: collapse; width: 100%;">
-            <tr style="background-color: #f0f0f0;">
-                <th>Fibra</th>
-                <th>Sinal Passante</th>
-            </tr>
-    `;
+    let text = `=== MAPA DE SINAIS ===\n\n`;
 
     for (let i = 0; i < cable.ports; i++) {
         // Pega o sinal (Lado A é suficiente para verificar o que passa na fibra)
         const signals = getSignalInfo(allItems, connections, {}, signalConfigs, cable.id, i, 'A');
         const signalText = signals.length > 0
-            ? signals.map(s => `<b>${s.name}</b>`).join(', ')
-            : '<span style="color: #ccc;">Sem sinal</span>';
+            ? signals.map(s => s.name).join(', ')
+            : 'Livre';
 
-        html += `
-            <tr>
-                <td style="text-align: center;">${i + 1}</td>
-                <td>${signalText}</td>
-            </tr>
-        `;
+        text += `[FO ${i + 1}]: ${signalText}\n`;
     }
 
-    html += `</table></div>`;
-    return `<![CDATA[${html}]]>`; // Envolve em CDATA para o KML aceitar HTML
+    if (cable.notes) {
+        text += `\n=== ANOTAÇÕES ===\n`;
+        text += `${cable.notes}\n`;
+    }
+
+    return `<![CDATA[${escapeXML(text.trim())}]]>`; // CDATA evita problemas com caracteres especiais
 };
 // 2. Gera o Plano de Fusão do Nó (O que conecta com o que)
 const generateNodeDescription = (node, allItems, connections, signalConfigs) => {
@@ -262,90 +268,94 @@ const generateNodeDescription = (node, allItems, connections, signalConfigs) => 
         i.type === 'CABLE' && (i.fromNode === node.id || i.toNode === node.id)
     );
 
+    let text = ``;
+
     // Se não tiver cabos, retorna descrição básica
     if (attachedCables.length === 0) {
-        return `<![CDATA[Tipo: ${node.type}<br>Sem cabos conectados.]]>`;
-    }
+        text += `Tipo: ${node.type}\nSem cabos conectados.\n\n`;
+    } else {
+        text += `=== PLANO DE FUSÃO ===\n\n`;
 
-    let html = `
-        <div style="font-family: Arial, sans-serif; font-size: 12px;">
-        <h3>Plano de Fusão - ${node.name}</h3>
-    `;
+        // Para cada cabo conectado a esta caixa...
+        attachedCables.forEach(cable => {
+            // Descobre qual lado do cabo entra nesta caixa (A ou B)
+            const mySide = cable.fromNode === node.id ? 'A' : 'B';
 
-    // Para cada cabo conectado a esta caixa...
-    attachedCables.forEach(cable => {
-        // Descobre qual lado do cabo entra nesta caixa (A ou B)
-        const mySide = cable.fromNode === node.id ? 'A' : 'B';
+            text += `--- Cabo: ${cable.name || 'Sem nome'} (Lado ${mySide}) ---\n`;
 
-        html += `<h4 style="margin-bottom: 5px; margin-top: 15px; color: ${cable.color || '#000'}; border-bottom: 1px solid #ccc;">
-            Cabo: ${cable.name} (Lado ${mySide})
-        </h4>`;
+            for (let i = 0; i < cable.ports; i++) {
+                // Busca o que está conectado nesta fibra, deste lado (mySide)
+                const conn = findConnection(connections, cable.id, i, mySide);
 
-        html += `
-        <table border="0" cellpadding="2" cellspacing="0" style="width: 100%; border-bottom: 1px solid #eee;">
-            <tr style="background-color: #f9f9f9; text-align: left;">
-                <th width="15%">Fibra</th>
-                <th width="45%">Conectado a</th>
-                <th width="40%">Sinal</th>
-            </tr>
-        `;
+                // Busca o sinal que passa aqui
+                const signals = getSignalInfo(allItems, connections, {}, signalConfigs, cable.id, i, mySide);
+                const signalText = signals.length > 0
+                    ? signals.map(s => s.name).join(', ')
+                    : '-';
 
-        for (let i = 0; i < cable.ports; i++) {
-            // Busca o que está conectado nesta fibra, deste lado (mySide)
-            const conn = findConnection(connections, cable.id, i, mySide);
+                let destText = 'Livre';
 
-            // Busca o sinal que passa aqui
-            const signals = getSignalInfo(allItems, connections, {}, signalConfigs, cable.id, i, mySide);
-            const signalText = signals.length > 0
-                ? signals.map(s => `<span style="color:green">${s.name}</span>`).join(', ')
-                : '<span style="color:#ccc">-</span>';
+                if (conn) {
+                    // Identifica o destino
+                    const targetId = conn.toId === cable.id ? conn.fromId : conn.toId;
+                    let targetItem = allItems.find(x => x.id === targetId);
+                    const targetPort = conn.toId === cable.id ? conn.fromPort : conn.toPort;
 
-            let destText = '<span style="color: #999;">Livre / Cortado</span>';
+                    if (targetItem) {
+                        let targetName = targetItem.name || 'Sem nome';
+                        let targetDetail = '';
 
-            if (conn) {
-                // Identifica o destino
-                const targetId = conn.toId === cable.id ? conn.fromId : conn.toId;
-                let targetItem = allItems.find(x => x.id === targetId);
-                const targetPort = conn.toId === cable.id ? conn.fromPort : conn.toPort;
-
-                if (targetItem) {
-                    // Se o destino for um sub-item (Splitter/DIO dentro da caixa), pegamos o nome dele
-                    // Se for outro cabo (Fusão direta), pegamos o nome do cabo
-                    let targetName = targetItem.name;
-                    let targetDetail = '';
-
-                    if (targetItem.type === 'CABLE') {
-                        targetDetail = `(Fibra ${parseInt(targetPort) + 1})`;
-                        destText = `<b>${targetName}</b> ${targetDetail}`;
-                    }
-                    else if (targetItem.type === 'SPLITTER') {
-                        targetDetail = (targetPort === 0 || targetPort === '0') ? '(IN)' : `(OUT ${targetPort})`;
-                        destText = `<b>Splitter: ${targetName}</b> ${targetDetail}`;
-                    }
-                    else if (targetItem.type === 'DIO' || targetItem.type === 'OLT') {
-                        destText = `<b>${targetItem.type}: ${targetName}</b> (Porta ${parseInt(targetPort) + 1})`;
-                    }
-                    else {
-                        destText = `<b>${targetName}</b>`;
+                        if (targetItem.type === 'CABLE') {
+                            targetDetail = `(Fibra ${parseInt(targetPort) + 1})`;
+                            destText = `${targetName} ${targetDetail}`;
+                        }
+                        else if (targetItem.type === 'SPLITTER') {
+                            targetDetail = (targetPort === 0 || targetPort === '0') ? '(IN)' : `(OUT ${targetPort})`;
+                            destText = `Splitter: ${targetName} ${targetDetail}`;
+                        }
+                        else if (targetItem.type === 'DIO' || targetItem.type === 'OLT') {
+                            destText = `${targetItem.type}: ${targetName} (Porta ${parseInt(targetPort) + 1})`;
+                        }
+                        else {
+                            destText = `${targetName}`;
+                        }
                     }
                 }
+
+                text += `[FO ${i + 1}] -> ${destText} | Sinal: ${signalText}\n`;
             }
+            text += `\n`;
+        });
+    }
 
-            html += `
-                <tr>
-                    <td style="border-bottom: 1px solid #eee;">${i + 1}</td>
-                    <td style="border-bottom: 1px solid #eee;">${destText}</td>
-                    <td style="border-bottom: 1px solid #eee; font-size: 10px;">${signalText}</td>
-                </tr>
-            `;
-        }
-        html += `</table>`;
-    });
+    if (node.notes) {
+        text += `=== ANOTAÇÕES ===\n`;
+        text += `${node.notes}\n`;
+    }
 
-    html += `</div>`;
-    return `<![CDATA[${html}]]>`;
+    return `<![CDATA[${escapeXML(text.trim())}]]>`;
 };
-// 2. Função Principal de Download
+// 2. Retorna o ícone KML específico com base no tipo e iconType
+const getNodeKmlIcon = (node) => {
+    switch (node.type) {
+        case 'POP': return 'http://maps.google.com/mapfiles/kml/shapes/target.png';
+        case 'CEO': return 'http://maps.google.com/mapfiles/kml/shapes/triangle.png';
+        case 'CTO': return 'http://maps.google.com/mapfiles/kml/shapes/donut.png';
+        case 'TOWER': return 'http://maps.google.com/mapfiles/kml/paddle/wht-diamond.png';
+        case 'POST': return 'http://maps.google.com/mapfiles/kml/shapes/placemark_square.png';
+        case 'OBJECT':
+            switch (node.iconType) {
+                case 'MapPin': return 'http://maps.google.com/mapfiles/kml/pushpin/wht-pushpin.png';
+                case 'Home': return 'http://maps.google.com/mapfiles/kml/shapes/homegardenbusiness.png';
+                case 'Shell': return 'http://maps.google.com/mapfiles/kml/shapes/square.png';
+                case 'Diamond': return 'http://maps.google.com/mapfiles/kml/shapes/open-diamond.png';
+                default: return 'http://maps.google.com/mapfiles/kml/pushpin/wht-pushpin.png';
+            }
+        default: return 'http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png';
+    }
+};
+
+// 3. Função Principal de Download
 export const downloadKML = async (selectedProjects, data, signalConfigs) => {
     if (!selectedProjects || selectedProjects.length === 0) return false;
 
@@ -384,14 +394,15 @@ export const downloadKML = async (selectedProjects, data, signalConfigs) => {
             }
 
             // Separa nós e cabos
-            const nodes = projectItems.filter(i => !i.parentId && i.type !== 'CABLE');
+            const areas = projectItems.filter(i => i.type === 'AREA');
+            const nodes = projectItems.filter(i => !i.parentId && i.type !== 'CABLE' && i.type !== 'AREA');
             const cables = projectItems.filter(i => i.type === 'CABLE');
 
             // Monta o KML do projeto
             let kmlContent = `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
     <Document>
-        <name>${project.name}</name>
+        <name>${escapeXML(project.name)}</name>
         <description>Exportado do FTTH Manager Cloud</description>`;
 
             // --- PONTOS (Caixas / Clientes) ---
@@ -399,16 +410,17 @@ export const downloadKML = async (selectedProjects, data, signalConfigs) => {
                 if (node.lat && node.lng) {
                     const color = hexToKmlColor(node.color || '#ffffff');
                     const description = generateNodeDescription(node, projectItems, projectConnections, projectSignalConfigs);
+                    const iconUrl = getNodeKmlIcon(node);
                     kmlContent += `
         <Placemark>
-            <name>${node.name || 'Sem Nome'}</name>
+            <name>${escapeXML(node.name || '')}</name>
             <description>${description}</description>
             <Style>
                 <IconStyle>
                     <color>${color}</color>
                     <scale>1.1</scale>
                     <Icon>
-                        <href>http://maps.google.com/mapfiles/kml/pushpin/wht-pushpin.png</href>
+                        <href>${iconUrl}</href>
                     </Icon>
                 </IconStyle>
                 <LabelStyle>
@@ -418,6 +430,54 @@ export const downloadKML = async (selectedProjects, data, signalConfigs) => {
             <Point>
                 <coordinates>${node.lng},${node.lat},0</coordinates>
             </Point>
+        </Placemark>`;
+                }
+            });
+
+            // --- ÁREAS (Polígonos) ---
+            areas.forEach(area => {
+                if (area.positions && area.positions.length >= 3) {
+                    const strokeColor = hexToKmlColor(area.color || '#3b82f6');
+                    const fillColor = hexToKmlColor(area.fillColor || '#3b82f6');
+
+                    const opacityHex = Math.round((area.fillOpacity || 40) * 2.55).toString(16).padStart(2, '0');
+                    const strokeOpacityHex = Math.round((area.colorOpacity != null ? area.colorOpacity : 100) * 2.55).toString(16).padStart(2, '0');
+                    const kmlFillColor = opacityHex + fillColor.substring(2);
+                    const kmlStrokeColor = strokeOpacityHex + strokeColor.substring(2);
+
+                    let coordsString = '';
+                    area.positions.forEach(p => {
+                        const lat = Array.isArray(p) ? p[0] : p.lat;
+                        const lng = Array.isArray(p) ? p[1] : p.lng;
+                        coordsString += `${lng},${lat},0 `;
+                    });
+                    const firstLat = Array.isArray(area.positions[0]) ? area.positions[0][0] : area.positions[0].lat;
+                    const firstLng = Array.isArray(area.positions[0]) ? area.positions[0][1] : area.positions[0].lng;
+                    coordsString += `${firstLng},${firstLat},0`;
+
+                    kmlContent += `
+        <Placemark>
+            <name>${escapeXML(area.name || 'Área')}</name>
+            <description>${escapeXML(area.notes || '')}</description>
+            <Style>
+                <LineStyle>
+                    <color>${kmlStrokeColor}</color>
+                    <width>2</width>
+                </LineStyle>
+                <PolyStyle>
+                    <color>${kmlFillColor}</color>
+                    <fill>1</fill>
+                    <outline>1</outline>
+                </PolyStyle>
+            </Style>
+            <Polygon>
+                <tessellate>1</tessellate>
+                <outerBoundaryIs>
+                    <LinearRing>
+                        <coordinates>${coordsString}</coordinates>
+                    </LinearRing>
+                </outerBoundaryIs>
+            </Polygon>
         </Placemark>`;
                 }
             });
@@ -439,7 +499,7 @@ export const downloadKML = async (selectedProjects, data, signalConfigs) => {
 
                     kmlContent += `
         <Placemark>
-            <name>${cable.name || 'Cabo'}</name>
+            <name>${escapeXML(cable.name || 'Cabo')}</name>
             <description>${description}</description>
             <Style>
                 <LineStyle>
@@ -494,6 +554,26 @@ const kmlColorToHex = (kmlColor) => {
     }
     return '#000000';
 };
+const kmlColorToHexAndOpacity = (kmlColor) => {
+    if (!kmlColor) return { hex: '#000000', opacity: 100 };
+    let c = kmlColor.trim();
+    if (c.length === 8) {
+        const alphaHex = c.substring(0, 2);
+        const blue = c.substring(2, 4);
+        const green = c.substring(4, 6);
+        const red = c.substring(6, 8);
+        return {
+            hex: `#${red}${green}${blue}`,
+            opacity: Math.round(parseInt(alphaHex, 16) / 2.55) || 100
+        };
+    } else if (c.length === 6) {
+        const blue = c.substring(0, 2);
+        const green = c.substring(2, 4);
+        const red = c.substring(4, 6);
+        return { hex: `#${red}${green}${blue}`, opacity: 100 };
+    }
+    return { hex: '#000000', opacity: 100 };
+};
 // 1. Função que tenta adivinhar o tipo do item pelo nome
 const guessTypeByName = (name) => {
     const n = name.toUpperCase();
@@ -511,6 +591,8 @@ export const parseKMLImport = (kmlText) => {
     const xmlDoc = parser.parseFromString(kmlText, "text/xml");
 
     const styleMap = {};
+    const polyStyleMap = {};
+    const lineStyleMap = {};
 
     // 1. MAPEAMENTO DE ESTILOS
     const styles = xmlDoc.getElementsByTagName("Style");
@@ -526,11 +608,21 @@ export const parseKMLImport = (kmlText) => {
             const iconStyle = style.getElementsByTagName("IconStyle")[0];
             const iconColor = iconStyle?.getElementsByTagName("color")[0]?.textContent;
 
+            // Tenta pegar a cor do polígono (Preenchimento)
+            const polyStyle = style.getElementsByTagName("PolyStyle")[0];
+            const polyColor = polyStyle?.getElementsByTagName("color")[0]?.textContent;
+
             // Define a cor a ser usada (prioriza a cor do ícone, depois a da linha)
             const colorToUse = iconColor || lineColor;
 
             if (colorToUse) {
                 styleMap[`#${id}`] = kmlColorToHex(colorToUse.trim());
+            }
+            if (polyColor) {
+                polyStyleMap[`#${id}`] = polyColor.trim();
+            }
+            if (lineColor) {
+                lineStyleMap[`#${id}`] = lineColor.trim();
             }
         }
     }
@@ -553,8 +645,10 @@ export const parseKMLImport = (kmlText) => {
             if (!targetStyleUrl && pairs.length > 0) {
                 targetStyleUrl = pairs[0].getElementsByTagName("styleUrl")[0]?.textContent?.trim();
             }
-            if (targetStyleUrl && styleMap[targetStyleUrl]) {
-                styleMap[`#${id}`] = styleMap[targetStyleUrl];
+            if (targetStyleUrl) {
+                if (styleMap[targetStyleUrl]) styleMap[`#${id}`] = styleMap[targetStyleUrl];
+                if (polyStyleMap[targetStyleUrl]) polyStyleMap[`#${id}`] = polyStyleMap[targetStyleUrl];
+                if (lineStyleMap[targetStyleUrl]) lineStyleMap[`#${id}`] = lineStyleMap[targetStyleUrl];
             }
         }
     }
@@ -563,14 +657,29 @@ export const parseKMLImport = (kmlText) => {
     let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
     const rawPoints = [];
     const rawLines = [];
+    const rawAreas = [];
+
+    const getTextByTagName = (parent, tagName) => {
+        let nodes = parent.getElementsByTagName(tagName);
+        if (nodes.length === 0) nodes = parent.getElementsByTagNameNS("*", tagName);
+        if (nodes.length === 0) {
+            // Tenta achar ignorando prefixos manualmente caso o parser falhe
+            const children = parent.children;
+            for (let i = 0; i < children.length; i++) {
+                const childName = (children[i].localName || children[i].nodeName || '').replace(/^.*:/, '').toLowerCase();
+                if (childName === tagName.toLowerCase()) return children[i].textContent;
+            }
+        }
+        return nodes.length > 0 ? nodes[0].textContent : "";
+    };
 
     // O processPlacemark agora recebe as pastas (tags) onde ele se encontra
     const processPlacemark = (p, currentTags) => {
-        const name = p.getElementsByTagName("name")[0]?.textContent || "";
-        const description = p.getElementsByTagName("description")[0]?.textContent?.trim() || "";
+        const name = getTextByTagName(p, "name").trim() || "";
+        const description = getTextByTagName(p, "description").trim() || "";
 
         let itemColor = null;
-        const styleUrl = p.getElementsByTagName("styleUrl")[0]?.textContent?.trim();
+        const styleUrl = getTextByTagName(p, "styleUrl").trim();
         if (styleUrl && styleMap[styleUrl]) {
             itemColor = styleMap[styleUrl];
         }
@@ -613,6 +722,60 @@ export const parseKMLImport = (kmlText) => {
                 }
             }
         }
+        else {
+            const polygon = p.getElementsByTagName("Polygon")[0];
+            if (polygon) {
+                const coordString = polygon.getElementsByTagName("coordinates")[0]?.textContent;
+                if (coordString) {
+                    const points = coordString.trim().split(/\s+/).map(c => {
+                        const [lng, lat] = c.split(',').map(Number);
+                        return { lat, lng };
+                    }).filter(p => !isNaN(p.lat) && !isNaN(p.lng));
+
+                    if (points.length >= 3) {
+                        let fillColor = itemColor || '#3b82f6';
+                        let fillOpacity = 40;
+                        let outlineColor = itemColor || '#3b82f6';
+                        let colorOpacity = 100;
+
+                        // Check if we mapped PolyStyle and LineStyle specifically
+                        if (styleUrl && polyStyleMap[styleUrl]) {
+                            const polyRes = kmlColorToHexAndOpacity(polyStyleMap[styleUrl]);
+                            fillColor = polyRes.hex;
+                            fillOpacity = polyRes.opacity;
+                        }
+                        if (styleUrl && lineStyleMap[styleUrl]) {
+                            const lineRes = kmlColorToHexAndOpacity(lineStyleMap[styleUrl]);
+                            outlineColor = lineRes.hex;
+                            colorOpacity = lineRes.opacity;
+                        }
+
+                        if (inlineStyle) {
+                            const polyStyle = inlineStyle.getElementsByTagName("PolyStyle")[0];
+                            if (polyStyle) {
+                                const polyColor = polyStyle.getElementsByTagName("color")[0]?.textContent;
+                                if (polyColor) {
+                                    const polyRes = kmlColorToHexAndOpacity(polyColor);
+                                    fillColor = polyRes.hex;
+                                    fillOpacity = polyRes.opacity;
+                                }
+                            }
+                            const lineStyle = inlineStyle.getElementsByTagName("LineStyle")[0];
+                            if (lineStyle) {
+                                const lineColor = lineStyle.getElementsByTagName("color")[0]?.textContent;
+                                if (lineColor) {
+                                    const lineRes = kmlColorToHexAndOpacity(lineColor);
+                                    outlineColor = lineRes.hex;
+                                    colorOpacity = lineRes.opacity;
+                                }
+                            }
+                        }
+
+                        rawAreas.push({ name, positions: points, color: outlineColor, colorOpacity, fillColor, fillOpacity, notes: description, tempTags: currentTags });
+                    }
+                }
+            }
+        }
     };
 
     // Função de travessia inteligente que acumula os nomes das pastas
@@ -646,7 +809,7 @@ export const parseKMLImport = (kmlText) => {
     traverse(xmlDoc.documentElement, []);
 
     // 3. GERAÇÃO DOS ITENS
-    if (rawPoints.length === 0 && rawLines.length === 0) return [];
+    if (rawPoints.length === 0 && rawLines.length === 0 && rawAreas.length === 0) return [];
 
     const CANVAS_SIZE = 5000;
     const latRange = maxLat - minLat || 0.001;
@@ -718,6 +881,22 @@ export const parseKMLImport = (kmlText) => {
         });
     });
 
+    // Áreas
+    rawAreas.forEach((area, index) => {
+        newItems.push({
+            id: `imp_area_${Date.now()}_${index}`,
+            type: 'AREA',
+            name: area.name || `Área ${index}`,
+            positions: area.positions,
+            color: area.color || '#3b82f6',
+            colorOpacity: area.colorOpacity !== undefined ? area.colorOpacity : 100,
+            fillColor: area.fillColor || '#3b82f6',
+            fillOpacity: area.fillOpacity !== undefined ? area.fillOpacity : 40,
+            notes: area.notes,
+            _tempTagNames: area.tempTags || []
+        });
+    });
+
     return newItems;
 };
 // Busca candidatos próximos para uma coordenada específica
@@ -750,12 +929,12 @@ export const analyzeDuplicates = (newItems, existingItems) => {
     newItems.forEach(newItem => {
         let match = null;
 
-        // 1. Verifica CABOS (Pelo nome exato)
-        if (newItem.type === 'CABLE') {
+        // 1. Verifica CABOS e ÁREAS (Pelo nome exato)
+        if (newItem.type === 'CABLE' || newItem.type === 'AREA') {
             match = existingItems.find(existing =>
-                existing.type === 'CABLE' &&
+                existing.type === newItem.type &&
                 newItem.name && existing.name &&
-                newItem.name.trim() === existing.name.trim()
+                String(newItem.name).trim() === String(existing.name).trim()
             );
         }
         // 2. Verifica NÓS (Distância + Tipo)
@@ -874,3 +1053,31 @@ const deleteNodeImages = async (node) => {
     await Promise.all(deletePromises);
 };
 //=================================================//
+
+export const calculateCirclePositions = (center, radius, angle, direction) => {
+    let finalPositions = [];
+    const pointsCount = 64;
+    const R = 6378137;
+    const rLat = radius / R;
+    const rLng = radius / (R * Math.cos(Math.PI * center.lat / 180));
+
+    // Se o ângulo é menor que 360, incluímos o centro para fechar o "fatia de pizza"
+    if (angle < 360) {
+        finalPositions.push({ lat: center.lat, lng: center.lng });
+    }
+
+    const startCompassAngle = direction - (angle / 2);
+
+    for (let i = 0; i <= (angle < 360 ? pointsCount : pointsCount - 1); i++) {
+        const fraction = i / pointsCount;
+        const currentCompassAngle = startCompassAngle + (fraction * angle);
+
+        // Converte de "Compass Angle" (0=Norte) para trigonométrico (0=Leste)
+        const theta = (90 - currentCompassAngle) * (Math.PI / 180);
+
+        const ptLat = center.lat + (rLat * Math.sin(theta)) * (180 / Math.PI);
+        const ptLng = center.lng + (rLng * Math.cos(theta)) * (180 / Math.PI);
+        finalPositions.push({ lat: ptLat, lng: ptLng });
+    }
+    return finalPositions;
+};

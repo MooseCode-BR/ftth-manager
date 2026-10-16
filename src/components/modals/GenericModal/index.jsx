@@ -16,6 +16,45 @@ import {
 import { generateNodeReport } from '../../../utils/pdfGenerator';
 import AuditInfo from '../../AuditInfo';
 
+// Função auxiliar para calcular distância em metros (Haversine)
+const getDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371e3; // metres
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+        Math.cos(φ1) * Math.cos(φ2) *
+        Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
+};
+
+// Função auxiliar para calcular área de polígono geográfico em m²
+const getGeodesicArea = (coordinates) => {
+    let area = 0.0;
+    const d2r = Math.PI / 180.0;
+    let p1, p2;
+
+    if (coordinates && coordinates.length > 2) {
+        for (let i = 0; i < coordinates.length; i++) {
+            p1 = coordinates[i];
+            p2 = coordinates[(i + 1) % coordinates.length];
+
+            const lng1 = (p1.lng ?? p1[1]) * d2r;
+            const lat1 = (p1.lat ?? p1[0]) * d2r;
+            const lng2 = (p2.lng ?? p2[1]) * d2r;
+            const lat2 = (p2.lat ?? p2[0]) * d2r;
+
+            area += ((lng2 - lng1) * (2.0 + Math.sin(lat1) + Math.sin(lat2)));
+        }
+        area = area * 6378137.0 * 6378137.0 / 2.0;
+    }
+    return Math.abs(area);
+};
+
 const GenericModal = ({
     item,
     onClose,
@@ -30,6 +69,22 @@ const GenericModal = ({
     const [name, setName] = useState(item.name || '');
     const [notes, setNotes] = useState(item.notes || '');
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+    let perimeter = 0;
+    let totalArea = 0;
+
+    if (item.type === 'AREA' && Array.isArray(item.positions) && item.positions.length > 2) {
+        for (let i = 0; i < item.positions.length; i++) {
+            const p1 = item.positions[i];
+            const p2 = item.positions[(i + 1) % item.positions.length];
+            const lat1 = p1.lat ?? p1[0];
+            const lon1 = p1.lng ?? p1[1];
+            const lat2 = p2.lat ?? p2[0];
+            const lon2 = p2.lng ?? p2[1];
+            perimeter += getDistance(lat1, lon1, lat2, lon2);
+        }
+        totalArea = getGeodesicArea(item.positions);
+    }
 
     const handleDownloadReport = () => {
         onConfirmRequest("Baixar Relatório", "Deseja gerar e baixar o relatório em PDF deste item?", async () => {
@@ -99,6 +154,23 @@ const GenericModal = ({
                         </div>
                     </div>
 
+                    {item.type === 'AREA' && (
+                        <div className="flex flex-col gap-2 my-2 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+                            <div className="flex justify-between items-center">
+                                <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">Perímetro Total</span>
+                                <span className="text-sm font-bold text-gray-800 dark:text-white">
+                                    {perimeter >= 1000 ? (perimeter / 1000).toFixed(2) + ' km' : Math.round(perimeter) + ' m'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">Área Ocupada</span>
+                                <span className="text-sm font-bold text-gray-800 dark:text-white">
+                                    {totalArea >= 1000000 ? (totalArea / 1000000).toFixed(2) + ' km²' : Math.round(totalArea) + ' m²'}
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Área de Notas (Substitui o Status do Cliente) */}
                     <div className="notes-section">
                         <label className="input-label flex items-center gap-2">
@@ -108,7 +180,7 @@ const GenericModal = ({
                             className="textarea-field"
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
-                            placeholder="Escreva observações sobre este ponto..."
+                            placeholder="Escreva observações sobre este ponto."
                         />
                     </div>
 

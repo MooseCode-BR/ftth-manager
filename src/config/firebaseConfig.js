@@ -68,6 +68,11 @@ const firebaseConfig = {
 // 1. Inicializa o app base
 const app = initializeApp(firebaseConfig);
 
+// Injeta o token apenas em desenvolvimento (localhost ou IP local)
+if (import.meta.env.DEV) {
+    self.FIREBASE_APPCHECK_DEBUG_TOKEN = import.meta.env.VITE_FIREBASE_APPCHECK_DEBUG_TOKEN;
+}
+
 // --- 2. INICIALIZAÇÃO DA BLINDAGEM (APP CHECK HÍBRIDO) ---
 let appCheck;
 

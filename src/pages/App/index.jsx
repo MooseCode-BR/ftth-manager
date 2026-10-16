@@ -49,7 +49,7 @@ import { ITEM_TYPES, ICON_MAP, VERSAO } from '../../config/constants';
 // downloadKML: Exporta projeto para formato KML (Google Earth)
 // parseKMLImport: Importa e processa arquivos KML
 // analyzeDuplicates: Detecta e analisa itens duplicados na importação
-import { findConnection, downloadKML, parseKMLImport, analyzeDuplicates } from '../../utils';
+import { findConnection, downloadKML, parseKMLImport, analyzeDuplicates, calculateCirclePositions } from '../../utils';
 
 // Sistema de Backup
 // generateBackupFile: Cria arquivo de backup completo do projeto
@@ -84,6 +84,7 @@ import BackupModal from '../../components/modals/BackupModal'; // Novo modal de 
 import KMLExportModal from '../../components/modals/KMLExportModal'; // Modal de seleção de projetos para exportar KML
 import StandardsModal from '../../components/modals/StandardModal'; // Padrões de cores de cabos
 import TraceModal from '../../components/modals/TraceModal'; // Rastreamento de sinal óptico
+import AreaModal from '../../components/modals/AreaModal'; // Novo modal de Área
 import DetailPanel from '../DetailPanel'; // Painel lateral de detalhes
 import { LoadScreen } from '../../components/LoadScreen';
 import InstallPwaPopup from '../../components/InstallPwaPopup';
@@ -637,8 +638,9 @@ const App = () => {
     const [cableColorStandards, setCableColorStandards] = useState({}); //Padrao de cores dos cabos (definidos pelo usuario)
     const [nodeColorSettings, setNodeColorSettings] = useState({}); //Padrao de cores dos nós (definidos pelo usuario)
     const [favoriteColors, setFavoriteColors] = useState([]); //Cores favoritas (definidos pelo usuario)
-    const [nodeColorsModalOpen, setNodeColorsModalOpen] = useState(false); //Modal padrao de cores dos nós
-    const [loading, setLoading] = useState(false);
+    const [nodeColorsModalOpen, setNodeColorsModalOpen] = useState(false);
+    const [areaModalConfig, setAreaModalConfig] = useState(null);
+    const [previewAreaConfig, setPreviewAreaConfig] = useState(null);
     const [reportOpen, setReportOpen] = useState(false); //Modal Relatório
     const [clientWizard, setClientWizard] = useState({ step: null, data: {} });
     const [photoModalData, setPhotoModalData] = useState(null); //Modal fotos
@@ -1010,13 +1012,13 @@ const App = () => {
         setPortLabels(mergedPortLabels);
         setProjectTags(mergedTags);
 
-        setLoading(false);
+        setIsLoading(false);
 
     }, [projectDataCache, visibleProjectIds]);
 
     // Centralizar em um node
     useEffect(() => {
-        if (!loading && items.length > 0 && !hasCentered) {
+        if (!isLoading && items.length > 0 && !hasCentered) {
             const visibleNodes = items.filter(i => !i.parentId && ITEM_TYPES[i.type]?.category === 'NODE');
             if (visibleNodes.length > 0) {
                 let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -1045,7 +1047,7 @@ const App = () => {
                 setHasCentered(true);
             }
         }
-    }, [loading, items.length, hasCentered]);
+    }, [isLoading, items.length, hasCentered]);
 
     // Função auxiliar: obtém a localização atual do usuário via GPS
     // Retorna { lat, lng } ou null se não conseguir (sem travar a busca)
@@ -1465,7 +1467,7 @@ const App = () => {
             openAlert(
                 "Atenção",
                 <span className="flex items-center gap-1.5 flex-wrap">
-                    Para criar um item, é necessário existir ao menos um projeto e sua função "Editar<PenTool size={14} className="text-blue-600 dark:text-blue-400" />" estar habilitada!
+                    Para criar ou importar um item, é necessário existir ao menos um projeto e sua função "Editar <PenTool size={14} className="text-blue-600 dark:text-blue-400" />" estar habilitada!
                 </span>
             );
 
@@ -1605,6 +1607,55 @@ const App = () => {
         setInteractionMode('SELECT');
     };
 
+    const handleSaveArea = async (data) => {
+        const { name, color, colorOpacity, fillColor, fillOpacity, radius, angle, tags } = data;
+
+        let finalPositions = [];
+        if (areaModalConfig.isCircleMode) {
+            const { center } = areaModalConfig;
+            const { direction = 0 } = data; // data contém direction agora
+            finalPositions = calculateCirclePositions(center, radius, angle, direction);
+        } else {
+            finalPositions = areaModalConfig.positions;
+        }
+
+        const existingArea = items.find(i => i.id === areaModalConfig.id) || {};
+        const targetProjectId = existingArea._projectId || activeProjectId;
+
+        // Descobre qual projeto é dono (para salvar tags no lugar certo no Firestore)
+        const allProjects = [...myProjects, ...sharedProjects];
+        const targetProj = allProjects.find(p => p.id === targetProjectId);
+        const ownerId = targetProj ? targetProj.ownerId : projectOwnerId;
+
+        const processedTagIds = await processAndSaveTags(tags, targetProjectId, ownerId);
+
+        saveItem({
+            ...existingArea,
+            id: areaModalConfig.id || uuidv4(),
+            type: 'AREA',
+            name: name || 'Nova Área',
+            color: color || '#3b82f6',
+            colorOpacity: colorOpacity,
+            fillColor: fillColor || '#3b82f6',
+            fillOpacity: fillOpacity,
+            positions: finalPositions,
+            tags: processedTagIds,
+            _projectId: targetProjectId,
+            ...(areaModalConfig.isCircleMode ? {
+                isCircle: true,
+                center: areaModalConfig.center,
+                radius: radius,
+                angle: angle,
+                direction: data.direction || 0
+            } : {
+                isCircle: false
+            })
+        });
+
+        setAreaModalConfig(null);
+        setPreviewAreaConfig(null);
+    };
+
     // 1. Clique no Fundo do Mapa (Adicionar Nó)
     const handleMapBgClick = (latlng) => {
         if (!latlng) {
@@ -1629,6 +1680,15 @@ const App = () => {
             // MUDANÇA: Guarda na memória dedicada
             setNewClientPosition({ lat: latlng.lat, lng: latlng.lng });
             setClientWizard({ step: 'NAME', data: {} });
+            setInteractionMode('SELECT');
+        }
+        else if (interactionMode === 'ADD_CIRCLE_AREA') {
+            if (!activeProjectGuard()) return;
+            setAreaModalConfig({
+                isCircleMode: true,
+                center: latlng,
+                defaultName: `Área ${items.filter(i => i.type === 'AREA').length + 1}`
+            });
             setInteractionMode('SELECT');
         }
     };
@@ -2049,7 +2109,7 @@ const App = () => {
     //         requireTextMatch: projectName, // <-- A MÁGICA DE SEGURANÇA AQUI
     //         onClose: () => setConfirmConfig(null), // Repassamos a função para o botão cancelar funcionar
     //         onConfirm: async () => {
-    //             setLoading(true);
+    //             setIsLoading(true);
     //             try {
     //                 await performDeleteProject(id);
     //                 openAlert("Sucesso", "Projeto excluído.");
@@ -2061,7 +2121,7 @@ const App = () => {
     //                     openAlert("Erro", "Falha ao excluir projeto.");
     //                 }
     //             } finally {
-    //                 setLoading(false);
+    //                 setIsLoading(false);
     //             }
     //         }
     //     });
@@ -2078,7 +2138,7 @@ const App = () => {
             requireTextMatch: projectName, // <-- Trava de segurança ativada com o nome do projeto
             onClose: () => setConfirmConfig(null),
             onConfirm: async () => {
-                setLoading(true);
+                setIsLoading(true);
                 try {
                     // Usando a sua função nativa que já apaga as coleções e imagens corretamente!
                     await performDeleteProject(id);
@@ -2091,7 +2151,7 @@ const App = () => {
                         openAlert("Erro", "Falha ao excluir projeto.");
                     }
                 } finally {
-                    setLoading(false);
+                    setIsLoading(false);
                 }
             }
         });
@@ -2106,7 +2166,7 @@ const App = () => {
             requireTextMatch: "Excluir projetos", // <-- Trava de segurança coletiva ativada
             onClose: () => setConfirmConfig(null),
             onConfirm: async () => {
-                setLoading(true);
+                setIsLoading(true);
                 try {
                     // Executa a sua deleção nativa para cada projeto selecionado
                     for (const id of ids) {
@@ -2117,7 +2177,7 @@ const App = () => {
                     console.error(error);
                     openAlert("Erro", "Falha ao excluir alguns projetos em massa.");
                 } finally {
-                    setLoading(false);
+                    setIsLoading(false);
                 }
             }
         });
@@ -2202,7 +2262,7 @@ const App = () => {
     const handleBulkShare = async (projectIds, emails, permission = 'FULL_ACCESS') => {
         if (projectIds.length === 0 || emails.length === 0) return;
 
-        setLoading(true);
+        setIsLoading(true);
         try {
             const allOperations = [];
             const timestamp = new Date().toISOString();
@@ -2247,7 +2307,7 @@ const App = () => {
             console.error("Erro no envio em massa:", error);
             openAlert("Erro", "Falha ao enviar convites em massa.");
         } finally {
-            setLoading(false);
+            setIsLoading(false);
         }
     };
 
@@ -2323,7 +2383,7 @@ const App = () => {
             "Sair dos Projetos",
             `\nDeseja realmente sair de ${inviteIds.length} projetos simultaneamente? Você perderá permanentemente o acesso a eles.\n\nContinuar?`,
             async () => {
-                setLoading(true);
+                setIsLoading(true);
                 try {
                     const batch = writeBatch(db);
                     // O "Confirmar" em lote num projeto compartilhado significa apenas apagar o próprio convite
@@ -2336,7 +2396,7 @@ const App = () => {
                     console.error("Erro ao sair em massa:", error);
                     openAlert("Erro", "Falha ao sair dos projetos compartilhados.");
                 } finally {
-                    setLoading(false);
+                    setIsLoading(false);
                 }
             }
         );
@@ -2362,7 +2422,7 @@ const App = () => {
             "Transferir Projetos",
             `ATENÇÃO: Você vai transferir ${projectIds.length} projetos para ${email}.\n\nVocê perderá o acesso a todos eles se o destinatário aceitar.\n\nContinuar?`,
             async () => {
-                setLoading(true);
+                setIsLoading(true);
                 try {
                     const batch = writeBatch(db);
                     projectIds.forEach(pid => {
@@ -2386,7 +2446,7 @@ const App = () => {
                     console.error(error);
                     openAlert("Erro", "Falha na transferência em massa.");
                 } finally {
-                    setLoading(false);
+                    setIsLoading(false);
                 }
             }
         );
@@ -2398,7 +2458,7 @@ const App = () => {
     //         "Excluir Projetos",
     //         `ATENÇÃO: Esta ação é IRREVERSÍVEL.\n\nIsso apagará PERMANENTEMENTE os ${ids.length} projetos selecionados e seus dados.\n\nDeseja realmente continuar?`,
     //         async () => {
-    //             setLoading(true);
+    //             setIsLoading(true);
     //             try {
     //                 for (const id of ids) {
     //                     await performDeleteProject(id);
@@ -2408,7 +2468,7 @@ const App = () => {
     //                 console.error(error);
     //                 openAlert("Erro", "Falha ao excluir alguns projetos em massa.");
     //             } finally {
-    //                 setLoading(false);
+    //                 setIsLoading(false);
     //             }
     //         }
     //     );
@@ -3016,13 +3076,6 @@ const App = () => {
         const item = items.find(i => i.id === id);
         if (!item) return;
 
-        const initialColor = item.color ||
-            (item.type === 'CABLE' ? item.color :
-                (nodeColorSettings && nodeColorSettings[item.type]) ||
-                ITEM_TYPES[item.type]?.defaultColor || '#000000');
-
-        const showPicker = item.type === 'CABLE' || ['POP', 'CEO', 'CTO', 'TOWER', 'POST', 'OBJECT'].includes(item.type);
-
         // REGRA DE OURO: O targetProjectId pertence ao item. Fallback apenas se o item for órfão na UI (raro)
         const targetProjectId = item._projectId || activeProjectId;
 
@@ -3032,9 +3085,39 @@ const App = () => {
             .filter(Boolean)
             .map(t => ({ id: t.id, name: t.name }));
         const cleanTargetProjectId = String(targetProjectId || '').trim();
-        const availableTagsList = Object.values(projectTags).filter(t =>
-            String(t._projectId || '').trim() === cleanTargetProjectId
-        );
+        const cleanActiveProjectId = String(activeProjectId || '').trim();
+        const availableTagsList = Object.values(projectTags).filter(t => {
+            const pId = String(t._projectId || '').trim();
+            return pId === cleanTargetProjectId || pId === cleanActiveProjectId;
+        });
+
+        // Se for uma área, usa o AreaModal
+        if (item.type === 'AREA') {
+            setAreaModalConfig({
+                id: item.id,
+                projectId: item._projectId,
+                isCircleMode: item.isCircle || false,
+                defaultName: item.name,
+                color: item.color,
+                colorOpacity: item.colorOpacity,
+                fillColor: item.fillColor,
+                fillOpacity: item.fillOpacity,
+                radius: item.radius,
+                angle: item.angle,
+                direction: item.direction,
+                tags: itemTagsList,
+                positions: item.positions,
+                center: item.center // Pode ser nulo, mas garantimos repassar caso seja círculo no futuro
+            });
+            return;
+        }
+
+        const initialColor = item.color ||
+            (item.type === 'CABLE' ? item.color :
+                (nodeColorSettings && nodeColorSettings[item.type]) ||
+                ITEM_TYPES[item.type]?.defaultColor || '#000000');
+
+        const showPicker = item.type === 'CABLE' || ['POP', 'CEO', 'CTO', 'TOWER', 'POST', 'OBJECT'].includes(item.type);
 
         openEditModal(
             "Editar Item",            // 1. Título
@@ -4563,12 +4646,12 @@ const App = () => {
         reader.onload = async (e) => {
             const text = e.target.result;
             try {
-                setLoading(true);
+                setIsLoading(true);
                 const importedItems = parseKMLImport(text);
 
                 if (importedItems.length === 0) {
                     openAlert("Erro", "Nenhum item válido encontrado no KML.");
-                    setLoading(false);
+                    setIsLoading(false);
                     return;
                 }
 
@@ -4579,7 +4662,7 @@ const App = () => {
                 if (conflicts.length > 0) {
                     setTempCleanItems(cleanItems); // Guarda os bons
                     setDuplicatesData(conflicts);  // Mostra os ruins
-                    setLoading(false);
+                    setIsLoading(false);
                     return; // PAUSA O PROCESSO AQUI
                 }
 
@@ -4589,7 +4672,7 @@ const App = () => {
             } catch (error) {
                 console.error("Erro na importação:", error);
                 openAlert("Erro", "Falha ao ler o arquivo KML.");
-                setLoading(false);
+                setIsLoading(false);
             } finally {
                 if (fileInputRef.current) fileInputRef.current.value = "";
             }
@@ -4601,7 +4684,7 @@ const App = () => {
     const proceedToConfiguration = (finalItemsList) => {
         if (finalItemsList.length === 0) {
             openAlert("Info", "Nenhum item selecionado para importação.");
-            setLoading(false);
+            setIsLoading(false);
             return;
         }
 
@@ -4612,12 +4695,12 @@ const App = () => {
             items: finalItemsList,
             colors: uniqueColors
         });
-        setLoading(false);
+        setIsLoading(false);
     };
 
     const processImportConfiguration = async ({ colorMap, textRules }) => {
         if (!importModalData) return;
-        setLoading(true);
+        setIsLoading(true);
 
         const { items } = importModalData;
 
@@ -4656,7 +4739,7 @@ const App = () => {
             return item;
         });
 
-        setLoading(false);
+        setIsLoading(false);
         setImportModalData(null);
         setFixConnectionsData(updatedItems);
     };
@@ -4674,7 +4757,7 @@ const App = () => {
     // Passo 3: Salva tudo no banco após correções
     const saveImportedData = async (fixes) => {
         if (!fixConnectionsData) return;
-        setLoading(true);
+        setIsLoading(true);
 
         // Identifica quais cabos o usuário marcou para excluir
         // Se alguma ponta (A ou B) estiver marcada como DELETE, deletamos o cabo inteiro
@@ -4831,14 +4914,14 @@ const App = () => {
             // PASSO 2: Dá um micro-respiro para o React processar a desmontagem e atualizar o mapa,
             // e só então tira o loading e mostra o alerta final.
             setTimeout(() => {
-                setLoading(false);
+                setIsLoading(false);
                 openAlert("Importação Concluída", msg);
             }, 100);
 
         } catch (error) {
             console.error(error);
             setFixConnectionsData(null);
-            setLoading(false);
+            setIsLoading(false);
             openAlert("Erro", "Falha ao salvar itens.");
         }
         // OBS: Removemos o bloco 'finally', pois gerenciamos os estados manualmente acima.
@@ -5002,14 +5085,17 @@ const App = () => {
         }
         // 2. Ferramentas de Desenho
         else if (toolId === 'ADD_POP') {
+            if (!activeProjectGuard()) return;
             setInteractionMode('ADD_NODE');
             setNodeTypeToAdd('POP');
         }
         else if (toolId === 'ADD_CEO') {
+            if (!activeProjectGuard()) return;
             setInteractionMode('ADD_NODE');
             setNodeTypeToAdd('CEO');
         }
         else if (toolId === 'ADD_CTO') {
+            if (!activeProjectGuard()) return;
             setInteractionMode('ADD_NODE');
             setNodeTypeToAdd('CTO');
         }
@@ -5017,16 +5103,28 @@ const App = () => {
             setInteractionMode('DRAW_CABLE');
         }
         else if (toolId === 'ADD_TOWER') {
+            if (!activeProjectGuard()) return;
             setInteractionMode('ADD_NODE');
             setNodeTypeToAdd('TOWER');
         }
         else if (toolId === 'ADD_POST') {
+            if (!activeProjectGuard()) return;
             setInteractionMode('ADD_NODE');
             setNodeTypeToAdd('POST');
         }
         else if (toolId === 'ADD_OBJECT') {
+            if (!activeProjectGuard()) return;
             setInteractionMode('ADD_NODE');
             setNodeTypeToAdd('OBJECT');
+        }
+        // Áreas
+        else if (toolId === 'ADD_AREA') {
+            if (!activeProjectGuard()) return;
+            setInteractionMode('ADD_AREA');
+        }
+        else if (toolId === 'ADD_CIRCLE_AREA') {
+            if (!activeProjectGuard()) return;
+            setInteractionMode('ADD_CIRCLE_AREA');
         }
         // 3. Clientes
         else if (toolId === 'ADD_CLIENT') {
@@ -5041,6 +5139,8 @@ const App = () => {
         if (interactionMode === 'MEASURE') return 'MEASURE';
         if (interactionMode === 'DRAW_CABLE') return 'ADD_CABLE';
         if (interactionMode === 'ADD_CLIENT') return 'ADD_CLIENT';
+        if (interactionMode === 'ADD_AREA') return 'ADD_AREA';
+        if (interactionMode === 'ADD_CIRCLE_AREA') return 'ADD_CIRCLE_AREA';
         if (interactionMode === 'ADD_NODE') {
             if (nodeTypeToAdd === 'POP') return 'ADD_POP';
             if (nodeTypeToAdd === 'CEO') return 'ADD_CEO';
@@ -5229,6 +5329,8 @@ const App = () => {
                                 connections={visibleConnections}
                                 signalNames={signalNames}
 
+                                previewAreaConfig={previewAreaConfig}
+                                onUpdatePreviewAreaConfig={setPreviewAreaConfig}
                                 interactionMode={interactionMode}
                                 onMapClick={handleMapBgClick}
                                 onNodeClick={handleMapNodeClick}
@@ -5257,6 +5359,15 @@ const App = () => {
                                 onSwitchToCanvas={() => setViewMode('CANVAS')}
                                 cableStartNodeId={cableStartNode?.id}
                                 onLocationFound={(latlng) => setUserLocation({ lat: latlng.lat, lng: latlng.lng })}
+                                onAreaDrawComplete={(positions) => {
+                                    if (!activeProjectGuard()) return;
+                                    setAreaModalConfig({
+                                        isCircleMode: false,
+                                        positions,
+                                        defaultName: `Área ${items.filter(i => i.type === 'AREA').length + 1}`
+                                    });
+                                    setInteractionMode('SELECT');
+                                }}
 
                             />
                         </div>
@@ -5434,6 +5545,11 @@ const App = () => {
                         setIsKMLExportModalOpen(true);
                     }}
                     onImportKML={() => {
+                        if (!activeProjectGuard()) {
+                            setIsSettingsOpen(false);
+                            return;
+                        }
+                        setIsSettingsOpen(false);
                         fileInputRef.current.click();
                     }}
                     onBackup={() => {
@@ -5466,7 +5582,7 @@ const App = () => {
                         setDetailId(null);
                         return null;
                     }
-                    if (detailedItem.type === 'POST' || detailedItem.type === 'OBJECT') {
+                    if (detailedItem.type === 'POST' || detailedItem.type === 'OBJECT' || detailedItem.type === 'AREA') {
                         return (
                             <GenericModal
                                 item={detailedItem}
@@ -5595,6 +5711,36 @@ const App = () => {
                         onConfirm={handleModalSubmit}
                         onCancel={() => { setModalConfig(null); cableStartNodeRef.current = null; setCableStartNode(null); }}
                     />
+                )}
+                {areaModalConfig && (
+                    <div className={areaModalConfig.isCircleMode ? "z-[2000]" : ""}>
+                        <AreaModal
+                            key={areaModalConfig.id || 'new-area'}
+                            isCircleMode={areaModalConfig.isCircleMode}
+                            initialValue={areaModalConfig.defaultName}
+                            initialColor={areaModalConfig.color}
+                            initialColorOpacity={areaModalConfig.colorOpacity}
+                            initialFillColor={areaModalConfig.fillColor}
+                            initialFillOpacity={areaModalConfig.fillOpacity}
+                            initialTags={areaModalConfig.tags}
+                            initialRadius={areaModalConfig.radius}
+                            initialAngle={areaModalConfig.angle}
+                            initialDirection={areaModalConfig.direction}
+                            availableTags={Object.values(projectTags).filter(t => {
+                                const targetId = String(areaModalConfig.projectId || activeProjectId || '').trim();
+                                const activeId = String(activeProjectId || '').trim();
+                                const pId = String(t._projectId || '').trim();
+                                return pId === targetId || pId === activeId;
+                            })}
+                            onConfirm={handleSaveArea}
+                            onCancel={() => {
+                                setAreaModalConfig(null);
+                                setPreviewAreaConfig(null);
+                            }}
+                            onLiveUpdate={(config) => setPreviewAreaConfig(prev => ({ ...areaModalConfig, ...prev, ...config }))}
+                            currentDirection={previewAreaConfig?.direction}
+                        />
+                    </div>
                 )}
                 {editModalConfig && <ItemModal mode="edit" {...editModalConfig} standards={cableColorStandards} nodeColorSettings={nodeColorSettings} favoriteColors={favoriteColors} onCancel={() => setEditModalConfig(null)} />}
                 {standardsModalOpen && <StandardsModal standards={cableColorStandards} onClose={() => setStandardsModalOpen(false)} onSave={(newStds) => { updateStandardsDB(newStds); setStandardsModalOpen(false); }} />}

@@ -7,7 +7,9 @@ import {
     Sun, Moon, Settings, HouseWifi,
     Route,
     MapPin,
-    Tag // <--- Importação do Tag adicionada aqui
+    Tag,
+    Hexagon,
+    CircleDashed
 } from 'lucide-react';
 import { CEOIcon, CTOIcon, PostIcon } from '../icons';
 
@@ -72,7 +74,7 @@ const Dock = ({
             items: [
                 { id: 'SELECT', icon: MousePointer2, label: 'Ponteiro', action: () => setActiveTool('SELECT') },
                 ...(viewMode === 'CANVAS'
-                    ? [{ id: 'RULER', icon: BoxSelect, label: 'Área', action: () => setActiveTool('RULER') }]
+                    ? [{ id: 'RULER', icon: BoxSelect, label: 'Selecionar', action: () => setActiveTool('RULER') }]
                     : [{ id: 'MEASURE', icon: Ruler, label: 'Régua', action: () => setActiveTool('MEASURE') }])
             ]
         },
@@ -88,6 +90,10 @@ const Dock = ({
                 { id: 'ADD_TOWER', icon: RadioTower, label: 'Torre', action: () => setActiveTool('ADD_TOWER') },
                 { id: 'ADD_POST', icon: PostIcon, label: 'Poste', action: () => setActiveTool('ADD_POST') },
                 { id: 'ADD_OBJECT', icon: MapPin, label: 'Objeto', action: () => setActiveTool('ADD_OBJECT') },
+                ...(viewMode === 'CANVAS' ? [] : [
+                    { id: 'ADD_AREA', icon: Hexagon, label: 'Área', action: () => setActiveTool('ADD_AREA') },
+                    { id: 'ADD_CIRCLE_AREA', icon: CircleDashed, label: 'Área (Círculo)', action: () => setActiveTool('ADD_CIRCLE_AREA') }
+                ])
             ]
         }
     ], [viewMode, setActiveTool]);
