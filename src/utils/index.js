@@ -206,10 +206,34 @@ export const calculatePower = (items, connections, itemId, portId, side = 'A', v
 
 
 
-// Escapa caracteres especiais XML para evitar que quebrem o arquivo KML
-const escapeXML = (str) => {
+// Decodifica entidades XML e HTML (&lt;, &gt;, &amp;, &quot;, &apos;, &#39;, etc.)
+// Usado na importação de KML e para prevenir duplicação de escape
+export const unescapeXML = (str) => {
     if (typeof str !== 'string') return str;
-    return str.replace(/[<>&'"]/g, (c) => {
+    return str
+        .replace(/&amp;lt;/g, '<')
+        .replace(/&amp;gt;/g, '>')
+        .replace(/&amp;quot;/g, '"')
+        .replace(/&amp;apos;/g, "'")
+        .replace(/&amp;amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+        .replace(/&#39;/g, "'")
+        .replace(/&#34;/g, '"')
+        .replace(/&#60;/g, '<')
+        .replace(/&#62;/g, '>')
+        .replace(/&#38;/g, '&')
+        .replace(/&amp;/g, '&');
+};
+
+// Escapa caracteres especiais XML apenas para elementos de texto simples fora de CDATA (ex: <name>)
+// Primeiro decodifica entidades para evitar double-escaping (ex: &amp;lt; ou &lt;&gt;)
+export const escapeXML = (str) => {
+    if (typeof str !== 'string') return str;
+    const cleanStr = unescapeXML(str);
+    return cleanStr.replace(/[<>&'"]/g, (c) => {
         switch (c) {
             case '<': return '&lt;';
             case '>': return '&gt;';
@@ -220,6 +244,18 @@ const escapeXML = (str) => {
         }
     });
 };
+
+// Envolve o texto em CDATA de forma segura para KML (<description>)
+// No CDATA do XML, caracteres como <, >, &, ", ' NÃO devem ser escapados para entidades,
+// permitindo que símbolos como '<>', '->' e anotações ricas apareçam exatamente como pretendido.
+// Apenas a sequência de fechamento de CDATA ']]>' é tratada para não quebrar a sintaxe XML.
+export const wrapCDATA = (text) => {
+    if (!text || !String(text).trim()) return '<![CDATA[]]>';
+    const cleanText = unescapeXML(String(text).trim());
+    const safeContent = cleanText.replace(/\]\]>/g, ']]]]><![CDATA[>');
+    return `<![CDATA[${safeContent}]]>`;
+};
+
 
 // EXPORTAÇÃO KML =================================//
 // 1. Função auxiliar para converter cor HEX (#RRGGBB) para KML (aabbggrr)
@@ -241,12 +277,12 @@ const hexToKmlColor = (hex) => {
     return `ff${b}${g}${r}`;
 };
 // 1. Gera o mapa de sinais do Cabo (Fibra a Fibra)
-const generateCableDescription = (cable, allItems, connections, signalConfigs) => {
+const generateCableDescription = (cable, allItems, connections, signalConfigs, portLabels = {}) => {
     let text = `=== MAPA DE SINAIS ===\n\n`;
 
     for (let i = 0; i < cable.ports; i++) {
         // Pega o sinal (Lado A é suficiente para verificar o que passa na fibra)
-        const signals = getSignalInfo(allItems, connections, {}, signalConfigs, cable.id, i, 'A');
+        const signals = getSignalInfo(allItems, connections, portLabels, signalConfigs, cable.id, i, 'A');
         const signalText = signals.length > 0
             ? signals.map(s => s.name).join(', ')
             : 'Livre';
@@ -259,10 +295,10 @@ const generateCableDescription = (cable, allItems, connections, signalConfigs) =
         text += `${cable.notes}\n`;
     }
 
-    return `<![CDATA[${escapeXML(text.trim())}]]>`; // CDATA evita problemas com caracteres especiais
+    return wrapCDATA(text);
 };
 // 2. Gera o Plano de Fusão do Nó (O que conecta com o que)
-const generateNodeDescription = (node, allItems, connections, signalConfigs) => {
+const generateNodeDescription = (node, allItems, connections, signalConfigs, portLabels = {}) => {
     // Encontra todos os cabos conectados a este nó (externamente)
     const attachedCables = allItems.filter(i =>
         i.type === 'CABLE' && (i.fromNode === node.id || i.toNode === node.id)
@@ -287,8 +323,8 @@ const generateNodeDescription = (node, allItems, connections, signalConfigs) => 
                 // Busca o que está conectado nesta fibra, deste lado (mySide)
                 const conn = findConnection(connections, cable.id, i, mySide);
 
-                // Busca o sinal que passa aqui
-                const signals = getSignalInfo(allItems, connections, {}, signalConfigs, cable.id, i, mySide);
+                // Busca o sinal que passa aqui através de toda a topologia
+                const signals = getSignalInfo(allItems, connections, portLabels, signalConfigs, cable.id, i, mySide);
                 const signalText = signals.length > 0
                     ? signals.map(s => s.name).join(', ')
                     : '-';
@@ -333,7 +369,7 @@ const generateNodeDescription = (node, allItems, connections, signalConfigs) => 
         text += `${node.notes}\n`;
     }
 
-    return `<![CDATA[${escapeXML(text.trim())}]]>`;
+    return wrapCDATA(text);
 };
 // 2. Retorna o ícone KML específico com base no tipo e iconType
 const getNodeKmlIcon = (node) => {
@@ -359,44 +395,102 @@ const getNodeKmlIcon = (node) => {
 export const downloadKML = async (selectedProjects, data, signalConfigs) => {
     if (!selectedProjects || selectedProjects.length === 0) return false;
 
-    const { items, connections } = data;
+    const { items = [], connections = [], allProjects = [], portLabels = {} } = data || {};
 
     // Imports feitos uma vez fora do loop
     const { getDocs, getDoc, query, collection, doc } = await import('firebase/firestore');
     const { db } = await import('../config/firebaseConfig');
 
+    // Base acumulada com todos os itens, conexões, configurações de sinal e labels
+    const allItems = [...items];
+    const allConnections = [...connections];
+    const allSignalConfigs = { ...(signalConfigs || {}) };
+    const allPortLabels = { ...(portLabels || {}) };
+
+    // 1. Garante que os dados dos projetos selecionados estejam presentes
     for (const project of selectedProjects) {
-        try {
-            const projectPath = `artifacts/ftth-production/users/${project.ownerId}/projects/${project.id}`;
+        const projectPath = `artifacts/ftth-production/users/${project.ownerId}/projects/${project.id}`;
+        const hasProjectItems = allItems.some(i => i._projectId === project.id);
 
-            // Busca itens do projeto — usa memória se disponível, senão vai ao Firestore
-            let projectItems = items.filter(i => i._projectId === project.id);
-            let projectConnections = connections.filter(c => c._projectId === project.id);
-
-            if (projectItems.length === 0) {
+        if (!hasProjectItems) {
+            try {
                 const itemsSnap = await getDocs(query(collection(db, `${projectPath}/items`)));
-                projectItems = itemsSnap.docs.map(d => ({ id: d.id, ...d.data(), _projectId: project.id, _ownerId: project.ownerId }));
+                const fetchedItems = itemsSnap.docs.map(d => ({ id: d.id, ...d.data(), _projectId: project.id, _ownerId: project.ownerId }));
+                allItems.push(...fetchedItems);
 
                 const connSnap = await getDocs(query(collection(db, `${projectPath}/connections`)));
-                projectConnections = connSnap.docs.map(d => ({ id: d.id, ...d.data(), _projectId: project.id, _ownerId: project.ownerId }));
-            }
-
-            // Sempre busca os sinais do próprio projeto no Firestore para garantir que as
-            // configurações de sinal reflitam este projeto, independente do que está no state global
-            let projectSignalConfigs = signalConfigs || {};
-            try {
-                const signalsDoc = await getDoc(doc(db, `${projectPath}/settings`, 'signals'));
-                if (signalsDoc.exists()) {
-                    projectSignalConfigs = signalsDoc.data();
-                }
+                const fetchedConns = connSnap.docs.map(d => ({ id: d.id, ...d.data(), _projectId: project.id, _ownerId: project.ownerId }));
+                allConnections.push(...fetchedConns);
             } catch (e) {
-                console.warn(`Não foi possível buscar sinais do projeto ${project.name}. Usando estado global.`, e);
+                console.warn(`Erro ao buscar dados do projeto ${project.name}:`, e);
             }
+        }
 
-            // Separa nós e cabos
-            const areas = projectItems.filter(i => i.type === 'AREA');
-            const nodes = projectItems.filter(i => !i.parentId && i.type !== 'CABLE' && i.type !== 'AREA');
-            const cables = projectItems.filter(i => i.type === 'CABLE');
+        // Mescla as configurações de sinais do projeto sem sobrescrever as dos outros projetos
+        try {
+            const signalsDoc = await getDoc(doc(db, `${projectPath}/settings`, 'signals'));
+            if (signalsDoc.exists()) {
+                const { id, _migrated, _projectId, ...sigData } = signalsDoc.data();
+                Object.assign(allSignalConfigs, sigData);
+            }
+        } catch (_) { }
+    }
+
+    // 2. Carregamento resiliente de nós/projetos conectados que estejam faltando em allItems
+    const missingNodeIds = new Set();
+    allItems.forEach(i => {
+        if (i.type === 'CABLE') {
+            if (i.fromNode && !allItems.some(n => n.id === i.fromNode)) missingNodeIds.add(i.fromNode);
+            if (i.toNode && !allItems.some(n => n.id === i.toNode)) missingNodeIds.add(i.toNode);
+        }
+    });
+
+    if (missingNodeIds.size > 0 && allProjects && allProjects.length > 0) {
+        for (const otherProj of allProjects) {
+            if (allItems.some(i => i._projectId === otherProj.id)) continue;
+
+            try {
+                const otherPath = `artifacts/ftth-production/users/${otherProj.ownerId}/projects/${otherProj.id}`;
+                const otherSnap = await getDocs(query(collection(db, `${otherPath}/items`)));
+                const otherItems = otherSnap.docs.map(d => ({ id: d.id, ...d.data(), _projectId: otherProj.id, _ownerId: otherProj.ownerId }));
+
+                if (otherItems.some(oi => missingNodeIds.has(oi.id))) {
+                    allItems.push(...otherItems);
+
+                    const otherConnSnap = await getDocs(query(collection(db, `${otherPath}/connections`)));
+                    allConnections.push(...otherConnSnap.docs.map(d => ({ id: d.id, ...d.data(), _projectId: otherProj.id, _ownerId: otherProj.ownerId })));
+
+                    const otherSigDoc = await getDoc(doc(db, `${otherPath}/settings`, 'signals'));
+                    if (otherSigDoc.exists()) {
+                        const { id, _migrated, _projectId, ...sigData } = otherSigDoc.data();
+                        Object.assign(allSignalConfigs, sigData);
+                    }
+                }
+            } catch (_) { }
+        }
+    }
+
+    // 3. Monta e exporta o KML de cada projeto selecionado
+    for (const project of selectedProjects) {
+        try {
+            // Separa elementos deste projeto
+            const areas = allItems.filter(i => i._projectId === project.id && i.type === 'AREA');
+            const nodes = allItems.filter(i => i._projectId === project.id && !i.parentId && i.type !== 'CABLE' && i.type !== 'AREA');
+
+            // REGRA DE PERTENCIMENTO DE CABOS:
+            // O cabo pertence ao projeto cujo o node onde o lado de origem (fromNode) do cabo está conectado.
+            // Cabos conectando nodes de dois projetos diferentes pertencem ao projeto do nó de origem.
+            const cables = allItems.filter(item => {
+                if (item.type !== 'CABLE') return false;
+
+                const originNode = allItems.find(n => n.id === item.fromNode);
+                if (originNode) {
+                    return originNode._projectId === project.id;
+                }
+
+                // Fallback caso o nó de origem não seja encontrado
+                return item._projectId === project.id;
+            });
 
             // Monta o KML do projeto
             let kmlContent = `<?xml version="1.0" encoding="UTF-8"?>
@@ -409,7 +503,7 @@ export const downloadKML = async (selectedProjects, data, signalConfigs) => {
             nodes.forEach(node => {
                 if (node.lat && node.lng) {
                     const color = hexToKmlColor(node.color || '#ffffff');
-                    const description = generateNodeDescription(node, projectItems, projectConnections, projectSignalConfigs);
+                    const description = generateNodeDescription(node, allItems, allConnections, allSignalConfigs, allPortLabels);
                     const iconUrl = getNodeKmlIcon(node);
                     kmlContent += `
         <Placemark>
@@ -458,7 +552,7 @@ export const downloadKML = async (selectedProjects, data, signalConfigs) => {
                     kmlContent += `
         <Placemark>
             <name>${escapeXML(area.name || 'Área')}</name>
-            <description>${escapeXML(area.notes || '')}</description>
+            <description>${wrapCDATA(area.notes || '')}</description>
             <Style>
                 <LineStyle>
                     <color>${kmlStrokeColor}</color>
@@ -484,18 +578,23 @@ export const downloadKML = async (selectedProjects, data, signalConfigs) => {
 
             // --- LINHAS (Cabos) ---
             cables.forEach(cable => {
-                const nodeA = nodes.find(n => n.id === cable.fromNode);
-                const nodeB = nodes.find(n => n.id === cable.toNode);
+                const nodeA = allItems.find(n => n.id === cable.fromNode);
+                const nodeB = allItems.find(n => n.id === cable.toNode);
 
-                if (nodeA && nodeB && nodeA.lat && nodeB.lat) {
+                const latA = nodeA?.lat ?? cable.startCoords?.lat;
+                const lngA = nodeA?.lng ?? cable.startCoords?.lng;
+                const latB = nodeB?.lat ?? cable.endCoords?.lat;
+                const lngB = nodeB?.lng ?? cable.endCoords?.lng;
+
+                if (latA != null && lngA != null && latB != null && lngB != null) {
                     const strokeColor = hexToKmlColor(cable.color || '#000000');
-                    const description = generateCableDescription(cable, projectItems, projectConnections, projectSignalConfigs);
+                    const description = generateCableDescription(cable, allItems, allConnections, allSignalConfigs, allPortLabels);
 
-                    let coordsString = `${nodeA.lng},${nodeA.lat},0`;
+                    let coordsString = `${lngA},${latA},0`;
                     if (cable.waypoints && cable.waypoints.length > 0) {
                         cable.waypoints.forEach(wp => { coordsString += ` ${wp.lng},${wp.lat},0`; });
                     }
-                    coordsString += ` ${nodeB.lng},${nodeB.lat},0`;
+                    coordsString += ` ${lngB},${latB},0`;
 
                     kmlContent += `
         <Placemark>
@@ -675,8 +774,17 @@ export const parseKMLImport = (kmlText) => {
 
     // O processPlacemark agora recebe as pastas (tags) onde ele se encontra
     const processPlacemark = (p, currentTags) => {
-        const name = getTextByTagName(p, "name").trim() || "";
-        const description = getTextByTagName(p, "description").trim() || "";
+        const rawName = getTextByTagName(p, "name").trim() || "";
+        const rawDescription = getTextByTagName(p, "description").trim() || "";
+
+        const name = unescapeXML(rawName);
+        const description = unescapeXML(
+            rawDescription
+                .replace(/<br\s*[\/]?>/gi, '\n')
+                .replace(/<\/p>/gi, '\n')
+                .replace(/<\/div>/gi, '\n')
+                .replace(/<\/?(b|i|u|strong|em|span|font|table|tr|td|th|tbody|thead)\b[^>]*>/gi, '')
+        ).trim();
 
         let itemColor = null;
         const styleUrl = getTextByTagName(p, "styleUrl").trim();
@@ -789,7 +897,7 @@ export const parseKMLImport = (kmlText) => {
             // Busca o nome da pasta também ignorando prefixos
             const nameNode = Array.from(node.children).find(c => (c.localName || c.nodeName || '').replace(/^.*:/, '') === 'name');
             if (nameNode && nameNode.textContent) {
-                const folderName = nameNode.textContent.trim().toUpperCase();
+                const folderName = unescapeXML(nameNode.textContent.trim()).toUpperCase();
                 if (folderName && !nodeTags.includes(folderName)) {
                     nodeTags.push(folderName);
                 }
