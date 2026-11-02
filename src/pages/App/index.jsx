@@ -614,6 +614,7 @@ const App = () => {
     const [visibleProjectIds, setVisibleProjectIds] = useState([]); // Os projetos "Olho"
     const [isProjectManagerOpen, setIsProjectManagerOpen] = useState(false); // Abre o modal de gerencia de projetos
     const [projectDataCache, setProjectDataCache] = useState({}); // Cache de dados separado por projeto: { [projectId]: { items: [], connections: [] } }
+    const projectListenersRef = useRef(new Map()); // Map<projectId, unsubFunction[]> para manter listeners de projetos estáveis sem recriações desnecessárias
 
     // --- ESTADOS PARA MULTI-USUÁRIO ---
     const [projectOwnerId, setProjectOwnerId] = useState(null); // Quem é o dono dos dados que estou vendo? //idDonoProjeto, definirIdDonoProjeto
@@ -837,27 +838,52 @@ const App = () => {
         };
     }, [user]); // Depende apenas do usuário logado
 
-    // Carrega DADOS (Itens, Conexões e SETTINGS)
+    // Carrega DADOS (Itens, Conexões e SETTINGS) de todos os projetos disponíveis
+    // Mantém listeners estáveis por projeto em projectListenersRef, garantindo que
+    // a rede completa esteja sincronizada para cálculo e segmentação de sinais contínuos,
+    // indiferente de quais projetos estejam visíveis ou ocultos no mapa.
     useEffect(() => {
-        if (!user || visibleProjectIds.length === 0) {
+        if (!user) {
+            projectListenersRef.current.forEach(unsubs => unsubs.forEach(u => { try { u(); } catch (_) { } }));
+            projectListenersRef.current.clear();
             setProjectDataCache({});
             return;
         }
 
-        const unsubscribers = [];
         const allAvailableProjects = [...myProjects, ...sharedProjects];
+        const currentProjectIds = new Set(allAvailableProjects.map(p => p.id));
 
-        // A. Carregar dados ESPECÍFICOS DE CADA PROJETO (Itens, Conexões, Sinais, Labels)
-        // Campos permitidos para projetos com permissão READ_ONLY_GEOMETRY
+        // 1. Cancela listeners de projetos que foram excluídos ou desvinculados
+        for (const [pid, unsubs] of projectListenersRef.current.entries()) {
+            if (!currentProjectIds.has(pid)) {
+                unsubs.forEach(u => { try { u(); } catch (_) { } });
+                projectListenersRef.current.delete(pid);
+                setProjectDataCache(prev => {
+                    const next = { ...prev };
+                    delete next[pid];
+                    return next;
+                });
+            }
+        }
+
+        // Se o usuário não tiver projetos cadastrados, libera o carregamento
+        if (allAvailableProjects.length === 0) {
+            setIsLoading(false);
+            return;
+        }
+
+        // 2. Inicia listeners apenas para projetos novos que ainda não estão sendo escutados
         const GEOMETRY_ONLY_FIELDS = ['id', 'color', 'lat', 'lng', 'name', 'lastEditor', 'type', 'fromNode', 'toNode', 'waypoints', 'parentId', 'fiberCount'];
 
-        visibleProjectIds.forEach(pid => {
-            const projMeta = allAvailableProjects.find(p => p.id === pid);
-            if (!projMeta) return;
+        allAvailableProjects.forEach(projMeta => {
+            const pid = projMeta.id;
+            if (projectListenersRef.current.has(pid)) return; // Já está escutando este projeto!
 
             const targetOwnerId = projMeta.ownerId;
             const basePath = `artifacts/ftth-production/users/${targetOwnerId}/projects/${pid}`;
             const isRestricted = projMeta.permission === 'READ_ONLY_GEOMETRY';
+
+            const projectUnsubs = [];
 
             const createListener = (colName, cacheKey) => {
                 return onSnapshot(collection(db, `${basePath}/${colName}`), (snap) => {
@@ -870,7 +896,7 @@ const App = () => {
                     // DATA SCRUBBING: Para projetos restritos, mostra APENAS CTOs com campos de geometria
                     if (isRestricted && cacheKey === 'items') {
                         dataList = dataList
-                            .filter(item => item.type === 'CTO') // SOMENTE CTOs
+                            .filter(item => item.type === 'CTO')
                             .map(item => {
                                 const filtered = { _projectId: pid, _readOnly: true };
                                 GEOMETRY_ONLY_FIELDS.forEach(field => {
@@ -882,33 +908,37 @@ const App = () => {
                             });
                     }
 
-                    // Para projetos restritos, conexões não devem ser carregadas (filtradas abaixo)
-                    // Mas caso passem, marca como somente leitura
                     if (isRestricted && cacheKey === 'connections') {
-                        dataList = []; // Não carregar conexões para projetos restritos
+                        dataList = [];
                     }
 
                     setProjectDataCache(prev => ({
                         ...prev,
                         [pid]: { ...prev[pid], [cacheKey]: dataList }
                     }));
+                }, (error) => {
+                    console.error(`Erro ao sincronizar ${colName} do projeto ${pid}:`, error);
                 });
             };
 
-            unsubscribers.push(createListener('items', 'items'));
-            // Para projetos restritos, NÃO carregamos conexões nem settings
+            projectUnsubs.push(createListener('items', 'items'));
             if (!isRestricted) {
-                unsubscribers.push(createListener('connections', 'connections'));
+                projectUnsubs.push(createListener('connections', 'connections'));
+                projectUnsubs.push(createListener('settings', 'settings'));
             }
-            if (!isRestricted) {
-                unsubscribers.push(createListener('settings', 'settings'));
-            }
+
+            projectListenersRef.current.set(pid, projectUnsubs);
         });
 
+    }, [user, myProjects, sharedProjects]);
+
+    // Limpeza de todos os listeners de projetos ao desmontar o componente
+    useEffect(() => {
         return () => {
-            unsubscribers.forEach(u => u());
+            projectListenersRef.current.forEach(unsubs => unsubs.forEach(u => { try { u(); } catch (_) { } }));
+            projectListenersRef.current.clear();
         };
-    }, [user, JSON.stringify(visibleProjectIds), myProjects.length, sharedProjects.length]);
+    }, []);
 
     // Carrega CONFIGURAÇÕES GLOBAIS DO USUÁRIO (Cores, Padrões)
     // IMPORTANTE: Depende de `user` (não de `projectOwnerId`) pois essas configurações
@@ -955,25 +985,25 @@ const App = () => {
 
     }, [user]); // Depende do usuário logado — recarrega ao logar/deslogar
 
-    // 3. Unifica e Processa o Cache (Apenas Itens, Conexões e Configs Locais)
+    // 3. Unifica e Processa o Cache (Topologia Completa da Rede para Sinais e Conexões)
+    // Mantém todos os itens, conexões e configurações de sinal da rede completa acessíveis
+    // para que a segmentação e propagação de sinal nunca sejam interrompidas por projetos ocultos.
     useEffect(() => {
-        const visibleData = Object.entries(projectDataCache)
-            .filter(([projectId]) => visibleProjectIds.includes(projectId))
-            .map(([, data]) => data);
+        const allCachedProjects = Object.values(projectDataCache);
 
-        // 1. Itens e Conexões
-        const allItems = visibleData.flatMap(p => p?.items || []);
-        const allConns = visibleData.flatMap(p => p?.connections || []);
+        // 1. Itens e Conexões de TODA a rede
+        const allItems = allCachedProjects.flatMap(p => p?.items || []);
+        const allConns = allCachedProjects.flatMap(p => p?.connections || []);
 
         setItems(allItems);
         setConnections(allConns);
 
-        // 2. Processar Settings LOCAIS (Sinais, PortLabels)
+        // 2. Processar Settings da rede completa (Sinais, PortLabels e Tags)
         let mergedSignals = {};
         let mergedPortLabels = {};
         let mergedTags = {}; // Objeto base para as tags
 
-        visibleData.forEach(projectData => {
+        allCachedProjects.forEach(projectData => {
             if (projectData.settings) {
                 projectData.settings.forEach(doc => {
                     if (doc.id === 'signals') {
@@ -984,16 +1014,13 @@ const App = () => {
                         const { id, _migrated, _projectId, ...labels } = doc;
                         mergedPortLabels = { ...mergedPortLabels, ...labels };
                     }
-                    // --- NOVO: Captura das Tags ---
+                    // --- Captura das Tags ---
                     if (doc.id === 'tags') {
                         const { id, _migrated, _projectId, ...tagsObj } = doc;
 
                         // BUSCA BLINDADA DO ID DO PROJETO
-                        // Como a estrutura do seu cache pode variar, rastreamos todas as propriedades possíveis.
-                        // A última opção assume que você passa o projectId dentro do próprio documento em settings.
                         const safeProjectId = projectData.id || projectData.projectId || projectData._projectId || doc._projectId || _projectId;
 
-                        // Aviso de segurança para depuração se o projeto vier órfão
                         if (!safeProjectId) {
                             console.warn("ALERTA DE SEGURANÇA: Não encontramos o ID do projeto para carimbar as tags. Verifique a estrutura:", projectData);
                         }
@@ -1014,12 +1041,56 @@ const App = () => {
 
         setIsLoading(false);
 
-    }, [projectDataCache, visibleProjectIds]);
+    }, [projectDataCache]);
 
-    // Centralizar em um node
+    // DERIVAÇÕES DE ITENS E CONEXÕES VISÍVEIS
+    // Filtra para o Mapa e Canvas apenas os itens de projetos ativos (com "olho" aberto) e tags selecionadas
+    const visibleItems = useMemo(() => {
+        if (!items || !Array.isArray(items)) return [];
+
+        return items.filter(item => {
+            // 1. Filtro de Visibilidade por Projeto (O Olhinho do Projeto)
+            // Se o item pertence a um projeto que NÃO está visível, oculta do mapa e canvas
+            if (item._projectId && !visibleProjectIds.includes(item._projectId)) {
+                return false;
+            }
+
+            // 2. Lógica do Filtro de Tags
+            if (selectedFilterTags.length > 0) {
+                // Montamos o nome (maiúsculo) de todas as tags do item
+                const itemTagNames = (item.tags || [])
+                    .map(tId => projectTags[tId]?.name)
+                    .filter(Boolean);
+
+                // Verifica se o item possui pelo menos uma das tags selecionadas no filtro
+                if (!itemTagNames.some(name => selectedFilterTags.includes(name))) {
+                    return false;
+                }
+            }
+            return true; // Passou no filtro
+        });
+    }, [items, visibleProjectIds, selectedFilterTags, projectTags]);
+
+    /**
+     * Derivação das conexões visíveis no mapa.
+     * Filtra conexões pertencentes aos projetos visíveis para renderização visual leve.
+     */
+    const visibleConnections = useMemo(() => {
+        if (!connections || !Array.isArray(connections)) return [];
+
+        return connections.filter(conn => {
+            // Se a conexão tem _projectId e o projeto NÃO está visível, oculta do mapa
+            if (conn._projectId && !visibleProjectIds.includes(conn._projectId)) {
+                return false;
+            }
+            return true;
+        });
+    }, [connections, visibleProjectIds]);
+
+    // Centralizar nós visíveis na tela
     useEffect(() => {
-        if (!isLoading && items.length > 0 && !hasCentered) {
-            const visibleNodes = items.filter(i => !i.parentId && ITEM_TYPES[i.type]?.category === 'NODE');
+        if (!isLoading && visibleItems.length > 0 && !hasCentered) {
+            const visibleNodes = visibleItems.filter(i => !i.parentId && ITEM_TYPES[i.type]?.category === 'NODE');
             if (visibleNodes.length > 0) {
                 let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
                 visibleNodes.forEach(node => {
@@ -1047,7 +1118,7 @@ const App = () => {
                 setHasCentered(true);
             }
         }
-    }, [isLoading, items.length, hasCentered]);
+    }, [isLoading, visibleItems.length, hasCentered]);
 
     // Função auxiliar: obtém a localização atual do usuário via GPS
     // Retorna { lat, lng } ou null se não conseguir (sem travar a busca)
@@ -1113,7 +1184,7 @@ const App = () => {
 
                 // Usamos 'for...of' porque ele permite usar 'break' para PARAR o loop
                 // O .filter() original era obrigado a ler a lista inteira até o fim
-                for (const item of items) {
+                for (const item of visibleItems) {
                     // Se já achamos 50 itens, PARA DE PROCURAR IMEDIATAMENTE.
                     // Isso evita travar o navegador processando milhares de itens.
                     if (results.length >= MAX_RESULTS) break;
@@ -1133,7 +1204,7 @@ const App = () => {
         }, 300); // <--- CORRIGIDO: 300ms (era 3000ms/3segundos)
 
         return () => clearTimeout(timer);
-    }, [searchTerm, searchMode, viewMode, items]);
+    }, [searchTerm, searchMode, viewMode, visibleItems]);
 
     // Atalhos de teclado
     useEffect(() => {
@@ -1209,51 +1280,6 @@ const App = () => {
 
 
     // COMPONENTES -----------
-
-    const visibleItems = useMemo(() => {
-        if (!items || !Array.isArray(items)) return [];
-
-        return items.filter(item => {
-            // Lógica do Filtro de Tags
-            if (selectedFilterTags.length > 0) {
-                // Montamos o nome (maiúsculo) de todas as tags do item
-                const itemTagNames = (item.tags || [])
-                    .map(tId => projectTags[tId]?.name)
-                    .filter(Boolean);
-
-                // Verifica se o item possui pelo menos uma das tags selecionadas no filtro
-                if (!itemTagNames.some(name => selectedFilterTags.includes(name))) {
-                    return false;
-                }
-            }
-            return true; // Passou no filtro
-        });
-    }, [items, selectedFilterTags, projectTags]);
-
-    /**
-     * Derivação das conexões visíveis no mapa.
-     * Garante que não ocorram erros de renderização caso a matriz de conexões seja indefinida.
-     */
-    const visibleConnections = useMemo(() => {
-        // 1. Tratamento de segurança: se a base de conexões ainda não foi carregada da API/Banco, retorna array vazio.
-        if (!connections || !Array.isArray(connections)) return [];
-
-        // 2. Como removemos o filtro de tags, no momento todas as conexões devem ser renderizadas.
-        // Retornamos a matriz original limpa.
-        return connections;
-
-        /* 
-         * NOTA ESTRATÉGICA PARA O FUTURO:
-         * Quando você voltar a ter filtros (ex: esconder CTOs com defeito no visibleItems),
-         * você não pode renderizar conexões cujos nós não estão na tela. 
-         * Você fará isso substituindo o "return connections;" pela lógica abaixo:
-         * 
-         * const visibleItemIds = new Set(visibleItems.map(item => item.id));
-         * return connections.filter(conn => 
-         *    visibleItemIds.has(conn.fromNode) && visibleItemIds.has(conn.toNode)
-         * );
-         */
-    }, [connections]); // Se no futuro for usar a lógica do Set acima, lembre-se de adicionar 'visibleItems' aqui neste array de dependências.
 
 
     // OTIMIZAÇÃO: Agrupar cabos (Bundles) para curvatura
@@ -2088,8 +2114,6 @@ const App = () => {
         if (activeProjectId === id) {
             setActiveProjectId(null);
             setProjectOwnerId(uid);
-            setItems([]);
-            setConnections([]);
         }
 
         setVisibleProjectIds(prev => prev.filter(p => p !== id));
@@ -3060,7 +3084,7 @@ const App = () => {
         }
     };
 
-    const filteredItems = items.filter(i => i.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    const filteredItems = visibleItems.filter(i => i.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
     // Atualiza a posição do nó APENAS no state local (sem write ao Firestore).
     // O salvamento no banco ocorre apenas no handleEnd (ao soltar o item).
@@ -5433,7 +5457,7 @@ const App = () => {
 
                                     // 2. Se não tem sugestão, busca pelo texto exato que está no input agora
                                     if (!target && searchMode === 'ITEMS' && currentText) {
-                                        const found = items.find(i => i.name.toLowerCase().includes(currentText.toLowerCase()));
+                                        const found = visibleItems.find(i => i.name.toLowerCase().includes(currentText.toLowerCase()));
                                         if (found) {
                                             target = { type: 'ITEM', data: found, display_name: found.name };
                                         }
@@ -5755,7 +5779,7 @@ const App = () => {
                 {infoModalConfig && <InfoModal {...infoModalConfig} />}
                 {confirmConfig && <ConfirmModal {...confirmConfig} onClose={() => setConfirmConfig(null)} />}
                 {alertConfig && <AlertModal {...alertConfig} />}
-                {reportOpen && (<ReportModal items={items} connections={connections} onAlertRequest={openAlert} onClose={() => setReportOpen(false)} />)}
+                {reportOpen && (<ReportModal items={visibleItems} connections={visibleConnections} onAlertRequest={openAlert} onClose={() => setReportOpen(false)} />)}
 
                 {/* Outros Modais */}
                 {photoModalData &&
@@ -5796,7 +5820,12 @@ const App = () => {
                         try {
                             await downloadKML(
                                 selectedProjects,
-                                { items, connections },
+                                {
+                                    items,
+                                    connections,
+                                    allProjects: [...myProjects, ...sharedProjects],
+                                    portLabels
+                                },
                                 signalNames
                             );
                             openAlert("Sucesso", `${selectedProjects.length} arquivo(s) KML gerado(s) com sucesso!`);
