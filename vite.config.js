@@ -21,6 +21,10 @@ export default defineConfig({
       // Arquivos extras que você quer que o PWA guarde em cache (se tiver)
       includeAssets: 'favicon.svg',
 
+      workbox: {
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
+      },
+
       // 3. Configuração do Manifest (A "identidade" do seu App)
       manifest: {
         id: '/',

@@ -96,4 +96,4 @@ export const ATTENUATION = {
     }
 };
 
-export const VERSAO = '0.11.43'
+export const VERSAO = '0.11.5'
