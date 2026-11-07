@@ -609,18 +609,55 @@ const App = () => {
 
     const [myProjects, setMyProjects] = useState([]);      // Projetos que EU criei
 
-    // O activeProjectId continua sendo o ID do projeto selecionado (com persistência no localStorage)
+    // Configuração de tempo de expiração da sessão recente (6 horas).
+    // Permite que ao minimizar o app no celular e voltar rapidamente, o usuário não perca o projeto de vista,
+    // mas se passar muito tempo (ex: no dia seguinte), inicializa sem forçar o projeto antigo.
+    const RECENT_SESSION_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas
+
+    // O activeProjectId continua sendo o ID do projeto selecionado (com persistência recente no localStorage)
     const [activeProjectId, setActiveProjectId] = useState(() => {
-        try { return localStorage.getItem('ftth_active_project') || null; } catch { return null; }
+        try {
+            const savedTime = localStorage.getItem('ftth_last_active_time');
+            const savedProj = localStorage.getItem('ftth_active_project');
+            if (savedTime && savedProj) {
+                const diff = Date.now() - parseInt(savedTime, 10);
+                if (diff < RECENT_SESSION_TTL_MS) {
+                    return savedProj;
+                }
+            }
+            localStorage.removeItem('ftth_active_project');
+            return null;
+        } catch {
+            return null;
+        }
     });  // O projeto "Caneta"
+
     const [visibleProjectIds, setVisibleProjectIds] = useState(() => {
         try {
-            const saved = localStorage.getItem('ftth_visible_projects');
-            return saved ? JSON.parse(saved) : [];
+            const savedTime = localStorage.getItem('ftth_last_active_time');
+            const savedVisible = localStorage.getItem('ftth_visible_projects');
+            const savedProj = localStorage.getItem('ftth_active_project');
+            if (savedTime) {
+                const diff = Date.now() - parseInt(savedTime, 10);
+                if (diff < RECENT_SESSION_TTL_MS) {
+                    let list = [];
+                    if (savedVisible) {
+                        const parsed = JSON.parse(savedVisible);
+                        if (Array.isArray(parsed)) list = parsed;
+                    }
+                    if (savedProj && !list.includes(savedProj)) {
+                        list.push(savedProj);
+                    }
+                    return list;
+                }
+            }
+            localStorage.removeItem('ftth_visible_projects');
+            return [];
         } catch {
             return [];
         }
     }); // Os projetos "Olho"
+    const hasRestoredFocusRef = useRef(false); // Flag para garantir foco automático apenas uma vez na restauração
     const [isProjectManagerOpen, setIsProjectManagerOpen] = useState(false); // Abre o modal de gerencia de projetos
     const [projectDataCache, setProjectDataCache] = useState({}); // Cache de dados separado por projeto: { [projectId]: { items: [], connections: [] } }
     const projectListenersRef = useRef(new Map()); // Map<projectId, unsubFunction[]> para manter listeners de projetos estáveis sem recriações desnecessárias
@@ -774,6 +811,11 @@ const App = () => {
                 setMyProjects([]);
                 // setSharedProjects([]);
                 setActiveProjectId(null);
+                setVisibleProjectIds([]);
+                localStorage.removeItem('ftth_active_project');
+                localStorage.removeItem('ftth_visible_projects');
+                localStorage.removeItem('ftth_last_active_time');
+                localStorage.removeItem('ftth_map_view_state');
             }
         });
 
@@ -829,13 +871,103 @@ const App = () => {
 
     // --- TEMA LIGHT/DARK ---
     useEffect(() => {
-        localStorage.setItem('ftth_theme', isDarkMode ? 'dark' : 'light');
-    }, [isDarkMode]);
-    // --- TEMA LIGHT/DARK ---
-    useEffect(() => {
         if (isDarkMode) { document.documentElement.classList.add('dark'); localStorage.setItem('ftth_theme', 'dark'); }
         else { document.documentElement.classList.remove('dark'); localStorage.setItem('ftth_theme', 'light'); }
     }, [isDarkMode]);
+
+    // --- PERSISTÊNCIA DE SESSÃO RECENTE DO PROJETO (PROTEÇÃO CONTRA RELOAD EM MOBILE) ---
+    // 1. Salva activeProjectId e atualiza timestamp de atividade
+    useEffect(() => {
+        try {
+            if (activeProjectId) {
+                localStorage.setItem('ftth_active_project', activeProjectId);
+                localStorage.setItem('ftth_last_active_time', Date.now().toString());
+            } else {
+                localStorage.removeItem('ftth_active_project');
+            }
+        } catch (e) {
+            console.error('Erro ao persistir activeProjectId:', e);
+        }
+    }, [activeProjectId]);
+
+    // 2. Salva visibleProjectIds e atualiza timestamp de atividade
+    useEffect(() => {
+        try {
+            if (visibleProjectIds && visibleProjectIds.length > 0) {
+                localStorage.setItem('ftth_visible_projects', JSON.stringify(visibleProjectIds));
+                localStorage.setItem('ftth_last_active_time', Date.now().toString());
+            } else {
+                localStorage.removeItem('ftth_visible_projects');
+            }
+        } catch (e) {
+            console.error('Erro ao persistir visibleProjectIds:', e);
+        }
+    }, [visibleProjectIds]);
+
+    // 3. Atualiza timestamp quando o aplicativo é minimizado no celular (PageHide / VisibilityChange)
+    useEffect(() => {
+        const updateActivityTimestamp = () => {
+            if (activeProjectId || (visibleProjectIds && visibleProjectIds.length > 0)) {
+                try {
+                    localStorage.setItem('ftth_last_active_time', Date.now().toString());
+                } catch (_) { }
+            }
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') {
+                updateActivityTimestamp();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('pagehide', updateActivityTimestamp);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('pagehide', updateActivityTimestamp);
+        };
+    }, [activeProjectId, visibleProjectIds]);
+
+    // 4. Reconecta o dono do projeto (projectOwnerId) e garante visibilidade quando os metadados dos projetos chegam
+    useEffect(() => {
+        const allAvailable = [...myProjects, ...sharedProjects];
+        if (!activeProjectId || allAvailable.length === 0) return;
+
+        const currentActive = allAvailable.find(p => p.id === activeProjectId);
+        if (currentActive) {
+            setProjectOwnerId(currentActive.ownerId);
+
+            // Garante que o projeto ativo esteja na lista de visíveis
+            setVisibleProjectIds(prev => prev.includes(activeProjectId) ? prev : [...prev, activeProjectId]);
+
+            // Se ainda não centralizou após restauração de sessão, foca automaticamente nele apenas se NÃO houver coordenada salva recente
+            if (!hasRestoredFocusRef.current) {
+                hasRestoredFocusRef.current = true;
+                const hasSavedView = (() => {
+                    try {
+                        const raw = localStorage.getItem('ftth_map_view_state');
+                        if (!raw) return false;
+                        const data = JSON.parse(raw);
+                        if (!data || !data.lat || !data.lng || !data.zoom) return false;
+                        if (Math.abs(data.lat) < 0.001 && Math.abs(data.lng) < 0.001) return false;
+                        const age = Date.now() - (data.timestamp || 0);
+                        return age < (6 * 60 * 60 * 1000); // 6 horas
+                    } catch {
+                        return false;
+                    }
+                })();
+
+                if (!hasSavedView) {
+                    setPendingFocusProjectId(currentActive.id);
+                }
+            }
+        } else if (!isProjectsMetadataLoading) {
+            // Se os metadados carregaram e o projeto não existe mais (excluído ou desvinculado)
+            setActiveProjectId(null);
+            localStorage.removeItem('ftth_active_project');
+        }
+    }, [activeProjectId, myProjects, sharedProjects, isProjectsMetadataLoading]);
 
     // CARREGAMENTO INICIAL E GERENCIAMENTO DE PROJETOS
     useEffect(() => {
@@ -5510,6 +5642,7 @@ const App = () => {
                             <FiberMap
                                 items={visibleItems}
                                 allItems={items}
+                                activeProjectId={activeProjectId}
                                 onAlertRequest={openAlert}
                                 saveItem={saveItem}
                                 isDarkMode={isDarkMode}

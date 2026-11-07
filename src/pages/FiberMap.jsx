@@ -18,45 +18,130 @@ import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
 
 // ============================================================================
-// MEMÓRIA DE ESTADO DO MAPA (Sobrevive à troca de ecrãs, reseta no F5)
+// MEMÓRIA DE ESTADO DO MAPA (Persistente com segurança e debounced)
 // ============================================================================
 let globalSavedCenter = [0, 0]; // Guarda a posição do mapa
 let globalSavedZoom = 1; // Guarda o zoom do mapa
 let globalSavedBearing = 0; // Guarda o ângulo (0 é o Norte)
 let mapHasMoved = false; // Bandeira para sabermos se o utilizador já mexeu no mapa
+
+const getSavedMapView = () => {
+    try {
+        const raw = localStorage.getItem('ftth_map_view_state');
+        if (raw) {
+            const data = JSON.parse(raw);
+            const RECENT_TTL = 6 * 60 * 60 * 1000; // 6 horas
+            const isValidCoords = data.lat && data.lng && (Math.abs(Number(data.lat)) > 0.001 || Math.abs(Number(data.lng)) > 0.001);
+            const isRecent = (Date.now() - (data.timestamp || 0)) < RECENT_TTL;
+            if (isValidCoords && isRecent) {
+                return {
+                    center: [Number(data.lat), Number(data.lng)],
+                    zoom: Number(data.zoom) || 16,
+                    bearing: Number(data.bearing) || 0
+                };
+            }
+        }
+    } catch (_) { }
+    return null;
+};
+
 const MapStateController = () => {
     const map = useMap(); // Acede diretamente à instância nativa do Leaflet
+    const hasInitializedRef = useRef(false);
+    const saveTimeoutRef = useRef(null);
 
-    // 1. Assim que o mapa reaparecer no ecrã, forçamos a posição salva
+    // 1. Assim que o mapa montar, restaura a posição salva segura da sessão recente
     useEffect(() => {
-        if (mapHasMoved) {
-            // setView é um comando nativo que obriga o mapa a ir para as coordenadas
+        if (hasInitializedRef.current) return;
+        hasInitializedRef.current = true;
+
+        const saved = getSavedMapView();
+        if (saved) {
+            map.setView(saved.center, saved.zoom, { animate: false });
+            if (saved.bearing !== undefined && map.setBearing) {
+                map.setBearing(saved.bearing);
+            }
+            globalSavedCenter = saved.center;
+            globalSavedZoom = saved.zoom;
+            globalSavedBearing = saved.bearing || 0;
+            mapHasMoved = true;
+            setTimeout(() => map.invalidateSize(), 100);
+            return;
+        }
+
+        // Fallback em memória (se apenas trocou de tela na mesma sessão sem reload)
+        if (mapHasMoved && globalSavedCenter && (Math.abs(globalSavedCenter[0]) > 0.001 || Math.abs(globalSavedCenter[1]) > 0.001)) {
             map.setView(globalSavedCenter, globalSavedZoom, { animate: false });
-
-            // Restaura a rotação exata em que você parou
-            map.setBearing(globalSavedBearing);
-
-            // Garantia extra: corrige problemas do mapa ficar cinzento se foi ocultado por CSS
+            if (map.setBearing) map.setBearing(globalSavedBearing);
             setTimeout(() => map.invalidateSize(), 100);
         }
     }, [map]);
 
-    // 2. Escutamos os movimentos e guardamos sempre a última posição
+    // 2. Escuta movimentos e salva com debounce de 300ms para evitar sobrecarga de I/O
     useMapEvents({
         moveend: () => {
             const currentCenter = map.getCenter();
+            const currentZoom = map.getZoom();
+            const currentBearing = map.getBearing ? map.getBearing() : 0;
+
+            if (Math.abs(currentCenter.lat) < 0.001 && Math.abs(currentCenter.lng) < 0.001) return;
+
             globalSavedCenter = [currentCenter.lat, currentCenter.lng];
-            globalSavedZoom = map.getZoom();
-            globalSavedBearing = map.getBearing(); // Salva a rotação
+            globalSavedZoom = currentZoom;
+            globalSavedBearing = currentBearing;
             mapHasMoved = true;
+
+            if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+            saveTimeoutRef.current = setTimeout(() => {
+                try {
+                    const payload = {
+                        lat: currentCenter.lat,
+                        lng: currentCenter.lng,
+                        zoom: currentZoom,
+                        bearing: currentBearing,
+                        timestamp: Date.now()
+                    };
+                    localStorage.setItem('ftth_map_view_state', JSON.stringify(payload));
+                } catch (_) { }
+            }, 300);
         },
-        // O evento "rotate" é específico do seu plugin leaflet-rotate
-        // Precisamos dele porque, às vezes, girar o mapa sem sair do lugar não dispara o "moveend"
         rotate: () => {
-            globalSavedBearing = map.getBearing();
-            mapHasMoved = true;
+            if (map.getBearing) {
+                globalSavedBearing = map.getBearing();
+                mapHasMoved = true;
+            }
         }
     });
+
+    // 3. Salva imediatamente ao minimizar ou sair da página no celular
+    useEffect(() => {
+        const handleFlush = () => {
+            try {
+                const currentCenter = map.getCenter();
+                if (Math.abs(currentCenter.lat) < 0.001 && Math.abs(currentCenter.lng) < 0.001) return;
+                const payload = {
+                    lat: currentCenter.lat,
+                    lng: currentCenter.lng,
+                    zoom: map.getZoom(),
+                    bearing: map.getBearing ? map.getBearing() : 0,
+                    timestamp: Date.now()
+                };
+                localStorage.setItem('ftth_map_view_state', JSON.stringify(payload));
+            } catch (_) { }
+        };
+
+        window.addEventListener('pagehide', handleFlush);
+        const handleVisChange = () => {
+            if (document.visibilityState === 'hidden') handleFlush();
+        };
+        document.addEventListener('visibilitychange', handleVisChange);
+
+        return () => {
+            window.removeEventListener('pagehide', handleFlush);
+            document.removeEventListener('visibilitychange', handleVisChange);
+            if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+        };
+    }, [map]);
 
     return null;
 };
@@ -1959,13 +2044,25 @@ const CircleAreaPreview = ({ config, onUpdateConfig }) => {
 const FiberMap = ({
     items, saveItem, isDarkMode, interactionMode, onMapClick, onNodeClick, isPickingMode, flyToCoords,
     allItems, onEdit, onDelete, onOpen, onSplit, onClearSearch, cableStartNodeId, onLocationFound, onAlertRequest, onAreaDrawComplete,
-    previewAreaConfig, onUpdatePreviewAreaConfig
+    previewAreaConfig, onUpdatePreviewAreaConfig, activeProjectId
 }) => {
 
     // Estado para enviar a posição do clique do menu de desambiguação para dentro do cabo
     const [forcedCablePosition, setForcedCablePosition] = useState(null);
 
     const defaultCenter = [0, 0];
+
+    // Restauração segura da visualização inicial (centro e zoom) para a sessão recente
+    const initialView = useMemo(() => {
+        const saved = getSavedMapView();
+        if (saved) {
+            return { center: saved.center, zoom: saved.zoom };
+        }
+        if (mapHasMoved && globalSavedCenter && (Math.abs(globalSavedCenter[0]) > 0.001 || Math.abs(globalSavedCenter[1]) > 0.001)) {
+            return { center: globalSavedCenter, zoom: globalSavedZoom };
+        }
+        return { center: defaultCenter, zoom: 1 };
+    }, []);
     const [selectedId, setSelectedId] = useState(null);
     const [showLabels, setShowLabels] = useState(false); // Substituiu zoomLevel numérico por booleano
     const [isHelpExpanded, setIsHelpExpanded] = useState(false); // Começa aberto
@@ -2071,8 +2168,8 @@ const FiberMap = ({
             )}
 
             <MapContainer
-                center={defaultCenter}
-                zoom={1}
+                center={initialView.center}
+                zoom={initialView.zoom}
                 zoomSnap={0} // 1. O segredo da fluidez: 0 permite qualquer valor decimal (ex: 5.12)
                 zoomDelta={1} // 2. Define quanto o zoom pula ao clicar nos botões + e - ou duplo clique
                 wheelPxPerZoomLevel={30} // 3. Ajusta a sensibilidade do scroll do mouse (quanto menor, mais rápido o zoom)
