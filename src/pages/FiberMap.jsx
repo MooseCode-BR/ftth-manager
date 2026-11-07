@@ -1274,7 +1274,7 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
                 }}
             />
         ));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [showEditControls, waypointsArr, cable.id]);
 
     return (
@@ -1553,7 +1553,7 @@ const AreaDrawTool = ({ isActive, onAreaDrawComplete }) => {
         click() {
             if (!isActive) return;
             const currentCenter = map.getCenter();
-            
+
             if (points.length >= 3) {
                 try {
                     const ptCenter = map.latLngToContainerPoint(currentCenter);
@@ -1564,9 +1564,9 @@ const AreaDrawTool = ({ isActive, onAreaDrawComplete }) => {
                         setPoints([]);
                         return;
                     }
-                } catch (e) {}
+                } catch (e) { }
             }
-            
+
             setPoints(prev => [...prev, currentCenter]);
         },
         contextmenu(e) {
@@ -1728,27 +1728,27 @@ const EditableArea = memo(({ area, onEdit, onDelete, onOpen, isSelected, onSelec
             const { lat, lng } = e.latlng;
             const newPositions = [...area.positions];
             const clickPt = L.latLng(lat, lng);
-            
+
             let bestIndex = 0;
             let minAddedDist = Infinity;
-            
+
             const len = newPositions.length;
             for (let i = 0; i < len; i++) {
                 const p1Pos = newPositions[i];
                 const p2Pos = newPositions[(i + 1) % len];
                 const p1 = L.latLng(Array.isArray(p1Pos) ? p1Pos : [p1Pos.lat, p1Pos.lng]);
                 const p2 = L.latLng(Array.isArray(p2Pos) ? p2Pos : [p2Pos.lat, p2Pos.lng]);
-                
+
                 const originalDist = p1.distanceTo(p2);
                 const newDist = p1.distanceTo(clickPt) + clickPt.distanceTo(p2);
                 const addedDist = newDist - originalDist;
-                
+
                 if (addedDist < minAddedDist) {
                     minAddedDist = addedDist;
                     bestIndex = i + 1;
                 }
             }
-            
+
             newPositions.splice(bestIndex, 0, { lat, lng });
             saveItem({ ...area, positions: newPositions });
             return;
@@ -1806,7 +1806,7 @@ const EditableArea = memo(({ area, onEdit, onDelete, onOpen, isSelected, onSelec
                 }}
             />
         ));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [showEditControls, positions, area.id]);
 
     const currentOutlineColor = previewAreaConfig?.color ?? area.color ?? '#3b82f6';
@@ -1933,7 +1933,7 @@ const handleIcon = L.divIcon({
 const CircleAreaPreview = ({ config, onUpdateConfig }) => {
     const map = useMap();
     const { center, radius, angle, direction, fillColor, fillOpacity, color, colorOpacity } = config;
-    
+
     const positions = useMemo(() => {
         if (!center || !radius || !angle) return [];
         return calculateCirclePositions(center, radius, angle, direction || 0);
@@ -1942,7 +1942,7 @@ const CircleAreaPreview = ({ config, onUpdateConfig }) => {
     if (!positions.length) return null;
 
     return (
-        <Polygon 
+        <Polygon
             positions={positions}
             pathOptions={{
                 color: color || '#3b82f6',
@@ -1968,9 +1968,9 @@ const FiberMap = ({
     const defaultCenter = [0, 0];
     const [selectedId, setSelectedId] = useState(null);
     const [showLabels, setShowLabels] = useState(false); // Substituiu zoomLevel numérico por booleano
-    const [isHelpExpanded, setIsHelpExpanded] = useState(true); // Começa aberto
+    const [isHelpExpanded, setIsHelpExpanded] = useState(false); // Começa aberto
     const [measureDistance, setMeasureDistance] = useState(0);
-    const [toggleCluster, setToggleCluster] = useState(true); // Cluster ativado por padrão
+    const [toggleCluster, setToggleCluster] = useState(false); // Cluster ativado por padrão
     // Estado para o marcador de clique longo / botão direito
     const [contextMenuPin, setContextMenuPin] = useState(null);
     // Estado para quando clicar em cabos sobrepostos

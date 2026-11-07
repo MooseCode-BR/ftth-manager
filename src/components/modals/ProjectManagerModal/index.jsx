@@ -39,7 +39,8 @@ const ProjectManagerModal = ({
     onClose,
     isOpen,
     isDarkMode,
-    onOpenProjectTags
+    onOpenProjectTags,
+    isLoadingProjects = false
 }) => {
     const [activeTab, setActiveTab] = useState('MY_PROJECTS');
     const [newProjectName, setNewProjectName] = useState('');
@@ -316,6 +317,40 @@ const ProjectManagerModal = ({
         onClose();
     };
 
+    // Componente esqueleto com efeito de pulso/shimmer (Instagram style) para carregamento de projetos
+    const renderSkeletons = (count = 3) => {
+        return Array.from({ length: count }).map((_, idx) => (
+            <div
+                key={`proj-skeleton-${idx}`}
+                className="flex flex-col rounded-lg border border-gray-200 dark:border-neutral-800 bg-white dark:bg-black p-3 lg:p-2.5 overflow-hidden animate-pulse select-none"
+            >
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                        {/* Checkbox placeholder */}
+                        <div className="w-4 h-4 rounded bg-gray-200 dark:bg-neutral-800 shrink-0" />
+
+                        <div className="flex flex-col flex-1 min-w-0 gap-2">
+                            {/* Título do Projeto */}
+                            <div className="h-3.5 bg-gray-200 dark:bg-neutral-800 rounded w-2/3 max-w-[180px]" />
+
+                            {/* Botões de Ação */}
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                                <div className="w-5 h-5 rounded bg-gray-200 dark:bg-neutral-800" />
+                                <div className="w-5 h-5 rounded bg-gray-200 dark:bg-neutral-800" />
+                                <div className="w-5 h-5 rounded bg-gray-200 dark:bg-neutral-800" />
+                                <div className="w-5 h-5 rounded bg-gray-200 dark:bg-neutral-800" />
+                                <div className="w-5 h-5 rounded bg-gray-200 dark:bg-neutral-800" />
+                            </div>
+
+                            {/* Status badge */}
+                            <div className="h-2 bg-gray-200 dark:bg-neutral-800 rounded w-16 mt-0.5" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        ));
+    };
+
     return (
         <div className={`
             /* 1. VISIBILIDADE: Esconde no mobile se estiver fechado, mas SEMPRE mostra no desktop */
@@ -546,7 +581,9 @@ const ProjectManagerModal = ({
                 {/* MEUS PROJETOS */}
                 {activeTab === 'MY_PROJECTS' && (
                     <div className="space-y-2.5">
-                        {filteredMyProjects.length === 0 ? (
+                        {isLoadingProjects ? (
+                            renderSkeletons(4)
+                        ) : filteredMyProjects.length === 0 ? (
                             <div className="text-center py-8 text-sm lg:text-xs font-medium text-gray-500 dark:text-gray-500">Nenhum projeto criado.</div>
                         ) : (
                             filteredMyProjects.map(proj => {
@@ -720,7 +757,9 @@ const ProjectManagerModal = ({
                 {/* ABA COMPARTILHADOS COMIGO */}
                 {activeTab === 'SHARED' && (
                     <div className="space-y-2.5">
-                        {filteredSharedProjects.length === 0 ? (
+                        {isLoadingProjects ? (
+                            renderSkeletons(2)
+                        ) : filteredSharedProjects.length === 0 ? (
                             <div className="text-center py-8 text-sm lg:text-xs font-medium text-gray-500 dark:text-gray-500">Nenhum projeto compartilhado.</div>
                         ) : (
                             filteredSharedProjects.map(proj => {
