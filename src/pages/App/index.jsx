@@ -31,7 +31,7 @@ import {
     Trash2, Box, Scissors, Activity, User, ArrowRightLeft, Edit3, Save, X, CircleUserRound, ZoomIn, ZoomOut,
     LogOut, Mail, Search, ShieldAlert, MapPin, MapPinned, Loader2, Lock, Unlock, Info, PackagePlus,
     DoorOpen, AlertTriangle, Play, Pause, ExternalLink, Tag,
-    PenTool
+    PenTool, RefreshCw, Check
 } from 'lucide-react';
 import LoadingFiber from '../../components/loadingfiber';
 
@@ -609,12 +609,74 @@ const App = () => {
 
     const [myProjects, setMyProjects] = useState([]);      // Projetos que EU criei
 
-    // O activeProjectId continua sendo o ID do projeto selecionado
-    const [activeProjectId, setActiveProjectId] = useState(null);  // O projeto "Caneta"
-    const [visibleProjectIds, setVisibleProjectIds] = useState([]); // Os projetos "Olho"
+    // Configuração de tempo de expiração da sessão recente (6 horas).
+    // Permite que ao minimizar o app no celular e voltar rapidamente, o usuário não perca o projeto de vista,
+    // mas se passar muito tempo (ex: no dia seguinte), inicializa sem forçar o projeto antigo.
+    const RECENT_SESSION_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas
+
+    // O activeProjectId continua sendo o ID do projeto selecionado (com persistência recente no localStorage)
+    const [activeProjectId, setActiveProjectId] = useState(() => {
+        try {
+            const savedTime = localStorage.getItem('ftth_last_active_time');
+            const savedProj = localStorage.getItem('ftth_active_project');
+            if (savedTime && savedProj) {
+                const diff = Date.now() - parseInt(savedTime, 10);
+                if (diff < RECENT_SESSION_TTL_MS) {
+                    return savedProj;
+                }
+            }
+            localStorage.removeItem('ftth_active_project');
+            return null;
+        } catch {
+            return null;
+        }
+    });  // O projeto "Caneta"
+
+    const [visibleProjectIds, setVisibleProjectIds] = useState(() => {
+        try {
+            const savedTime = localStorage.getItem('ftth_last_active_time');
+            const savedVisible = localStorage.getItem('ftth_visible_projects');
+            const savedProj = localStorage.getItem('ftth_active_project');
+            if (savedTime) {
+                const diff = Date.now() - parseInt(savedTime, 10);
+                if (diff < RECENT_SESSION_TTL_MS) {
+                    let list = [];
+                    if (savedVisible) {
+                        const parsed = JSON.parse(savedVisible);
+                        if (Array.isArray(parsed)) list = parsed;
+                    }
+                    if (savedProj && !list.includes(savedProj)) {
+                        list.push(savedProj);
+                    }
+                    return list;
+                }
+            }
+            localStorage.removeItem('ftth_visible_projects');
+            return [];
+        } catch {
+            return [];
+        }
+    }); // Os projetos "Olho"
+    const hasRestoredFocusRef = useRef(false); // Flag para garantir foco automático apenas uma vez na restauração
     const [isProjectManagerOpen, setIsProjectManagerOpen] = useState(false); // Abre o modal de gerencia de projetos
     const [projectDataCache, setProjectDataCache] = useState({}); // Cache de dados separado por projeto: { [projectId]: { items: [], connections: [] } }
     const projectListenersRef = useRef(new Map()); // Map<projectId, unsubFunction[]> para manter listeners de projetos estáveis sem recriações desnecessárias
+
+    // --- ESTADOS PARA CONTROLE DE CARREGAMENTO EM 2 FASES E FEEDBACK VISUAL ---
+    const [isProjectsMetadataLoading, setIsProjectsMetadataLoading] = useState(true);
+    const [loadingProgress, setLoadingProgress] = useState({
+        stage: 'Iniciando sistema...',
+        progress: 15,
+        projectName: ''
+    });
+    const [bgSyncStatus, setBgSyncStatus] = useState({
+        isSyncing: false,
+        isCompleted: false,
+        loadedCount: 0,
+        totalCount: 0
+    });
+    const priorityProjectIdsRef = useRef(new Set());
+    const bgQueueTimerRef = useRef(null);
 
     // --- ESTADOS PARA MULTI-USUÁRIO ---
     const [projectOwnerId, setProjectOwnerId] = useState(null); // Quem é o dono dos dados que estou vendo? //idDonoProjeto, definirIdDonoProjeto
@@ -749,6 +811,11 @@ const App = () => {
                 setMyProjects([]);
                 // setSharedProjects([]);
                 setActiveProjectId(null);
+                setVisibleProjectIds([]);
+                localStorage.removeItem('ftth_active_project');
+                localStorage.removeItem('ftth_visible_projects');
+                localStorage.removeItem('ftth_last_active_time');
+                localStorage.removeItem('ftth_map_view_state');
             }
         });
 
@@ -804,17 +871,112 @@ const App = () => {
 
     // --- TEMA LIGHT/DARK ---
     useEffect(() => {
-        localStorage.setItem('ftth_theme', isDarkMode ? 'dark' : 'light');
-    }, [isDarkMode]);
-    // --- TEMA LIGHT/DARK ---
-    useEffect(() => {
         if (isDarkMode) { document.documentElement.classList.add('dark'); localStorage.setItem('ftth_theme', 'dark'); }
         else { document.documentElement.classList.remove('dark'); localStorage.setItem('ftth_theme', 'light'); }
     }, [isDarkMode]);
 
+    // --- PERSISTÊNCIA DE SESSÃO RECENTE DO PROJETO (PROTEÇÃO CONTRA RELOAD EM MOBILE) ---
+    // 1. Salva activeProjectId e atualiza timestamp de atividade
+    useEffect(() => {
+        try {
+            if (activeProjectId) {
+                localStorage.setItem('ftth_active_project', activeProjectId);
+                localStorage.setItem('ftth_last_active_time', Date.now().toString());
+            } else {
+                localStorage.removeItem('ftth_active_project');
+            }
+        } catch (e) {
+            console.error('Erro ao persistir activeProjectId:', e);
+        }
+    }, [activeProjectId]);
+
+    // 2. Salva visibleProjectIds e atualiza timestamp de atividade
+    useEffect(() => {
+        try {
+            if (visibleProjectIds && visibleProjectIds.length > 0) {
+                localStorage.setItem('ftth_visible_projects', JSON.stringify(visibleProjectIds));
+                localStorage.setItem('ftth_last_active_time', Date.now().toString());
+            } else {
+                localStorage.removeItem('ftth_visible_projects');
+            }
+        } catch (e) {
+            console.error('Erro ao persistir visibleProjectIds:', e);
+        }
+    }, [visibleProjectIds]);
+
+    // 3. Atualiza timestamp quando o aplicativo é minimizado no celular (PageHide / VisibilityChange)
+    useEffect(() => {
+        const updateActivityTimestamp = () => {
+            if (activeProjectId || (visibleProjectIds && visibleProjectIds.length > 0)) {
+                try {
+                    localStorage.setItem('ftth_last_active_time', Date.now().toString());
+                } catch (_) { }
+            }
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') {
+                updateActivityTimestamp();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('pagehide', updateActivityTimestamp);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('pagehide', updateActivityTimestamp);
+        };
+    }, [activeProjectId, visibleProjectIds]);
+
+    // 4. Reconecta o dono do projeto (projectOwnerId) e garante visibilidade quando os metadados dos projetos chegam
+    useEffect(() => {
+        const allAvailable = [...myProjects, ...sharedProjects];
+        if (!activeProjectId || allAvailable.length === 0) return;
+
+        const currentActive = allAvailable.find(p => p.id === activeProjectId);
+        if (currentActive) {
+            setProjectOwnerId(currentActive.ownerId);
+
+            // Garante que o projeto ativo esteja na lista de visíveis
+            setVisibleProjectIds(prev => prev.includes(activeProjectId) ? prev : [...prev, activeProjectId]);
+
+            // Se ainda não centralizou após restauração de sessão, foca automaticamente nele apenas se NÃO houver coordenada salva recente
+            if (!hasRestoredFocusRef.current) {
+                hasRestoredFocusRef.current = true;
+                const hasSavedView = (() => {
+                    try {
+                        const raw = localStorage.getItem('ftth_map_view_state');
+                        if (!raw) return false;
+                        const data = JSON.parse(raw);
+                        if (!data || !data.lat || !data.lng || !data.zoom) return false;
+                        if (Math.abs(data.lat) < 0.001 && Math.abs(data.lng) < 0.001) return false;
+                        const age = Date.now() - (data.timestamp || 0);
+                        return age < (6 * 60 * 60 * 1000); // 6 horas
+                    } catch {
+                        return false;
+                    }
+                })();
+
+                if (!hasSavedView) {
+                    setPendingFocusProjectId(currentActive.id);
+                }
+            }
+        } else if (!isProjectsMetadataLoading) {
+            // Se os metadados carregaram e o projeto não existe mais (excluído ou desvinculado)
+            setActiveProjectId(null);
+            localStorage.removeItem('ftth_active_project');
+        }
+    }, [activeProjectId, myProjects, sharedProjects, isProjectsMetadataLoading]);
+
     // CARREGAMENTO INICIAL E GERENCIAMENTO DE PROJETOS
     useEffect(() => {
-        if (!user) return; // Só roda se estiver logado
+        if (!user) {
+            setIsProjectsMetadataLoading(true);
+            return; // Só roda se estiver logado
+        }
+
+        setIsProjectsMetadataLoading(true);
 
         // A. Carregar MEUS Projetos
         const myProjectsRef = collection(db, `artifacts/ftth-production/users/${user.uid}/projects`);
@@ -827,7 +989,10 @@ const App = () => {
             }));
 
             setMyProjects(list);
-
+            setIsProjectsMetadataLoading(false);
+        }, (error) => {
+            console.error('Erro ao carregar projetos do usuário:', error);
+            setIsProjectsMetadataLoading(false);
         });
 
         // B. Monitorar CONVITES e TRANSFERÊNCIAS (Agora via Hook useProjectNotifications)
@@ -838,22 +1003,31 @@ const App = () => {
         };
     }, [user]); // Depende apenas do usuário logado
 
-    // Carrega DADOS (Itens, Conexões e SETTINGS) de todos os projetos disponíveis
-    // Mantém listeners estáveis por projeto em projectListenersRef, garantindo que
-    // a rede completa esteja sincronizada para cálculo e segmentação de sinais contínuos,
-    // indiferente de quais projetos estejam visíveis ou ocultos no mapa.
+    // ============================================================================
+    // CARREGAMENTO INTELIGENTE EM 2 FASES (ARQUITETURA DE INICIALIZAÇÃO RÁPIDA)
+    // FASE 1: Conecta imediatamente os projetos prioritários (ativo / visíveis salvos)
+    //         para liberar a Splash Screen em ~1s com feedback de progresso real.
+    // FASE 2: Conecta e enfileira em segundo plano os projetos restantes em lotes
+    //         de 2 a cada 250ms sem bloquear o thread da UI nem afogar o Firestore,
+    //         mantendo a rede 100% contínua para cálculo de sinais.
+    // ============================================================================
     useEffect(() => {
         if (!user) {
+            if (bgQueueTimerRef.current) {
+                clearInterval(bgQueueTimerRef.current);
+                bgQueueTimerRef.current = null;
+            }
             projectListenersRef.current.forEach(unsubs => unsubs.forEach(u => { try { u(); } catch (_) { } }));
             projectListenersRef.current.clear();
             setProjectDataCache({});
+            setBgSyncStatus({ isSyncing: false, isCompleted: false, loadedCount: 0, totalCount: 0 });
             return;
         }
 
         const allAvailableProjects = [...myProjects, ...sharedProjects];
         const currentProjectIds = new Set(allAvailableProjects.map(p => p.id));
 
-        // 1. Cancela listeners de projetos que foram excluídos ou desvinculados
+        // 1. Cancela listeners de projetos excluídos ou desvinculados
         for (const [pid, unsubs] of projectListenersRef.current.entries()) {
             if (!currentProjectIds.has(pid)) {
                 unsubs.forEach(u => { try { u(); } catch (_) { } });
@@ -866,23 +1040,43 @@ const App = () => {
             }
         }
 
-        // Se o usuário não tiver projetos cadastrados, libera o carregamento
-        if (allAvailableProjects.length === 0) {
+        // Se o usuário não tem nenhum projeto cadastrado (e a busca de metadados já terminou)
+        if (!isProjectsMetadataLoading && allAvailableProjects.length === 0) {
+            setLoadingProgress({ stage: 'Pronto', progress: 100, projectName: '' });
             setIsLoading(false);
+            setBgSyncStatus({ isSyncing: false, isCompleted: true, loadedCount: 0, totalCount: 0 });
             return;
         }
 
-        // 2. Inicia listeners apenas para projetos novos que ainda não estão sendo escutados
+        if (allAvailableProjects.length === 0) {
+            return; // Aguardando metadados dos projetos
+        }
+
+        // 2. Determina projetos prioritários (o ativo e/ou os visíveis salvos; fallback no 1º)
+        const priorityIds = new Set();
+        if (activeProjectId && allAvailableProjects.some(p => p.id === activeProjectId)) {
+            priorityIds.add(activeProjectId);
+        }
+        visibleProjectIds.forEach(id => {
+            if (allAvailableProjects.some(p => p.id === id)) {
+                priorityIds.add(id);
+            }
+        });
+        if (priorityIds.size === 0 && allAvailableProjects.length > 0) {
+            priorityIds.add(allAvailableProjects[0].id);
+        }
+        priorityProjectIdsRef.current = priorityIds;
+
         const GEOMETRY_ONLY_FIELDS = ['id', 'color', 'lat', 'lng', 'name', 'lastEditor', 'type', 'fromNode', 'toNode', 'waypoints', 'parentId', 'fiberCount'];
 
-        allAvailableProjects.forEach(projMeta => {
+        // Função para anexar listeners por projeto
+        const attachProjectListener = (projMeta) => {
             const pid = projMeta.id;
-            if (projectListenersRef.current.has(pid)) return; // Já está escutando este projeto!
+            if (projectListenersRef.current.has(pid)) return;
 
             const targetOwnerId = projMeta.ownerId;
             const basePath = `artifacts/ftth-production/users/${targetOwnerId}/projects/${pid}`;
             const isRestricted = projMeta.permission === 'READ_ONLY_GEOMETRY';
-
             const projectUnsubs = [];
 
             const createListener = (colName, cacheKey) => {
@@ -893,7 +1087,6 @@ const App = () => {
                         _projectId: pid
                     }));
 
-                    // DATA SCRUBBING: Para projetos restritos, mostra APENAS CTOs com campos de geometria
                     if (isRestricted && cacheKey === 'items') {
                         dataList = dataList
                             .filter(item => item.type === 'CTO')
@@ -914,7 +1107,7 @@ const App = () => {
 
                     setProjectDataCache(prev => ({
                         ...prev,
-                        [pid]: { ...prev[pid], [cacheKey]: dataList }
+                        [pid]: { ...prev[pid], [cacheKey]: dataList, _loaded: true }
                     }));
                 }, (error) => {
                     console.error(`Erro ao sincronizar ${colName} do projeto ${pid}:`, error);
@@ -928,13 +1121,65 @@ const App = () => {
             }
 
             projectListenersRef.current.set(pid, projectUnsubs);
-        });
+        };
 
-    }, [user, myProjects, sharedProjects]);
+        // FASE 1: Conecta projetos prioritários imediatamente
+        const priorityProjects = allAvailableProjects.filter(p => priorityIds.has(p.id));
+        const secondaryProjects = allAvailableProjects.filter(p => !priorityIds.has(p.id));
+
+        const priorityName = priorityProjects.map(p => p.name).filter(Boolean).join(', ') || 'Principal';
+        setLoadingProgress(prev => ({
+            stage: 'Carregando topologia...',
+            progress: Math.max(prev.progress, 40),
+            projectName: priorityName
+        }));
+
+        priorityProjects.forEach(proj => attachProjectListener(proj));
+
+        // FASE 2: Enfileira projetos secundários em background (2 a cada 250ms)
+        if (bgQueueTimerRef.current) {
+            clearInterval(bgQueueTimerRef.current);
+            bgQueueTimerRef.current = null;
+        }
+
+        const unattachedSecondary = secondaryProjects.filter(p => !projectListenersRef.current.has(p.id));
+
+        if (unattachedSecondary.length > 0) {
+            setBgSyncStatus(prev => ({
+                isSyncing: true,
+                isCompleted: false,
+                loadedCount: Object.keys(projectDataCache).filter(k => projectDataCache[k]?.items !== undefined).length,
+                totalCount: allAvailableProjects.length
+            }));
+
+            let queueIndex = 0;
+            bgQueueTimerRef.current = setInterval(() => {
+                if (queueIndex >= unattachedSecondary.length) {
+                    clearInterval(bgQueueTimerRef.current);
+                    bgQueueTimerRef.current = null;
+                    return;
+                }
+                const batch = unattachedSecondary.slice(queueIndex, queueIndex + 2);
+                queueIndex += 2;
+                batch.forEach(p => attachProjectListener(p));
+            }, 250);
+        }
+
+        return () => {
+            if (bgQueueTimerRef.current) {
+                clearInterval(bgQueueTimerRef.current);
+                bgQueueTimerRef.current = null;
+            }
+        };
+    }, [user, myProjects, sharedProjects, isProjectsMetadataLoading]);
 
     // Limpeza de todos os listeners de projetos ao desmontar o componente
     useEffect(() => {
         return () => {
+            if (bgQueueTimerRef.current) {
+                clearInterval(bgQueueTimerRef.current);
+                bgQueueTimerRef.current = null;
+            }
             projectListenersRef.current.forEach(unsubs => unsubs.forEach(u => { try { u(); } catch (_) { } }));
             projectListenersRef.current.clear();
         };
@@ -1039,9 +1284,58 @@ const App = () => {
         setPortLabels(mergedPortLabels);
         setProjectTags(mergedTags);
 
-        setIsLoading(false);
+        // 3. FASE 1: Se todos os projetos prioritários já carregaram seus itens, fecha o splash screen
+        const priorityIds = Array.from(priorityProjectIdsRef.current);
+        const totalProjectsCount = myProjects.length + sharedProjects.length;
 
-    }, [projectDataCache]);
+        if (priorityIds.length > 0) {
+            const allPriorityReady = priorityIds.every(pid => projectDataCache[pid]?.items !== undefined);
+            if (allPriorityReady) {
+                setLoadingProgress(prev => ({
+                    stage: 'Rede carregada com sucesso!',
+                    progress: 100,
+                    projectName: prev.projectName
+                }));
+                setIsLoading(false);
+            } else {
+                setLoadingProgress(prev => ({
+                    stage: 'Recebendo elementos da rede...',
+                    progress: Math.min(85, prev.progress + 15),
+                    projectName: prev.projectName
+                }));
+            }
+        } else if (totalProjectsCount === 0 && !isProjectsMetadataLoading) {
+            setIsLoading(false);
+        }
+
+        // 4. FASE 2: Atualização do status de sincronização em segundo plano
+        const loadedProjectsCount = Object.keys(projectDataCache).filter(pid => projectDataCache[pid]?.items !== undefined).length;
+        const hasBackgroundProjects = totalProjectsCount > priorityIds.length;
+
+        if (totalProjectsCount > 0 && loadedProjectsCount >= totalProjectsCount) {
+            setBgSyncStatus({
+                isSyncing: hasBackgroundProjects,
+                isCompleted: true,
+                loadedCount: totalProjectsCount,
+                totalCount: totalProjectsCount
+            });
+
+            if (hasBackgroundProjects) {
+                const hideTimer = setTimeout(() => {
+                    setBgSyncStatus(prev => prev.isCompleted ? { ...prev, isSyncing: false } : prev);
+                }, 2500);
+                return () => clearTimeout(hideTimer);
+            }
+        } else if (hasBackgroundProjects) {
+            setBgSyncStatus({
+                isSyncing: true,
+                isCompleted: false,
+                loadedCount: loadedProjectsCount,
+                totalCount: totalProjectsCount
+            });
+        }
+
+    }, [projectDataCache, myProjects.length, sharedProjects.length, isProjectsMetadataLoading]);
 
     // DERIVAÇÕES DE ITENS E CONEXÕES VISÍVEIS
     // Filtra para o Mapa e Canvas apenas os itens de projetos ativos (com "olho" aberto) e tags selecionadas
@@ -5071,23 +5365,23 @@ const App = () => {
         }
     };
 
-    // Verifica login salvo ao iniciar
+    // Safety watchdog para a Splash Screen: garante que nunca trave
     useEffect(() => {
-        const savedUser = localStorage.getItem('ftth_user');
-        if (savedUser) {
-            setCurrentUser(JSON.parse(savedUser));
-        }
-
-        // Pequeno timeout artificial (opcional) para evitar piscada muito rápida
-        // ou apenas setIsLoading(false) direto se preferir velocidade máxima
-        setTimeout(() => {
+        const timer = setTimeout(() => {
             setIsLoading(false);
-        }, 1000); // 1 segundo de tela de load para dar uma sensação suave
+        }, 6000);
+        return () => clearTimeout(timer);
     }, []);
 
     // --- 1. TELA DE CARREGAMENTO (SPLASH SCREEN) ---
     if (isLoading || authLoading) {
-        return <LoadScreen />;
+        return (
+            <LoadScreen
+                stage={loadingProgress.stage}
+                progress={loadingProgress.progress}
+                projectName={loadingProgress.projectName}
+            />
+        );
     }
     // Se não tiver usuário, mostra Login
     if (!user) {
@@ -5182,6 +5476,7 @@ const App = () => {
 
             <ProjectManagerModal
                 isOpen={isProjectManagerOpen}
+                isLoadingProjects={isProjectsMetadataLoading}
                 myProjects={myProjects}
                 sharedProjects={sharedProjects}
                 pendingInvites={pendingInvites}
@@ -5347,6 +5642,7 @@ const App = () => {
                             <FiberMap
                                 items={visibleItems}
                                 allItems={items}
+                                activeProjectId={activeProjectId}
                                 onAlertRequest={openAlert}
                                 saveItem={saveItem}
                                 isDarkMode={isDarkMode}
@@ -5541,6 +5837,32 @@ const App = () => {
                         </div>
                     )}
                 </div>
+
+                {/* 3. INDICADOR DE SINCRONIZAÇÃO EM SEGUNDO PLANO (Centralizado na área do mapa, abaixo da barra de busca) */}
+                {bgSyncStatus.isSyncing && (
+                    <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[45] pointer-events-none">
+                        <div className="pointer-events-auto inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-medium shadow-lg backdrop-blur-md border animate-in fade-in slide-in-from-top-2 transition-all duration-300
+                            bg-white/85 text-gray-800 border-gray-200/90 shadow-black/5
+                            dark:bg-black/80 dark:text-gray-100 dark:border-white/20 dark:shadow-black/40"
+                        >
+                            {bgSyncStatus.isCompleted ? (
+                                <>
+                                    <Check size={14} className="text-emerald-500 dark:text-emerald-400 shrink-0" />
+                                    <span className="text-emerald-700 dark:text-emerald-300 font-semibold">
+                                        Topologia sincronizada
+                                    </span>
+                                </>
+                            ) : (
+                                <>
+                                    <RefreshCw size={14} className="text-blue-600 dark:text-blue-400 animate-spin shrink-0" />
+                                    <span className="text-gray-700 dark:text-gray-200">
+                                        Sincronizando rede completa ({bgSyncStatus.loadedCount}/{bgSyncStatus.totalCount})
+                                    </span>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {/* 4. DOCK (Substitui a Sidebar) */}
                 {userRole !== 'ATIVACAO' && (
