@@ -1,6 +1,5 @@
 import React, { useMemo, useEffect, useState, useRef, memo, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Polygon, useMapEvents, LayersControl, useMap, CircleMarker, ZoomControl, Popup } from 'react-leaflet';
-import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ITEM_TYPES, ICON_MAP } from '../config/constants';
@@ -11,6 +10,7 @@ import {
     Group, Ungroup, Crosshair, Navigation, DoorOpen, Copy
 } from 'lucide-react';
 import DraggableToolbar from '../components/DraggableToolbar';
+import PixiMapLayer from '../components/PixiMapLayer';
 
 // Configuração padrão do ícone do Leaflet
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -309,7 +309,12 @@ const createSearchIcon = () => {
 const MapClickHandler = ({ onMapBgClick, interactionMode, onDeselect, setContextMenuPin }) => {
     const map = useMap();
     useMapEvents({
-        click() {
+        click(e) {
+            // Se o clique já selecionou um nó, cluster ou cabo na camada WebGL (PixiMapLayer), ignora o deselect de fundo
+            if (e._handledByPixi || (e.originalEvent && e.originalEvent._handledByPixi)) {
+                return;
+            }
+
             // 1. Limpa o pino do clique longo/botão direito se o usuário der um clique normal
             if (setContextMenuPin) setContextMenuPin(null);
 
@@ -849,7 +854,7 @@ const findOverlappingCables = (map, clickLatLng, allCables, getNodePosition, thr
 
 // OTIMIZAÇÃO 2: Memoização do Marcador
 // Compara props antigas e novas. Só renderiza se algo relevante mudar.
-const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelected, showLabel, onSelectLocal, isPickingMode, isPickingSelected, onEdit, onDelete, onOpen }) => {
+const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelected, showLabel, onSelectLocal, isPickingMode, isPickingSelected, onEdit, onDelete, onOpen, setContextMenuPin, lastItemClickRef }) => {
 
     const [isUnlocked, setIsUnlocked] = useState(false);
     const markerRef = useRef(null);
@@ -866,6 +871,18 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
     useEffect(() => {
         if (!isSelected) setIsUnlocked(false);
     }, [isSelected]);
+
+    // Abre o Popup automaticamente assim que o marcador selecionado é montado no DOM (vindo do clique no WebGL)
+    useEffect(() => {
+        if (isSelected && !isPickingMode && !item._readOnly && markerRef.current) {
+            const timer = setTimeout(() => {
+                if (markerRef.current && !markerRef.current.isPopupOpen()) {
+                    markerRef.current.openPopup();
+                }
+            }, 15);
+            return () => clearTimeout(timer);
+        }
+    }, [isSelected, isPickingMode, item.id, item._readOnly]);
 
     // --- BLINDAGEM NATIVA DO ARRASTE (CORRIGIDA PARA CLUSTERS) ---
     useEffect(() => {
@@ -980,6 +997,21 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                 console.log('[FiberMap] Clique em nó no modo picking:', item.name, '| isPickingMode:', isPickingMode);
                 onNodeClickRef.current(item);
             } else {
+                const now = performance.now();
+                if (
+                    lastItemClickRef &&
+                    lastItemClickRef.current.id === item.id &&
+                    now - lastItemClickRef.current.time < 320
+                ) {
+                    lastItemClickRef.current = { id: null, time: 0 };
+                    if (!item._readOnly && onOpen) {
+                        onOpen(item.id);
+                    }
+                    return;
+                }
+                if (lastItemClickRef) {
+                    lastItemClickRef.current = { id: item.id, time: now };
+                }
                 // Seleciona o nó (isso fará o isSelected virar true e mostrar o Popup)
                 onSelectLocal(item.id);
             }
@@ -993,8 +1025,8 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
                 onOpen(item.id);
             }
         },
-        contextmenu: (e) => setContextMenuPin(e.latlng)
-    }), [item, saveItem, onNodeClick, onSelectLocal, isPickingMode, onOpen]);
+        contextmenu: (e) => { if (setContextMenuPin) setContextMenuPin(e.latlng); }
+    }), [item, saveItem, onNodeClick, onSelectLocal, isPickingMode, onOpen, setContextMenuPin, lastItemClickRef]);
 
     return (
         <Marker
@@ -1144,9 +1176,9 @@ const DraggableMarker = memo(({ item, position, saveItem, onNodeClick, isSelecte
     );
 });
 
-const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect, onEdit, onDelete, onOpen, onSplit, allCables, setOverlappingMenu, getNodePosition, forcedPosition }) => {
+const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect, onEdit, onDelete, onOpen, onSplit, allCables, setOverlappingMenu, getNodePosition, forcedPosition, setContextMenuPin, pixiNodeHitTestRef, lastItemClickRef }) => {
     const [isUnlocked, setIsUnlocked] = useState(false);
-    const [clickPosition, setClickPosition] = useState(null);
+    const [clickPosition, setClickPosition] = useState(forcedPosition || null);
     const [previewWaypoints, setPreviewWaypoints] = useState(null);
 
     // Reseta estado se perder seleção
@@ -1287,6 +1319,26 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
             return;
         }
 
+        // Prioridade para Nós/Clusters na GPU caso o usuário tenha clicado exatamente sobre a ponta do cabo (onde há um equipamento)
+        if (pixiNodeHitTestRef && pixiNodeHitTestRef.current && pixiNodeHitTestRef.current(e)) {
+            return;
+        }
+
+        // Detecta duplo clique rápido mesmo na transição WebGL -> DOM
+        const now = performance.now();
+        if (
+            lastItemClickRef &&
+            lastItemClickRef.current.id === cable.id &&
+            now - lastItemClickRef.current.time < 320
+        ) {
+            lastItemClickRef.current = { id: null, time: 0 };
+            if (onOpen) onOpen(cable.id, e.latlng);
+            return;
+        }
+        if (lastItemClickRef) {
+            lastItemClickRef.current = { id: cable.id, time: now };
+        }
+
         // 2. SE NÃO ESTÁ EM EDIÇÃO: VAMOS USAR O RADAR DE SOBREPOSIÇÃO
         const map = e.target._map;
 
@@ -1371,7 +1423,7 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
                     color: 'transparent',
                     weight: 12
                 }}
-                eventHandlers={{ click: handleLineClick, dblclick: handleLineDblClick, contextmenu: (e) => setContextMenuPin(e.latlng) }}
+                eventHandlers={{ click: handleLineClick, dblclick: handleLineDblClick, contextmenu: (e) => { if (setContextMenuPin) setContextMenuPin(e.latlng); } }}
             />
 
             {/* Contorno */}
@@ -1381,7 +1433,7 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
                     color: 'black',
                     weight: isSelected ? 10 : 6
                 }}
-                eventHandlers={{ click: handleLineClick, dblclick: handleLineDblClick, contextmenu: (e) => setContextMenuPin(e.latlng) }}
+                eventHandlers={{ click: handleLineClick, dblclick: handleLineDblClick, contextmenu: (e) => { if (setContextMenuPin) setContextMenuPin(e.latlng); } }}
             />
 
             {/* Preenchimento */}
@@ -1393,7 +1445,7 @@ const EditableCable = memo(({ cable, posA, posB, saveItem, isSelected, onSelect,
                     opacity: isSelected ? 1 : 1,
                     dashArray: showEditControls ? '10, 10' : null
                 }}
-                eventHandlers={{ click: handleLineClick, dblclick: handleLineDblClick, contextmenu: (e) => setContextMenuPin(e.latlng) }}
+                eventHandlers={{ click: handleLineClick, dblclick: handleLineDblClick, contextmenu: (e) => { if (setContextMenuPin) setContextMenuPin(e.latlng); } }}
             />
             {/* --- O POPUP AGORA ESTÁ AQUI FORA (IRMÃO DA POLYLINE) --- */}
             {isSelected && clickPosition && (
@@ -1734,7 +1786,7 @@ const createAreaLabelIcon = (name) => {
 };
 
 // --- ÁREAS RENDERIZADAS NO MAPA ---
-const EditableArea = memo(({ area, onEdit, onDelete, onOpen, isSelected, onSelect, saveItem, showLabels, previewAreaConfig }) => {
+const EditableArea = memo(({ area, onEdit, onDelete, onOpen, isSelected, onSelect, saveItem, showLabels, previewAreaConfig, pixiHitTestRef, interactionMode, isPickingMode }) => {
     const [isUnlocked, setIsUnlocked] = useState(false);
     const [clickPosition, setClickPosition] = useState(null);
     const [previewPositions, setPreviewPositions] = useState(null);
@@ -1807,9 +1859,20 @@ const EditableArea = memo(({ area, onEdit, onDelete, onOpen, isSelected, onSelec
     if (positions.length < 3) return null; // Áreas precisam de no mínimo 3 pontos
 
     const handlePolygonClick = (e) => {
-        L.DomEvent.stopPropagation(e);
+        // Nos modos de criação/medição por mira central, deixa o clique passar para o mapa
+        if (
+            interactionMode === 'ADD_NODE' ||
+            interactionMode === 'ADD_CLIENT' ||
+            interactionMode === 'ADD_OBJECT' ||
+            interactionMode === 'ADD_CIRCLE_AREA' ||
+            interactionMode === 'MEASURE' ||
+            interactionMode === 'ADD_AREA'
+        ) {
+            return;
+        }
 
         if (isSelected && isUnlocked && !area.isCircle) {
+            L.DomEvent.stopPropagation(e);
             const { lat, lng } = e.latlng;
             const newPositions = [...area.positions];
             const clickPt = L.latLng(lat, lng);
@@ -1839,6 +1902,17 @@ const EditableArea = memo(({ area, onEdit, onDelete, onOpen, isSelected, onSelec
             return;
         }
 
+        // Verifica se o clique foi em cima de um Nó, Cluster ou Cabo renderizado na camada WebGL
+        if (pixiHitTestRef && pixiHitTestRef.current && pixiHitTestRef.current(e)) {
+            return;
+        }
+
+        // Se estiver conectando cabos (isPickingMode), não deve selecionar a área ao clicar no fundo dela
+        if (isPickingMode) {
+            return;
+        }
+
+        L.DomEvent.stopPropagation(e);
         setClickPosition(e.latlng);
         if (!isSelected) {
             onSelect(area.id);
@@ -2004,6 +2078,8 @@ const EditableArea = memo(({ area, onEdit, onDelete, onOpen, isSelected, onSelec
         JSON.stringify(prev.area.positions) === JSON.stringify(next.area.positions) &&
         prev.isSelected === next.isSelected &&
         prev.showLabels === next.showLabels &&
+        prev.interactionMode === next.interactionMode &&
+        prev.isPickingMode === next.isPickingMode &&
         JSON.stringify(prev.previewAreaConfig) === JSON.stringify(next.previewAreaConfig)
     );
 });
@@ -2092,18 +2168,37 @@ const FiberMap = ({
     ), [items]);
 
     const mapCables = useMemo(() => items.filter(i => i.type === 'CABLE'), [items]);
+    const mapAreas = useMemo(() => items.filter(i => i.type === 'AREA'), [items]);
 
-    // Otimização: getNodePosition agora busca direto no Map (dicionário) se possível
-    // Mas como allItems é array, mantemos o find. Porém, só rodará dentro do render dos cabos.
-    const getNodePosition = (nodeId) => {
+    // Otimização O(1): Dicionário Map indexado por ID em vez de busca linear .find() O(N)
+    const nodePositionMap = useMemo(() => {
         const sourceList = allItems || items;
-        let node = sourceList.find(i => i.id === nodeId);
-        if (!node) return null;
-        if (node.parentId) node = sourceList.find(i => i.id === node.parentId);
-        if (!node) return null;
-        if (node.lat !== undefined && node.lng !== undefined) return [node.lat, node.lng];
-        return null;
-    };
+        const byId = new Map();
+        for (let i = 0; i < sourceList.length; i++) {
+            byId.set(sourceList[i].id, sourceList[i]);
+        }
+        const posMap = new Map();
+        for (let i = 0; i < sourceList.length; i++) {
+            const item = sourceList[i];
+            let target = item;
+            if (target.parentId) {
+                target = byId.get(target.parentId);
+            }
+            if (target && target.lat !== undefined && target.lat !== null && target.lng !== undefined && target.lng !== null) {
+                posMap.set(item.id, [Number(target.lat), Number(target.lng)]);
+            }
+        }
+        return posMap;
+    }, [allItems, items]);
+
+    const getNodePosition = useCallback((nodeId) => {
+        return nodePositionMap.get(nodeId) || null;
+    }, [nodePositionMap]);
+
+    // Refs para detecção de duplo clique e prioridade de hit-test na camada WebGL (PixiJS)
+    const lastItemClickRef = useRef({ id: null, time: 0 });
+    const pixiHitTestRef = useRef(null);
+    const pixiNodeHitTestRef = useRef(null);
 
     // Fornecedor de imagens: OpenStreetMaps (Light) / CartoCDN (Dark)
     // const tileLayerInfo = isDarkMode ? {
@@ -2306,6 +2401,28 @@ const FiberMap = ({
                     />
                 )}
 
+                {/* CAMADA WEBGL (GPU via PixiJS): Renderiza todos os Nós, Rótulos, Clusters e Cabos não selecionados */}
+                <PixiMapLayer
+                    mapNodes={mapNodes}
+                    mapCables={mapCables}
+                    nodePositionMap={nodePositionMap}
+                    selectedId={selectedId}
+                    showLabels={showLabels}
+                    toggleCluster={toggleCluster}
+                    interactionMode={interactionMode}
+                    isPickingMode={isPickingMode}
+                    cableStartNodeId={cableStartNodeId}
+                    onSelectItem={handleSelection}
+                    onNodeClick={onNodeClick}
+                    onOpen={onOpen}
+                    setOverlappingMenu={setOverlappingMenu}
+                    setForcedCablePosition={setForcedCablePosition}
+                    setContextMenuPin={setContextMenuPin}
+                    lastItemClickRef={lastItemClickRef}
+                    pixiHitTestRef={pixiHitTestRef}
+                    pixiNodeHitTestRef={pixiNodeHitTestRef}
+                />
+
                 <MapClickHandler onMapBgClick={onMapClick} interactionMode={interactionMode} onDeselect={() => { setSelectedId(null); if (onClearSearch) onClearSearch(); }} setContextMenuPin={setContextMenuPin} />
 
                 {/* Aqui está o segredo do zoom: Só atualiza estado se mudar a visibilidade */}
@@ -2323,29 +2440,7 @@ const FiberMap = ({
 
                 <RotationHandler />
 
-                {/* {mapCables.map(cable => {
-                    const posA = getNodePosition(cable.fromNode);
-                    const posB = getNodePosition(cable.toNode);
-                    if (posA && posB) {
-                        return (
-                            <EditableCable
-                                key={cable.id}
-                                cable={cable}
-                                posA={posA}
-                                posB={posB}
-                                saveItem={saveItem}
-                                isSelected={selectedId === cable.id}
-                                onSelect={handleSelection}
-                                onEdit={() => onEdit(cable.id, cable.name)}
-                                onDelete={() => onDelete(cable.id)}
-                                onOpen={() => onOpen(cable.id)}
-                                onSplit={onSplit}
-                            />
-                        );
-                    }
-                    return null;
-                })} */}
-                {items.filter(i => i.type === 'AREA').map(area => (
+                {mapAreas.map(area => (
                     <EditableArea
                         key={area.id}
                         area={area}
@@ -2357,81 +2452,65 @@ const FiberMap = ({
                         saveItem={saveItem}
                         showLabels={showLabels}
                         previewAreaConfig={previewAreaConfig?.id === area.id ? previewAreaConfig : null}
+                        pixiHitTestRef={pixiHitTestRef}
+                        interactionMode={interactionMode}
+                        isPickingMode={isPickingMode}
                     />
                 ))}
 
-                {mapCables.map(cable => {
-                    const posA = getNodePosition(cable.fromNode);
-                    const posB = getNodePosition(cable.toNode);
-                    if (posA && posB) {
-                        return (
-                            <EditableCable
-                                key={cable.id}
-                                cable={cable}
-                                posA={posA}
-                                posB={posB}
-                                saveItem={saveItem}
-                                isSelected={selectedId === cable.id}
-                                onSelect={handleSelection}
-                                onEdit={() => onEdit(cable.id, cable.name)}
-                                onDelete={() => onDelete(cable.id)}
-                                onOpen={() => onOpen(cable.id)}
-                                onSplit={onSplit}
+                {/* DOM SOB DEMANDA (Cabo Selecionado): Monta o componente interativo apenas para o cabo selecionado */}
+                {selectedItem && selectedItem.type === 'CABLE' && (() => {
+                    const posA = getNodePosition(selectedItem.fromNode);
+                    const posB = getNodePosition(selectedItem.toNode);
+                    if (!posA || !posB) return null;
+                    return (
+                        <EditableCable
+                            key={selectedItem.id}
+                            cable={selectedItem}
+                            posA={posA}
+                            posB={posB}
+                            saveItem={saveItem}
+                            isSelected={true}
+                            onSelect={handleSelection}
+                            onEdit={() => onEdit(selectedItem.id, selectedItem.name)}
+                            onDelete={() => onDelete(selectedItem.id)}
+                            onOpen={() => onOpen(selectedItem.id)}
+                            onSplit={onSplit}
+                            allCables={mapCables}
+                            setOverlappingMenu={setOverlappingMenu}
+                            getNodePosition={getNodePosition}
+                            forcedPosition={forcedCablePosition?.id === selectedItem.id ? forcedCablePosition.latlng : null}
+                            setContextMenuPin={setContextMenuPin}
+                            pixiNodeHitTestRef={pixiNodeHitTestRef}
+                            lastItemClickRef={lastItemClickRef}
+                        />
+                    );
+                })()}
 
-                                /* --- NOVAS PROPRIEDADES DO RADAR DE SOBREPOSIÇÃO --- */
-                                allCables={mapCables}
-                                setOverlappingMenu={setOverlappingMenu}
-                                getNodePosition={getNodePosition}
-                                forcedPosition={forcedCablePosition?.id === cable.id ? forcedCablePosition.latlng : null}
-                            />
-                        );
-                    }
-                    return null;
-                })}
-
-                {/* INÍCIO DO CLUSTER */}
-                {/* chunkedLoading ajuda a carregar milhares de pontos sem travar */}
-                <MarkerClusterGroup
-                    key={toggleCluster ? 'cluster-on' : 'cluster-off'}
-                    chunkedLoading
-
-                    /* SOLUÇÃO 2: Desliga o agrupamento quando chegas perto (Zoom 16 ou mais) */
-                    disableClusteringAtZoom={toggleCluster ? 22 : 1}
-
-                    /* Ajuste visual: Aumenta um pouco o raio para ficar mais organizado */
-                    maxClusterRadius={50}
-
-                    /* Se tiveres itens EXATAMENTE no mesmo lugar, ele ainda faz o efeito aranha */
-                    spiderfyOnMaxZoom={true}
-
-                    /* Ajuste fino: Se clicares na bolinha, ele dá zoom até mostrar os itens */
-                    zoomToBoundsOnClick={true}
-                >
-                    {mapNodes.map(node => {
-                        const hasPosition = node.lat !== undefined && node.lat !== null && node.lng !== undefined && node.lng !== null;
-                        const position = hasPosition ? [node.lat, node.lng] : defaultCenter;
-
-                        return (
-                            <DraggableMarker
-                                key={node.id}
-                                item={node}
-                                position={position}
-                                saveItem={saveItem}
-                                onNodeClick={onNodeClick}
-                                isSelected={selectedId === node.id}
-                                showLabel={showLabels}
-                                onSelectLocal={handleSelection}
-                                isPickingMode={isPickingMode}
-                                isPickingSelected={isPickingMode && node.id === cableStartNodeId}
-                                onEdit={() => onEdit(node.id, node.name)}
-                                onDelete={() => onDelete(node.id)}
-                                onOpen={onOpen}
-                            />
-                        );
-                    })}
-
-                </MarkerClusterGroup>
-                {/* FIM DO CLUSTER */}
+                {/* DOM SOB DEMANDA (Nó Selecionado): Monta o marcador DOM + Popup apenas para o nó atualmente selecionado */}
+                {selectedItem && !isPickingMode && !selectedItem.parentId && (ITEM_TYPES[selectedItem.type]?.category === 'NODE' || selectedItem.type === 'CLIENT') && (() => {
+                    const hasPosition = selectedItem.lat !== undefined && selectedItem.lat !== null && selectedItem.lng !== undefined && selectedItem.lng !== null;
+                    const position = hasPosition ? [selectedItem.lat, selectedItem.lng] : defaultCenter;
+                    return (
+                        <DraggableMarker
+                            key={selectedItem.id}
+                            item={selectedItem}
+                            position={position}
+                            saveItem={saveItem}
+                            onNodeClick={onNodeClick}
+                            isSelected={true}
+                            showLabel={showLabels}
+                            onSelectLocal={handleSelection}
+                            isPickingMode={isPickingMode}
+                            isPickingSelected={false}
+                            onEdit={() => onEdit(selectedItem.id, selectedItem.name)}
+                            onDelete={() => onDelete(selectedItem.id)}
+                            onOpen={onOpen}
+                            setContextMenuPin={setContextMenuPin}
+                            lastItemClickRef={lastItemClickRef}
+                        />
+                    );
+                })()}
 
                 {/* --- MARCADOR DE CLIQUE LONGO / CONTEXTO --- */}
                 {contextMenuPin && (
