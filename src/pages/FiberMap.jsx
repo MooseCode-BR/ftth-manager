@@ -2084,7 +2084,7 @@ const EditableArea = memo(({ area, onEdit, onDelete, onOpen, isSelected, onSelec
 const FiberMap = ({
     items, saveItem, isDarkMode, interactionMode, onMapClick, onNodeClick, isPickingMode, flyToCoords,
     allItems, onEdit, onDelete, onOpen, onSplit, onClearSearch, cableStartNodeId, onLocationFound, onAlertRequest, onAreaDrawComplete,
-    previewAreaConfig, activeProjectId
+    previewAreaConfig, activeProjectId, isLeftPanelOpen = false
 }) => {
 
     // Estado para enviar a posição do clique do menu de desambiguação para dentro do cabo
@@ -2220,7 +2220,9 @@ const FiberMap = ({
 
             {/* --- CAIXA FLUTUANTE DA RÉGUA --- */}
             {interactionMode === 'MEASURE' && (
-                <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[1000] bg-yellow-500 text-white px-4 py-2 rounded-full shadow-lg font-bold text-lg flex items-center gap-2 animate-in slide-in-from-top-4 fade-in">
+                <div className={`absolute top-20 -translate-x-1/2 z-[1000] bg-yellow-500 text-white px-4 py-2 rounded-full shadow-lg font-bold text-lg flex items-center gap-2 animate-in slide-in-from-top-4 fade-in transition-[left] duration-300 ease-in-out ${
+                    isLeftPanelOpen ? 'left-1/2 md:left-[calc(50%+11.5rem)]' : 'left-1/2'
+                }`}>
                     <Ruler size={20} />
                     <span>{formatDist(measureDistance)}</span>
                 </div>
@@ -2567,7 +2569,8 @@ const FiberMap = ({
 
             {/* --- CAIXA DE AJUDA / INSTRUÇÕES (Glassmorphic) --- */}
             <div className={`
-                absolute top-20 left-3 z-[900] 
+                absolute top-20 z-[900]
+                ${isLeftPanelOpen ? 'left-3 md:left-[calc(23rem+0.75rem)]' : 'left-3'}
                 bg-white/40 dark:bg-black/60 
                 border border-white/60 dark:border-black/60 
                 backdrop-blur-xl rounded-2xl shadow-2xl

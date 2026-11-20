@@ -55,6 +55,8 @@ const Dock = ({
     onNewClient,
     toggleFilterPanel,
     onManageProjects,
+    isProjectManagerOpen = false,
+    pendingNotificationsCount = 0,
 
     // --- NOVAS PROPS RECEBIDAS AQUI ---
     isTagFilterOpen,
@@ -132,16 +134,23 @@ const Dock = ({
             {/* --- DOCK PRINCIPAL --- */}
             <div className="dock-main-bar" role="toolbar" aria-label="Ferramentas principais">
 
-                {/* Projetos (MOBILE/TABLET) */}
-                <div className="lg:hidden contents">
-                    <DockBtn
-                        icon={FolderClosed}
-                        hoverIcon={FolderOpen}
-                        label="Projetos"
-                        isActive={false}
-                        onClick={() => { onManageProjects(); setActiveCategory(null); }}
-                    />
-                </div>
+                {/* Projetos (SEMPRE VISÍVEL — Desktop e Mobile) */}
+                <DockBtn
+                    icon={isProjectManagerOpen ? FolderOpen : FolderClosed}
+                    hoverIcon={FolderOpen}
+                    label={isProjectManagerOpen ? "Ocultar Projetos" : "Projetos"}
+                    isActive={isProjectManagerOpen}
+                    onClick={() => { onManageProjects(); setActiveCategory(null); }}
+                    colorClass={isProjectManagerOpen ? "text-white" : undefined}
+                >
+                    {pendingNotificationsCount > 0 && !isProjectManagerOpen && (
+                        <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[16px] h-4 px-1 text-[9px] font-bold text-white bg-blue-600 rounded-full shadow-sm animate-in zoom-in">
+                            {pendingNotificationsCount}
+                        </span>
+                    )}
+                </DockBtn>
+
+                <Divider />
 
                 {/* Categorias e Ferramentas */}
                 {categories.map((cat, catIdx) => {

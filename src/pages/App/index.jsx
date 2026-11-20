@@ -4509,13 +4509,21 @@ const App = () => {
                                 });
                                 setInteractionMode('SELECT');
                             }}
+                            isLeftPanelOpen={isProjectManagerOpen}
 
                         />
                     </div>
                 </div>
 
+                {/* CAMADA DE CONTROLES FLUTUANTES (Empurrada para a direita quando o modal de projetos está aberto no desktop) */}
+                <div
+                    className={`absolute inset-y-0 right-0 z-[40] pointer-events-none transition-[left] duration-300 ease-in-out ${
+                        isProjectManagerOpen ? 'left-0 md:left-[23rem]' : 'left-0'
+                    }`}
+                >
+
                 {/* 2. BARRA DE BUSCA */}
-                <div className="absolute top-2 left-4 md:left-8 z-[40] w-[90%] md:w-full max-w-[500px] flex flex-col items-start pointer-events-none">
+                <div className="absolute top-2 left-4 md:left-6 z-[40] w-[calc(100%-2rem)] md:w-[calc(100%-3rem)] max-w-[500px] flex flex-col items-start pointer-events-none">
                     <div className="w-full flex items-center justify-between gap-5 px-1 py-1 bg-white/40 dark:bg-black/60 border border-white/60 dark:border-black/60 backdrop-blur-xl rounded-full shadow-2xl transition-all relative z-20 pointer-events-auto">
 
                         {/* Switch de Troca de Modo (Item vs Endereço) */}
@@ -4684,12 +4692,25 @@ const App = () => {
                         onOpenSettings={() => setIsSettingsOpen(true)}
                         onNewClient={() => setInteractionMode('ADD_CLIENT')}
                         toggleFilterPanel={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-                        onManageProjects={() => setIsProjectManagerOpen(true)}
+                        onManageProjects={() => setIsProjectManagerOpen(prev => !prev)}
+                        isProjectManagerOpen={isProjectManagerOpen}
+                        pendingNotificationsCount={pendingInvites.length + incomingTransfers.length}
                         isTagFilterOpen={isFilterPanelOpen}
                         toggleTagFilter={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
                         activeFilterCount={selectedFilterTags.length}
                     />
                 )}
+
+                {/* --- COMPONENTE ISOLADO DE FILTRO DE TAGS --- */}
+                <TagsFilterPanel
+                    isOpen={isFilterPanelOpen}
+                    onClose={() => setIsFilterPanelOpen(false)}
+                    projectTags={projectTags}
+                    selectedFilterTags={selectedFilterTags}
+                    setSelectedFilterTags={setSelectedFilterTags}
+                />
+
+                </div>
 
                 {/* 5. SETTINGS MODAL (Novo Centralizador) */}
                 <SettingsModal
@@ -4716,15 +4737,6 @@ const App = () => {
                     onOpenCableColors={() => { setStandardsModalOpen(true); }}
                     onOpenReport={() => { setReportOpen(true); }}
                     onManageProjects={() => { setIsProjectManagerOpen(true); }}
-                />
-
-                {/* --- COMPONENTE ISOLADO DE FILTRO DE TAGS --- */}
-                <TagsFilterPanel
-                    isOpen={isFilterPanelOpen}
-                    onClose={() => setIsFilterPanelOpen(false)} // <--- INJETE ESTA LINHA
-                    projectTags={projectTags}
-                    selectedFilterTags={selectedFilterTags}
-                    setSelectedFilterTags={setSelectedFilterTags}
                 />
 
                 {/* Painel de Detalhes (Lógica existente) */}

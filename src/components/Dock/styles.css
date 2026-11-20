@@ -1,8 +1,8 @@
 /* Layout Principal */
 .dock-wrapper {
     /* O wrapper agora impõe a "pista". Ele define estritamente que a área disponível 
-       é 100% da tela menos 16px de margem de cada lado (32px total). */
-    @apply absolute bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 z-[50] flex flex-col items-center gap-2 w-full max-w-[calc(100vw-32px)];
+       é 100% do container visível menos 16px de margem de cada lado (32px total). */
+    @apply absolute bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 z-[50] flex flex-col items-center gap-2 w-full max-w-[calc(100%-32px)] pointer-events-none;
 }
 
 /* --- Barra Principal --- */
@@ -10,12 +10,12 @@
     /* inline-flex + max-w-full: Esta é a chave. Ele vai forçar a exibição em uma linha, 
        esticando o background até encostar na borda imposta pelo wrapper.
        Só quando não sobrar 1 pixel sequer para o próximo ícone, o flex-wrap será acionado. */
-    @apply inline-flex flex-wrap max-w-full items-center justify-center gap-2 px-3 md:px-4 py-2 md:py-3 bg-white/60 dark:bg-black/70 border border-white/80 dark:border-black/80 backdrop-blur-xl rounded-2xl md:rounded-[32px] shadow-2xl;
+    @apply pointer-events-auto inline-flex flex-wrap max-w-full items-center justify-center gap-2 px-3 md:px-4 py-2 md:py-3 bg-white/60 dark:bg-black/70 border border-white/80 dark:border-black/80 backdrop-blur-xl rounded-2xl md:rounded-[32px] shadow-2xl;
 }
 
 /* --- Submenu (Barra superior) --- */
 .dock-submenu-container {
-    @apply inline-flex flex-wrap max-w-full justify-center gap-1.5 animate-in slide-in-from-bottom-2 mb-1 p-2 md:p-1.5 bg-white/60 dark:bg-black/70 border border-white/80 dark:border-black/80 backdrop-blur-xl shadow-2xl rounded-2xl md:rounded-[32px];
+    @apply pointer-events-auto inline-flex flex-wrap max-w-full justify-center gap-1.5 animate-in slide-in-from-bottom-2 mb-1 p-2 md:p-1.5 bg-white/60 dark:bg-black/70 border border-white/80 dark:border-black/80 backdrop-blur-xl shadow-2xl rounded-2xl md:rounded-[32px];
 }
 
 /* --- Restante das classes (mantidas conforme ideal para ícones) --- */
