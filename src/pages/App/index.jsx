@@ -1577,30 +1577,9 @@ const App = () => {
         batchDelete([id]);
     };
 
-    const cleanUpClientSignal = async (conn, targetOwnerId = projectOwnerId, targetProjectId = activeProjectId) => {
+    const cleanUpClientSignal = async (conn, targetOwnerId = null, targetProjectId = null) => {
         // Verifica se a conexão existe
         if (!conn) return;
-
-        // Se o projeto e dono não foram passados/resolvidos, tenta descobrir dinamicamente
-        if (!targetProjectId) {
-            targetProjectId = conn._projectId;
-            if (!targetProjectId) {
-                const sourceItem = items.find(i => i.id === conn.fromId);
-                targetProjectId = (sourceItem && sourceItem._projectId) ? sourceItem._projectId : activeProjectId;
-            }
-        }
-
-        if (!targetOwnerId && targetProjectId) {
-            const allProjects = [...myProjects, ...sharedProjects];
-            const targetProj = allProjects.find(p => p.id === targetProjectId);
-            targetOwnerId = targetProj ? targetProj.ownerId : projectOwnerId;
-        }
-
-        // Previne escrita em caminhos faltantes caso tudo falhe
-        if (!targetProjectId || !targetOwnerId) {
-            console.warn("Aviso: Tentativa de limpar sinal sem projeto ou dono definidos.");
-            return;
-        }
 
         const targetItem = items.find(i => i.id === conn.toId);
         const sourceItem = items.find(i => i.id === conn.fromId);
@@ -1620,19 +1599,37 @@ const App = () => {
             portId = conn.toPort;
         }
 
-        // Se achou um par Splitter-Cliente, limpa o sinal
+        // Se achou um par Splitter-Cliente, limpa o sinal no projeto ao qual o splitter pertence
         if (splitterId && portId !== null) {
+            const resolved = resolveProjectOwnerForItem(splitterId);
+            const finalProjectId = targetProjectId || resolved.targetProjectId || conn._projectId;
+            let finalOwnerId = targetOwnerId || resolved.targetOwner;
+
+            if (!finalOwnerId && finalProjectId) {
+                const allProjects = [...myProjects, ...sharedProjects];
+                const targetProj = allProjects.find(p => p.id === finalProjectId);
+                finalOwnerId = targetProj?.ownerId || (myProjects.some(p => p.id === finalProjectId) ? user?.uid : null);
+            }
+
+            if (!finalProjectId || !finalOwnerId) {
+                console.warn("Aviso: Tentativa de limpar sinal sem projeto ou dono definidos.");
+                return;
+            }
+
             const signalKey = `${splitterId}-${portId}`;
             const currentConfig = signalNames[signalKey];
 
             if (currentConfig && currentConfig.local) {
                 // Remove apenas os sinais que começam com 'client-'
                 const newLocal = currentConfig.local.filter(s => !s.id.startsWith('client-'));
+                const isEmpty = newLocal.length === 0 && (currentConfig.allowed === null || currentConfig.allowed === undefined);
+                const payload = isEmpty ? deleteField() : { ...currentConfig, local: newLocal };
 
-                const newConfig = { ...currentConfig, local: newLocal };
-
-                // Agora usa os paramêmetros resolvidos
-                await setDoc(doc(db, `artifacts/ftth-production/users/${targetOwnerId}/projects/${targetProjectId}/settings`, 'signals'), { [signalKey]: newConfig }, { merge: true });
+                await setDoc(
+                    doc(db, `artifacts/ftth-production/users/${finalOwnerId}/projects/${finalProjectId}/settings`, 'signals'),
+                    { [signalKey]: payload },
+                    { merge: true }
+                );
             }
         }
     };
@@ -2171,45 +2168,126 @@ const App = () => {
     };
 
 
-    const updateLabelDB = (v) => dbAction(async () => {
-        // v é um objeto tipo { 'itemId-portIndex-side': 'Novo Nome' }
-        // Pegamos a primeira chave para descobrir quem é o item dono
-        const key = Object.keys(v)[0];
-        if (!key) return;
+    // Resolve o projeto e o dono reais a partir de um itemId ou chave composta ("<itemId>-<portIndex>..."),
+    // caminhando pela cadeia de parentId (ex: splitter -> caixa -> Projeto A) sem depender de activeProjectId.
+    const resolveProjectOwnerForItem = (explicitItemId = null, compositeKey = null) => {
+        let item = explicitItemId ? items.find(i => i.id === explicitItemId) : null;
 
-        // Extrai o ID do item da string (tudo antes do primeiro hífen)
-        // Ex: "node_12345-0-false" -> "node_12345"
-        const itemId = key.split('-')[0];
-        const item = items.find(i => i.id === itemId);
+        // Match seguro para UUIDs com hífens: seleciona o item cujo id é prefixo exato mais longo da chave
+        if (!item && compositeKey) {
+            let bestMatch = null;
+            for (const candidate of items) {
+                if (!candidate?.id) continue;
+                if (compositeKey === candidate.id || compositeKey.startsWith(`${candidate.id}-`)) {
+                    if (!bestMatch || candidate.id.length > bestMatch.id.length) {
+                        bestMatch = candidate;
+                    }
+                }
+            }
+            item = bestMatch;
+        }
 
-        // Define projeto: Do item ou Ativo
-        const targetProjectId = (item && item._projectId) ? item._projectId : activeProjectId;
-        if (!targetProjectId) return;
+        let targetProjectId = null;
+        const visited = new Set();
+        let current = item;
+        while (current && !visited.has(current.id)) {
+            visited.add(current.id);
+            if (current._projectId) {
+                targetProjectId = current._projectId;
+                break;
+            }
+            current = current.parentId ? items.find(i => i.id === current.parentId) : null;
+        }
 
-        // Descobre dono
+        if (!targetProjectId) {
+            return { item, targetProjectId: null, targetOwner: null };
+        }
+
         const allProjects = [...myProjects, ...sharedProjects];
         const targetProj = allProjects.find(p => p.id === targetProjectId);
-        const targetOwner = targetProj ? targetProj.ownerId : projectOwnerId;
+        const targetOwner = targetProj?.ownerId || (myProjects.some(p => p.id === targetProjectId) ? user?.uid : null);
 
-        await setDoc(doc(db, `artifacts/ftth-production/users/${targetOwner}/projects/${targetProjectId}/settings`, 'portLabels'), v, { merge: true });
+        return { item, targetProjectId, targetOwner };
+    };
+
+    const updateLabelDB = (v, explicitItemId = null) => dbAction(async () => {
+        if (!v || typeof v !== 'object') return;
+        const entries = Object.entries(v);
+        if (entries.length === 0) return;
+
+        const grouped = new Map();
+        for (const [key, val] of entries) {
+            const { targetProjectId, targetOwner } = resolveProjectOwnerForItem(
+                entries.length === 1 ? explicitItemId : null,
+                key
+            );
+            if (!targetProjectId || !targetOwner) {
+                console.warn('updateLabelDB: Não foi possível identificar o projeto da porta:', key);
+                continue;
+            }
+            if (isProjectReadOnly(targetProjectId)) {
+                openAlert("Acesso Restrito", "Você tem permissão somente de visualização neste projeto. Não é possível renomear portas.");
+                return;
+            }
+
+            const bucketKey = `${targetOwner}::${targetProjectId}`;
+            if (!grouped.has(bucketKey)) {
+                grouped.set(bucketKey, { targetOwner, targetProjectId, data: {} });
+            }
+            const cleanVal = (typeof val === 'string' && val.trim() === '') ? deleteField() : val;
+            grouped.get(bucketKey).data[key] = cleanVal;
+        }
+
+        for (const { targetOwner, targetProjectId, data } of grouped.values()) {
+            await setDoc(
+                doc(db, `artifacts/ftth-production/users/${targetOwner}/projects/${targetProjectId}/settings`, 'portLabels'),
+                data,
+                { merge: true }
+            );
+        }
     });
 
-    const updateSignalDB = (v) => dbAction(async () => {
-        // v é { 'itemId-portIndex': ... }
-        const key = Object.keys(v)[0];
-        if (!key) return;
+    const updateSignalDB = (v, explicitItemId = null) => dbAction(async () => {
+        if (!v || typeof v !== 'object') return;
+        const entries = Object.entries(v);
+        if (entries.length === 0) return;
 
-        const itemId = key.split('-')[0];
-        const item = items.find(i => i.id === itemId);
+        const grouped = new Map();
+        for (const [key, val] of entries) {
+            const { targetProjectId, targetOwner } = resolveProjectOwnerForItem(
+                entries.length === 1 ? explicitItemId : null,
+                key
+            );
+            if (!targetProjectId || !targetOwner) {
+                console.warn('updateSignalDB: Não foi possível identificar o projeto do sinal:', key);
+                continue;
+            }
+            if (isProjectReadOnly(targetProjectId)) {
+                openAlert("Acesso Restrito", "Você tem permissão somente de visualização neste projeto. Não é possível gerenciar sinais.");
+                return;
+            }
 
-        const targetProjectId = (item && item._projectId) ? item._projectId : activeProjectId;
-        if (!targetProjectId) return;
+            const bucketKey = `${targetOwner}::${targetProjectId}`;
+            if (!grouped.has(bucketKey)) {
+                grouped.set(bucketKey, { targetOwner, targetProjectId, data: {} });
+            }
 
-        const allProjects = [...myProjects, ...sharedProjects];
-        const targetProj = allProjects.find(p => p.id === targetProjectId);
-        const targetOwner = targetProj ? targetProj.ownerId : projectOwnerId;
+            const isEmptySignalConfig = !val || (
+                typeof val === 'object' &&
+                !Array.isArray(val) &&
+                (!val.local || val.local.length === 0) &&
+                (val.allowed === null || val.allowed === undefined)
+            );
+            grouped.get(bucketKey).data[key] = isEmptySignalConfig ? deleteField() : val;
+        }
 
-        await setDoc(doc(db, `artifacts/ftth-production/users/${targetOwner}/projects/${targetProjectId}/settings`, 'signals'), v, { merge: true });
+        for (const { targetOwner, targetProjectId, data } of grouped.values()) {
+            await setDoc(
+                doc(db, `artifacts/ftth-production/users/${targetOwner}/projects/${targetProjectId}/settings`, 'signals'),
+                data,
+                { merge: true }
+            );
+        }
     });
 
     // Padrões de Cabo - GLOBAL
@@ -2360,33 +2438,23 @@ const App = () => {
         // B. Settings (Sinais e Labels)
         const settingsUpdates = {};
         for (const itemId of allItemIdsToDelete) {
-            const item = items.find(i => i.id === itemId);
-            if (item) {
-                let targetProjectId = item._projectId;
-                if (!targetProjectId && item.parentId) {
-                    const parent = items.find(p => p.id === item.parentId);
-                    if (parent) targetProjectId = parent._projectId;
+            const { targetProjectId, targetOwner } = resolveProjectOwnerForItem(itemId);
+            if (targetProjectId && targetOwner) {
+                const basePath = `artifacts/ftth-production/users/${targetOwner}/projects/${targetProjectId}/settings`;
+
+                // Signals
+                const signalsPath = `${basePath}/signals`;
+                const signalKeys = Object.keys(signalNames).filter(k => k.startsWith(`${itemId}-`));
+                if (signalKeys.length > 0) {
+                    if (!settingsUpdates[signalsPath]) settingsUpdates[signalsPath] = {};
+                    signalKeys.forEach(k => settingsUpdates[signalsPath][k] = deleteField());
                 }
-                if (!targetProjectId) targetProjectId = activeProjectId;
-
-                const targetOwner = getOwnerIdForProject(targetProjectId);
-                if (targetProjectId && targetOwner) {
-                    const basePath = `artifacts/ftth-production/users/${targetOwner}/projects/${targetProjectId}/settings`;
-
-                    // Signals
-                    const signalsPath = `${basePath}/signals`;
-                    const signalKeys = Object.keys(signalNames).filter(k => k.startsWith(`${itemId}-`));
-                    if (signalKeys.length > 0) {
-                        if (!settingsUpdates[signalsPath]) settingsUpdates[signalsPath] = {};
-                        signalKeys.forEach(k => settingsUpdates[signalsPath][k] = deleteField());
-                    }
-                    // PortLabels
-                    const labelsPath = `${basePath}/portLabels`;
-                    const labelKeys = Object.keys(portLabels).filter(k => k.startsWith(`${itemId}-`));
-                    if (labelKeys.length > 0) {
-                        if (!settingsUpdates[labelsPath]) settingsUpdates[labelsPath] = {};
-                        labelKeys.forEach(k => settingsUpdates[labelsPath][k] = deleteField());
-                    }
+                // PortLabels
+                const labelsPath = `${basePath}/portLabels`;
+                const labelKeys = Object.keys(portLabels).filter(k => k.startsWith(`${itemId}-`));
+                if (labelKeys.length > 0) {
+                    if (!settingsUpdates[labelsPath]) settingsUpdates[labelsPath] = {};
+                    labelKeys.forEach(k => settingsUpdates[labelsPath][k] = deleteField());
                 }
             }
         }
@@ -2966,7 +3034,7 @@ const App = () => {
             if (!alreadyExists) {
                 const newSignal = { id: `client-${finalClientId}`, name: `${finalClientName}`, type: 'GPON' };
                 const newConfig = { local: [...localSignals, newSignal], allowed: currentAllowed };
-                await updateSignalDB({ ...signalNames, [signalKey]: newConfig });
+                await updateSignalDB({ [signalKey]: newConfig }, sourceId);
             }
 
             openAlert("Sucesso", existingClientId ? "Cliente reconectado!" : "Cliente criado com sucesso!");
