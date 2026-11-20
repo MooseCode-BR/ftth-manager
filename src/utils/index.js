@@ -1151,31 +1151,3 @@ const deleteNodeImages = async (node) => {
     await Promise.all(deletePromises);
 };
 //=================================================//
-
-export const calculateCirclePositions = (center, radius, angle, direction) => {
-    let finalPositions = [];
-    const pointsCount = 64;
-    const R = 6378137;
-    const rLat = radius / R;
-    const rLng = radius / (R * Math.cos(Math.PI * center.lat / 180));
-
-    // Se o ângulo é menor que 360, incluímos o centro para fechar o "fatia de pizza"
-    if (angle < 360) {
-        finalPositions.push({ lat: center.lat, lng: center.lng });
-    }
-
-    const startCompassAngle = direction - (angle / 2);
-
-    for (let i = 0; i <= (angle < 360 ? pointsCount : pointsCount - 1); i++) {
-        const fraction = i / pointsCount;
-        const currentCompassAngle = startCompassAngle + (fraction * angle);
-
-        // Converte de "Compass Angle" (0=Norte) para trigonométrico (0=Leste)
-        const theta = (90 - currentCompassAngle) * (Math.PI / 180);
-
-        const ptLat = center.lat + (rLat * Math.sin(theta)) * (180 / Math.PI);
-        const ptLng = center.lng + (rLng * Math.cos(theta)) * (180 / Math.PI);
-        finalPositions.push({ lat: ptLat, lng: ptLng });
-    }
-    return finalPositions;
-};

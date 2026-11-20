@@ -44,7 +44,7 @@ import { ITEM_TYPES } from '../../config/constants';
 // downloadKML: Exporta projeto para formato KML (Google Earth)
 // parseKMLImport: Importa e processa arquivos KML
 // analyzeDuplicates: Detecta e analisa itens duplicados na importação
-import { findConnection, downloadKML, parseKMLImport, analyzeDuplicates, calculateCirclePositions } from '../../utils';
+import { findConnection, downloadKML, parseKMLImport, analyzeDuplicates } from '../../utils';
 
 // Sistema de Backup
 // generateBackupFile: Cria arquivo de backup completo do projeto
@@ -1355,16 +1355,8 @@ const App = () => {
     };
 
     const handleSaveArea = async (data) => {
-        const { name, color, colorOpacity, fillColor, fillOpacity, radius, angle, tags } = data;
-
-        let finalPositions = [];
-        if (areaModalConfig.isCircleMode) {
-            const { center } = areaModalConfig;
-            const { direction = 0 } = data; // data contém direction agora
-            finalPositions = calculateCirclePositions(center, radius, angle, direction);
-        } else {
-            finalPositions = areaModalConfig.positions;
-        }
+        const { name, color, colorOpacity, fillColor, fillOpacity, tags } = data;
+        const finalPositions = areaModalConfig.positions;
 
         const existingArea = items.find(i => i.id === areaModalConfig.id) || {};
         const targetProjectId = existingArea._projectId || activeProjectId;
@@ -1387,16 +1379,7 @@ const App = () => {
             fillOpacity: fillOpacity,
             positions: finalPositions,
             tags: processedTagIds,
-            _projectId: targetProjectId,
-            ...(areaModalConfig.isCircleMode ? {
-                isCircle: true,
-                center: areaModalConfig.center,
-                radius: radius,
-                angle: angle,
-                direction: data.direction || 0
-            } : {
-                isCircle: false
-            })
+            _projectId: targetProjectId
         });
 
         setAreaModalConfig(null);
@@ -1426,15 +1409,6 @@ const App = () => {
             // MUDANÇA: Guarda na memória dedicada
             setNewClientPosition({ lat: latlng.lat, lng: latlng.lng });
             setClientWizard({ step: 'NAME', data: {} });
-            setInteractionMode('SELECT');
-        }
-        else if (interactionMode === 'ADD_CIRCLE_AREA') {
-            if (!activeProjectGuard()) return;
-            setAreaModalConfig({
-                isCircleMode: true,
-                center: latlng,
-                defaultName: `Área ${items.filter(i => i.type === 'AREA').length + 1}`
-            });
             setInteractionMode('SELECT');
         }
     };
@@ -2774,18 +2748,13 @@ const App = () => {
             setAreaModalConfig({
                 id: item.id,
                 projectId: item._projectId,
-                isCircleMode: item.isCircle || false,
                 defaultName: item.name,
                 color: item.color,
                 colorOpacity: item.colorOpacity,
                 fillColor: item.fillColor,
                 fillOpacity: item.fillOpacity,
-                radius: item.radius,
-                angle: item.angle,
-                direction: item.direction,
                 tags: itemTagsList,
-                positions: item.positions,
-                center: item.center // Pode ser nulo, mas garantimos repassar caso seja círculo no futuro
+                positions: item.positions
             });
             return;
         }
@@ -4417,10 +4386,6 @@ const App = () => {
             if (!activeProjectGuard()) return;
             setInteractionMode('ADD_AREA');
         }
-        else if (toolId === 'ADD_CIRCLE_AREA') {
-            if (!activeProjectGuard()) return;
-            setInteractionMode('ADD_CIRCLE_AREA');
-        }
         // 3. Clientes
         else if (toolId === 'ADD_CLIENT') {
             setInteractionMode('ADD_CLIENT');
@@ -4434,7 +4399,6 @@ const App = () => {
         if (interactionMode === 'DRAW_CABLE') return 'ADD_CABLE';
         if (interactionMode === 'ADD_CLIENT') return 'ADD_CLIENT';
         if (interactionMode === 'ADD_AREA') return 'ADD_AREA';
-        if (interactionMode === 'ADD_CIRCLE_AREA') return 'ADD_CIRCLE_AREA';
         if (interactionMode === 'ADD_NODE') {
             if (nodeTypeToAdd === 'POP') return 'ADD_POP';
             if (nodeTypeToAdd === 'CEO') return 'ADD_CEO';
@@ -4510,7 +4474,6 @@ const App = () => {
                             signalNames={signalNames}
 
                             previewAreaConfig={previewAreaConfig}
-                            onUpdatePreviewAreaConfig={setPreviewAreaConfig}
                             interactionMode={interactionMode}
                             onMapClick={handleMapBgClick}
                             onNodeClick={handleMapNodeClick}
@@ -4541,7 +4504,6 @@ const App = () => {
                             onAreaDrawComplete={(positions) => {
                                 if (!activeProjectGuard()) return;
                                 setAreaModalConfig({
-                                    isCircleMode: false,
                                     positions,
                                     defaultName: `Área ${items.filter(i => i.type === 'AREA').length + 1}`
                                 });
@@ -4879,34 +4841,27 @@ const App = () => {
                     />
                 )}
                 {areaModalConfig && (
-                    <div className={areaModalConfig.isCircleMode ? "z-[2000]" : ""}>
-                        <AreaModal
-                            key={areaModalConfig.id || 'new-area'}
-                            isCircleMode={areaModalConfig.isCircleMode}
-                            initialValue={areaModalConfig.defaultName}
-                            initialColor={areaModalConfig.color}
-                            initialColorOpacity={areaModalConfig.colorOpacity}
-                            initialFillColor={areaModalConfig.fillColor}
-                            initialFillOpacity={areaModalConfig.fillOpacity}
-                            initialTags={areaModalConfig.tags}
-                            initialRadius={areaModalConfig.radius}
-                            initialAngle={areaModalConfig.angle}
-                            initialDirection={areaModalConfig.direction}
-                            availableTags={Object.values(projectTags).filter(t => {
-                                const targetId = String(areaModalConfig.projectId || activeProjectId || '').trim();
-                                const activeId = String(activeProjectId || '').trim();
-                                const pId = String(t._projectId || '').trim();
-                                return pId === targetId || pId === activeId;
-                            })}
-                            onConfirm={handleSaveArea}
-                            onCancel={() => {
-                                setAreaModalConfig(null);
-                                setPreviewAreaConfig(null);
-                            }}
-                            onLiveUpdate={(config) => setPreviewAreaConfig(prev => ({ ...areaModalConfig, ...prev, ...config }))}
-                            currentDirection={previewAreaConfig?.direction}
-                        />
-                    </div>
+                    <AreaModal
+                        key={areaModalConfig.id || 'new-area'}
+                        initialValue={areaModalConfig.defaultName}
+                        initialColor={areaModalConfig.color}
+                        initialColorOpacity={areaModalConfig.colorOpacity}
+                        initialFillColor={areaModalConfig.fillColor}
+                        initialFillOpacity={areaModalConfig.fillOpacity}
+                        initialTags={areaModalConfig.tags}
+                        availableTags={Object.values(projectTags).filter(t => {
+                            const targetId = String(areaModalConfig.projectId || activeProjectId || '').trim();
+                            const activeId = String(activeProjectId || '').trim();
+                            const pId = String(t._projectId || '').trim();
+                            return pId === targetId || pId === activeId;
+                        })}
+                        onConfirm={handleSaveArea}
+                        onCancel={() => {
+                            setAreaModalConfig(null);
+                            setPreviewAreaConfig(null);
+                        }}
+                        onLiveUpdate={(config) => setPreviewAreaConfig(prev => ({ ...areaModalConfig, ...prev, ...config }))}
+                    />
                 )}
                 {editModalConfig && <ItemModal mode="edit" {...editModalConfig} standards={cableColorStandards} nodeColorSettings={nodeColorSettings} favoriteColors={favoriteColors} onCancel={() => setEditModalConfig(null)} />}
                 {standardsModalOpen && <StandardsModal standards={cableColorStandards} onClose={() => setStandardsModalOpen(false)} onSave={(newStds) => { updateStandardsDB(newStds); setStandardsModalOpen(false); }} />}

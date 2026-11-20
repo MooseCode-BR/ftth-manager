@@ -1324,7 +1324,6 @@ const PixiMapLayer = ({
                 interactionMode === 'ADD_NODE' ||
                 interactionMode === 'ADD_CLIENT' ||
                 interactionMode === 'ADD_OBJECT' ||
-                interactionMode === 'ADD_CIRCLE_AREA' ||
                 interactionMode === 'MEASURE' ||
                 interactionMode === 'ADD_AREA'
             ) {
@@ -1461,7 +1460,6 @@ const PixiMapLayer = ({
                 interactionMode === 'ADD_NODE' ||
                 interactionMode === 'ADD_CLIENT' ||
                 interactionMode === 'ADD_OBJECT' ||
-                interactionMode === 'ADD_CIRCLE_AREA' ||
                 interactionMode === 'MEASURE' ||
                 interactionMode === 'ADD_AREA'
             ) {

@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Polyline, Polygon, useMapEvents, Layer
 import L from 'leaflet';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ITEM_TYPES, ICON_MAP } from '../config/constants';
-import { calculateCirclePositions, getDistanceInMeters } from '../utils';
+import { getDistanceInMeters } from '../utils';
 import { CompassIcon } from '../components/icons';
 import {
     ChevronUp, Info, Lock, Unlock, Edit3, Trash2, Ruler, MapPin, Scissors,
@@ -318,7 +318,7 @@ const MapClickHandler = ({ onMapBgClick, interactionMode, onDeselect, setContext
             // 1. Limpa o pino do clique longo/botão direito se o usuário der um clique normal
             if (setContextMenuPin) setContextMenuPin(null);
 
-            if (interactionMode === 'ADD_NODE' || interactionMode === 'ADD_CLIENT' || interactionMode === 'ADD_OBJECT' || interactionMode === 'ADD_CIRCLE_AREA') {
+            if (interactionMode === 'ADD_NODE' || interactionMode === 'ADD_CLIENT' || interactionMode === 'ADD_OBJECT') {
                 // Usa o centro do mapa (mira) em vez do local do clique
                 onMapBgClick(map.getCenter());
             } else {
@@ -1864,14 +1864,13 @@ const EditableArea = memo(({ area, onEdit, onDelete, onOpen, isSelected, onSelec
             interactionMode === 'ADD_NODE' ||
             interactionMode === 'ADD_CLIENT' ||
             interactionMode === 'ADD_OBJECT' ||
-            interactionMode === 'ADD_CIRCLE_AREA' ||
             interactionMode === 'MEASURE' ||
             interactionMode === 'ADD_AREA'
         ) {
             return;
         }
 
-        if (isSelected && isUnlocked && !area.isCircle) {
+        if (isSelected && isUnlocked) {
             L.DomEvent.stopPropagation(e);
             const { lat, lng } = e.latlng;
             const newPositions = [...area.positions];
@@ -1934,7 +1933,7 @@ const EditableArea = memo(({ area, onEdit, onDelete, onOpen, isSelected, onSelec
         saveItem({ ...area, positions: newPositions });
     };
 
-    const showEditControls = isSelected && isUnlocked && !area.isCircle;
+    const showEditControls = isSelected && isUnlocked;
     const displayPositions = previewPositions || positions;
 
     // Memoriza os marcadores para que eles não re-renderizem e percam o evento de drag
@@ -2012,20 +2011,18 @@ const EditableArea = memo(({ area, onEdit, onDelete, onOpen, isSelected, onSelec
 
                         <div className="flex flex-col gap-1 w-full min-w-[170px]">
                             {/* Botão BLOQUEAR / DESBLOQUEAR */}
-                            {!area.isCircle && (
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); setIsUnlocked(!isUnlocked); }}
-                                    className={`w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium rounded-lg transition-colors text-left ${isUnlocked
-                                        ? 'bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20'
-                                        : 'bg-transparent text-gray-700 dark:text-gray-200 hover:bg-white/50 dark:hover:bg-neutral-800'
-                                        }`}
-                                    title={isUnlocked ? "Bloquear" : "Desbloquear"}
-                                >
-                                    {isUnlocked ? <Unlock size={16} /> : <Lock size={16} />}
-                                    <span className="flex-1">{isUnlocked ? "Bloquear Área" : "Desbloquear Área"}</span>
-                                    <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">D</span>
-                                </button>
-                            )}
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setIsUnlocked(!isUnlocked); }}
+                                className={`w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium rounded-lg transition-colors text-left ${isUnlocked
+                                    ? 'bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20'
+                                    : 'bg-transparent text-gray-700 dark:text-gray-200 hover:bg-white/50 dark:hover:bg-neutral-800'
+                                    }`}
+                                title={isUnlocked ? "Bloquear" : "Desbloquear"}
+                            >
+                                {isUnlocked ? <Unlock size={16} /> : <Lock size={16} />}
+                                <span className="flex-1">{isUnlocked ? "Bloquear Área" : "Desbloquear Área"}</span>
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">D</span>
+                            </button>
 
                             {/* Botão ABRIR DETALHES */}
                             <button
@@ -2084,43 +2081,10 @@ const EditableArea = memo(({ area, onEdit, onDelete, onOpen, isSelected, onSelec
     );
 });
 
-const handleIcon = L.divIcon({
-    className: 'custom-handle-icon',
-    html: '<div style="width:14px; height:14px; background:#3b82f6; border:2px solid white; border-radius:50%; box-shadow:0 0 4px rgba(0,0,0,0.5); cursor:pointer;"></div>',
-    iconSize: [14, 14],
-    iconAnchor: [7, 7]
-});
-
-const CircleAreaPreview = ({ config, onUpdateConfig }) => {
-    const map = useMap();
-    const { center, radius, angle, direction, fillColor, fillOpacity, color, colorOpacity } = config;
-
-    const positions = useMemo(() => {
-        if (!center || !radius || !angle) return [];
-        return calculateCirclePositions(center, radius, angle, direction || 0);
-    }, [center, radius, angle, direction]);
-
-    if (!positions.length) return null;
-
-    return (
-        <Polygon
-            positions={positions}
-            pathOptions={{
-                color: color || '#3b82f6',
-                opacity: (colorOpacity != null ? colorOpacity : 100) / 100,
-                weight: 2,
-                fillColor: fillColor || '#3b82f6',
-                fillOpacity: (fillOpacity || 40) / 100
-            }}
-            interactive={false}
-        />
-    );
-};
-
 const FiberMap = ({
     items, saveItem, isDarkMode, interactionMode, onMapClick, onNodeClick, isPickingMode, flyToCoords,
     allItems, onEdit, onDelete, onOpen, onSplit, onClearSearch, cableStartNodeId, onLocationFound, onAlertRequest, onAreaDrawComplete,
-    previewAreaConfig, onUpdatePreviewAreaConfig, activeProjectId
+    previewAreaConfig, activeProjectId
 }) => {
 
     // Estado para enviar a posição do clique do menu de desambiguação para dentro do cabo
@@ -2245,7 +2209,7 @@ const FiberMap = ({
         <div className="w-full h-full relative z-0">
 
             {/* --- MIRA CENTRAL (adição de nodes/clientes por centro) --- */}
-            {(interactionMode === 'ADD_NODE' || interactionMode === 'ADD_CLIENT' || interactionMode === 'ADD_OBJECT' || interactionMode === 'ADD_CIRCLE_AREA') && (
+            {(interactionMode === 'ADD_NODE' || interactionMode === 'ADD_CLIENT' || interactionMode === 'ADD_OBJECT') && (
                 <div
                     className="absolute inset-0 pointer-events-none z-[900] flex items-center justify-center"
                     aria-hidden="true"
@@ -2391,14 +2355,6 @@ const FiberMap = ({
                             </div>
                         </Tooltip> */}
                     </Marker>
-                )}
-
-
-                {previewAreaConfig && previewAreaConfig.isCircleMode && (
-                    <CircleAreaPreview
-                        config={previewAreaConfig}
-                        onUpdateConfig={onUpdatePreviewAreaConfig}
-                    />
                 )}
 
                 {/* CAMADA WEBGL (GPU via PixiJS): Renderiza todos os Nós, Rótulos, Clusters e Cabos não selecionados */}
