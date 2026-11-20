@@ -25,7 +25,7 @@ import {
     EyeOff,
     ImageIcon
 } from 'lucide-react';
-import { VERSAO } from '../../../config/constants';
+import { VERSAO } from '../../config/constants';
 
 // Configurações de Perfil
 export const ProfileModal = ({ user, onClose, onUpdateName, onUpdatePassword, onDeleteAccount, onLogout, onUpdatePhoto, onDeletePhoto }) => { // <--- Adicionamos onUpdatePhoto aqui

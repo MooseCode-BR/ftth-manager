@@ -29,12 +29,12 @@ export const ABNT_COLORS = [
 ];
 
 export const ITEM_TYPES = {
-    POP: { label: 'POP / Data Center', icon: HouseWifi, category: 'NODE', defaultPorts: 0, defaultColor: '#4338ca', width: 160 }, // Indigo
-    CEO: { label: 'CEO (Emenda)', icon: CEOIcon, category: 'NODE', defaultPorts: 0, defaultColor: '#ea580c', width: 160 }, // Orange
-    CTO: { label: 'CTO (Terminação)', icon: CTOIcon, category: 'NODE', defaultPorts: 0, defaultColor: '#16a34a', width: 160 }, // Green
-    TOWER: { label: 'Torre', icon: RadioTower, category: 'NODE', defaultPorts: 0, defaultColor: '#8888ff', width: 160 }, // Tipo azul
-    POST: { label: 'Poste', icon: PostIcon, category: 'NODE', defaultPorts: 0, defaultColor: '#0000ff', width: 160 },
-    OBJECT: { label: 'Objeto', icon: MapPin, category: 'NODE', defaultPorts: 0, defaultColor: '#ff0000', width: 160 },
+    POP: { label: 'POP / Data Center', icon: HouseWifi, category: 'NODE', defaultPorts: 0, defaultColor: '#4338ca' }, // Indigo
+    CEO: { label: 'CEO (Emenda)', icon: CEOIcon, category: 'NODE', defaultPorts: 0, defaultColor: '#ea580c' }, // Orange
+    CTO: { label: 'CTO (Terminação)', icon: CTOIcon, category: 'NODE', defaultPorts: 0, defaultColor: '#16a34a' }, // Green
+    TOWER: { label: 'Torre', icon: RadioTower, category: 'NODE', defaultPorts: 0, defaultColor: '#8888ff' }, // Tipo azul
+    POST: { label: 'Poste', icon: PostIcon, category: 'NODE', defaultPorts: 0, defaultColor: '#0000ff' },
+    OBJECT: { label: 'Objeto', icon: MapPin, category: 'NODE', defaultPorts: 0, defaultColor: '#ff0000' },
     AREA: { label: 'Área', icon: null, category: 'MAP', defaultColor: '#3b82f6' }, // Hexagon doesn't exist yet, we can import or use null
     CABLE: { label: 'Cabo Externo', icon: Route, category: 'LINK', defaultPorts: 12, color: 'stroke-slate-800' },
 
@@ -84,7 +84,7 @@ export const ICON_MAP = {
 // Valores de Referência (Atenuação em dB)
 export const ATTENUATION = {
     DEFAULT_TX: 5.0,       // Potência de saída padrão da OLT (dBm)
-    FUSION_LOSS: 0.05,      // Perda por fusão
+    FUSION_LOSS: 0.01,     // Perda por fusão
     CONNECTOR_LOSS: 0.3,   // Perda por conector/acoplamento
     SPLITTER_LOSS: {
         2: 3.7,   // 1:2
@@ -96,4 +96,4 @@ export const ATTENUATION = {
     }
 };
 
-export const VERSAO = '0.11.5'
+export const VERSAO = '0.12.1'

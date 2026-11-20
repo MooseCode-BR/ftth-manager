@@ -753,7 +753,6 @@ export const parseKMLImport = (kmlText) => {
     }
 
     // 2. TRAVESSIA RECURSIVA OTIMIZADA (Sem lógica de pastas)
-    let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
     const rawPoints = [];
     const rawLines = [];
     const rawAreas = [];
@@ -811,8 +810,6 @@ export const parseKMLImport = (kmlText) => {
             if (coords) {
                 const [lng, lat] = coords.trim().split(',').map(parseFloat);
                 if (!isNaN(lat) && !isNaN(lng)) {
-                    minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
-                    minLng = Math.min(minLng, lng); maxLng = Math.max(maxLng, lng);
                     rawPoints.push({ name, lat, lng, color: itemColor, notes: description, tempTags: currentTags });
                 }
             }
@@ -919,17 +916,12 @@ export const parseKMLImport = (kmlText) => {
     // 3. GERAÇÃO DOS ITENS
     if (rawPoints.length === 0 && rawLines.length === 0 && rawAreas.length === 0) return [];
 
-    const CANVAS_SIZE = 5000;
-    const latRange = maxLat - minLat || 0.001;
-    const lngRange = maxLng - minLng || 0.001;
     const createdNodes = [];
     const newItems = [];
 
     // Nós
     rawPoints.forEach((pt, index) => {
         const type = guessTypeByName(pt.name);
-        const x = ((pt.lng - minLng) / lngRange) * CANVAS_SIZE;
-        const y = CANVAS_SIZE - ((pt.lat - minLat) / latRange) * CANVAS_SIZE;
 
         const nodeId = `imp_node_${Date.now()}_${index}`;
 
@@ -937,8 +929,6 @@ export const parseKMLImport = (kmlText) => {
             id: nodeId,
             type: type,
             name: pt.name,
-            x: Math.round(x),
-            y: Math.round(y),
             lat: pt.lat,
             lng: pt.lng,
             ports: 0,
@@ -1161,31 +1151,3 @@ const deleteNodeImages = async (node) => {
     await Promise.all(deletePromises);
 };
 //=================================================//
-
-export const calculateCirclePositions = (center, radius, angle, direction) => {
-    let finalPositions = [];
-    const pointsCount = 64;
-    const R = 6378137;
-    const rLat = radius / R;
-    const rLng = radius / (R * Math.cos(Math.PI * center.lat / 180));
-
-    // Se o ângulo é menor que 360, incluímos o centro para fechar o "fatia de pizza"
-    if (angle < 360) {
-        finalPositions.push({ lat: center.lat, lng: center.lng });
-    }
-
-    const startCompassAngle = direction - (angle / 2);
-
-    for (let i = 0; i <= (angle < 360 ? pointsCount : pointsCount - 1); i++) {
-        const fraction = i / pointsCount;
-        const currentCompassAngle = startCompassAngle + (fraction * angle);
-
-        // Converte de "Compass Angle" (0=Norte) para trigonométrico (0=Leste)
-        const theta = (90 - currentCompassAngle) * (Math.PI / 180);
-
-        const ptLat = center.lat + (rLat * Math.sin(theta)) * (180 / Math.PI);
-        const ptLng = center.lng + (rLng * Math.cos(theta)) * (180 / Math.PI);
-        finalPositions.push({ lat: ptLat, lng: ptLng });
-    }
-    return finalPositions;
-};
