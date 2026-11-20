@@ -753,7 +753,6 @@ export const parseKMLImport = (kmlText) => {
     }
 
     // 2. TRAVESSIA RECURSIVA OTIMIZADA (Sem lógica de pastas)
-    let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
     const rawPoints = [];
     const rawLines = [];
     const rawAreas = [];
@@ -811,8 +810,6 @@ export const parseKMLImport = (kmlText) => {
             if (coords) {
                 const [lng, lat] = coords.trim().split(',').map(parseFloat);
                 if (!isNaN(lat) && !isNaN(lng)) {
-                    minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
-                    minLng = Math.min(minLng, lng); maxLng = Math.max(maxLng, lng);
                     rawPoints.push({ name, lat, lng, color: itemColor, notes: description, tempTags: currentTags });
                 }
             }
@@ -919,17 +916,12 @@ export const parseKMLImport = (kmlText) => {
     // 3. GERAÇÃO DOS ITENS
     if (rawPoints.length === 0 && rawLines.length === 0 && rawAreas.length === 0) return [];
 
-    const CANVAS_SIZE = 5000;
-    const latRange = maxLat - minLat || 0.001;
-    const lngRange = maxLng - minLng || 0.001;
     const createdNodes = [];
     const newItems = [];
 
     // Nós
     rawPoints.forEach((pt, index) => {
         const type = guessTypeByName(pt.name);
-        const x = ((pt.lng - minLng) / lngRange) * CANVAS_SIZE;
-        const y = CANVAS_SIZE - ((pt.lat - minLat) / latRange) * CANVAS_SIZE;
 
         const nodeId = `imp_node_${Date.now()}_${index}`;
 
@@ -937,8 +929,6 @@ export const parseKMLImport = (kmlText) => {
             id: nodeId,
             type: type,
             name: pt.name,
-            x: Math.round(x),
-            y: Math.round(y),
             lat: pt.lat,
             lng: pt.lng,
             ports: 0,

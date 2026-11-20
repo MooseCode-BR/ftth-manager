@@ -1,9 +1,9 @@
 import './styles.css';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
-    MousePointer2, BoxSelect,
-    PackagePlus, Network, Filter, Ruler, FolderOpen, FolderClosed,
-    Map as MapIcon, RadioTower,
+    MousePointer2,
+    PackagePlus, Ruler, FolderOpen, FolderClosed,
+    RadioTower,
     Sun, Moon, Settings, HouseWifi,
     Route,
     MapPin,
@@ -51,7 +51,6 @@ const Divider = () => <div className="dock-divider" aria-hidden="true"></div>;
 // --- Componente Principal: Dock ---
 const Dock = ({
     activeTool, setActiveTool,
-    viewMode, setViewMode,
     isDarkMode, setIsDarkMode,
     onOpenSettings,
     onNewClient,
@@ -73,9 +72,7 @@ const Dock = ({
             label: 'Seleção',
             items: [
                 { id: 'SELECT', icon: MousePointer2, label: 'Ponteiro', action: () => setActiveTool('SELECT') },
-                ...(viewMode === 'CANVAS'
-                    ? [{ id: 'RULER', icon: BoxSelect, label: 'Selecionar', action: () => setActiveTool('RULER') }]
-                    : [{ id: 'MEASURE', icon: Ruler, label: 'Régua', action: () => setActiveTool('MEASURE') }])
+                { id: 'MEASURE', icon: Ruler, label: 'Régua', action: () => setActiveTool('MEASURE') }
             ]
         },
         {
@@ -90,13 +87,11 @@ const Dock = ({
                 { id: 'ADD_TOWER', icon: RadioTower, label: 'Torre', action: () => setActiveTool('ADD_TOWER') },
                 { id: 'ADD_POST', icon: PostIcon, label: 'Poste', action: () => setActiveTool('ADD_POST') },
                 { id: 'ADD_OBJECT', icon: MapPin, label: 'Objeto', action: () => setActiveTool('ADD_OBJECT') },
-                ...(viewMode === 'CANVAS' ? [] : [
-                    { id: 'ADD_AREA', icon: Hexagon, label: 'Área', action: () => setActiveTool('ADD_AREA') },
-                    { id: 'ADD_CIRCLE_AREA', icon: CircleDashed, label: 'Área (Círculo)', action: () => setActiveTool('ADD_CIRCLE_AREA') }
-                ])
+                { id: 'ADD_AREA', icon: Hexagon, label: 'Área', action: () => setActiveTool('ADD_AREA') },
+                { id: 'ADD_CIRCLE_AREA', icon: CircleDashed, label: 'Área (Círculo)', action: () => setActiveTool('ADD_CIRCLE_AREA') }
             ]
         }
-    ], [viewMode, setActiveTool]);
+    ], [setActiveTool]);
 
     useEffect(() => {
         if (!activeCategory) return;
@@ -196,14 +191,6 @@ const Dock = ({
                 })}
 
                 <Divider />
-
-                {/* Alternar Visualização */}
-                <DockBtn
-                    icon={viewMode === 'MAP' ? Network : MapIcon}
-                    label={viewMode === 'MAP' ? "Topologia" : "Mapa"}
-                    isActive={false}
-                    onClick={() => setViewMode(prev => prev === 'MAP' ? 'CANVAS' : 'MAP')}
-                />
 
                 {/* Tema */}
                 <DockBtn

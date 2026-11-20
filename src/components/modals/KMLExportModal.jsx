@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, CheckSquare, Square, Map, Download } from 'lucide-react';
-import '../BackupModal/styles.css'; // Reutiliza os estilos do BackupModal
+import './BackupModal/styles.css'; // Reutiliza os estilos do BackupModal
 
 const KMLExportModal = ({ isOpen, onClose, projects, onConfirm }) => {
     const [selectedIds, setSelectedIds] = useState(new Set());

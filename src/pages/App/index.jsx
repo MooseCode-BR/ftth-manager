@@ -11,15 +11,13 @@ import './styles.css';
 // useMemo: Hook para memoizar valores computados e otimizar performance
 // useCallback: Hook para memoizar funções e evitar re-criações desnecessárias
 // memo: Higher-Order Component para memoizar componentes e evitar re-renders desnecessários
-import React, { useState, useRef, useEffect, useMemo, useCallback, memo } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 
 // ============================================================================
 // GERAÇÃO DE IDs ÚNICOS E RENDERIZAÇÃO
 // ============================================================================
 // uuid: Gera identificadores únicos universais (UUID v4) para novos itens
 import { v4 as uuidv4 } from 'uuid';
-// ReactDOM: Permite criar portais para renderizar componentes fora da hierarquia DOM
-import ReactDOM from 'react-dom';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Dialog } from '@capacitor/dialog';
 
@@ -28,9 +26,7 @@ import { Dialog } from '@capacitor/dialog';
 // ============================================================================
 // Biblioteca de ícones SVG modernos e leves utilizados em toda a interface
 import {
-    Trash2, Box, Scissors, Activity, User, ArrowRightLeft, Edit3, Save, X, CircleUserRound, ZoomIn, ZoomOut,
-    LogOut, Mail, Search, ShieldAlert, MapPin, MapPinned, Loader2, Lock, Unlock, Info, PackagePlus,
-    DoorOpen, AlertTriangle, Play, Pause, ExternalLink, Tag,
+    Box, Scissors, User, ArrowRightLeft, X, Search, MapPin, Info, Tag,
     PenTool, RefreshCw, Check
 } from 'lucide-react';
 import LoadingFiber from '../../components/loadingfiber';
@@ -41,8 +37,7 @@ import LoadingFiber from '../../components/loadingfiber';
 
 // Constantes e Tipos de Itens
 // ITEM_TYPES: Define todos os tipos de equipamentos (POP, CEO, CTO, SPLITTER, DIO, etc)
-// ICON_MAP: Mapeia tipos de objetos para seus ícones correspondentes
-import { ITEM_TYPES, ICON_MAP, VERSAO } from '../../config/constants';
+import { ITEM_TYPES } from '../../config/constants';
 
 // Funções Utilitárias
 // findConnection: Busca conexões específicas entre itens e portas
@@ -108,7 +103,6 @@ import { syncUserProfile } from '../../hooks/useUserInfo';
 // ============================================================================
 import FiberMap from '../FiberMap'; // Componente de mapa com Leaflet
 import GenericModal from '../../components/modals/GenericModal'; // Modal genérico para itens simples
-import DraggableToolbar from '../../components/DraggableToolbar'; // Toolbar arrastável
 import { useProjectNotifications } from '../../hooks/useProjectNotifications';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 import { ProfileModal } from '../../components/modals/ProfileModal';
@@ -116,436 +110,6 @@ import { ProfileModal } from '../../components/modals/ProfileModal';
 
 
 // FUNCOES ========================================================================
-
-// COMPONENTES MEMOIZADOS (PERFORMANCE) ========================================================================
-// 1. Nó do Canvas (Caixas, Clientes, etc)
-// Só re-renderiza se a posição, cor, nome ou seleção mudarem.
-const CanvasNodes = memo(({ node, config, isSelected, isCableStart, isDragging, onStart, onEnd, onDoubleClick, onEdit, onDelete, onSelect, onOpen, onFlyToMap }) => {
-
-    // Estado local de bloqueio
-    const [isUnlocked, setIsUnlocked] = useState(false);
-
-    // Reseta bloqueio se perder seleção
-    useEffect(() => {
-        if (!isSelected) setIsUnlocked(false);
-    }, [isSelected]);
-
-    // --- ATALHOS DE TECLADO DO MENU ---
-    useEffect(() => {
-        if (!isSelected || isCableStart) return;
-
-        const handleKeyDown = (e) => {
-            if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
-            if (e.repeat) return; // Evita disparo múltiplo segurando a tecla
-
-            switch (e.key.toLowerCase()) {
-                case 'd':
-                    e.preventDefault();
-                    setIsUnlocked(prev => !prev);
-                    break;
-                case 'enter':
-                    e.preventDefault();
-                    if (onOpen) onOpen(node.id);
-                    break;
-                case 'e':
-                    e.preventDefault();
-                    if (onEdit) onEdit(node.id, node.name);
-                    break;
-                case 'a':
-                    e.preventDefault();
-                    if (onFlyToMap) onFlyToMap(node);
-                    break;
-                case 'delete':
-                    e.preventDefault();
-                    if (onDelete) onDelete(node.id);
-                    break;
-                default:
-                    break;
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isSelected, isCableStart, node, onOpen, onEdit, onDelete, onFlyToMap, setIsUnlocked]);
-
-    // LÓGICA DE CLIQUE E ARRASTE
-    const handleNodeClick = (e) => {
-        e.stopPropagation();
-        if (!isSelected) {
-            onSelect(node.id);
-        }
-        if (isUnlocked) {
-            onStart(e, node);
-        }
-    };
-
-    // --- LÓGICA DE ÍCONE DINÂMICO ---
-    // Se for OBJECT e tiver iconType, usa ele. Se não, usa o ícone da config do tipo (config.icon)
-    const IconComponent = (node.type === 'OBJECT' && node.iconType && ICON_MAP[node.iconType])
-        ? ICON_MAP[node.iconType]
-        : (config.icon || Settings2);
-
-    return (
-        <div
-            onMouseDown={handleNodeClick}
-            onMouseUp={(e) => onEnd(e, node)}
-            onTouchStart={handleNodeClick}
-            onTouchEnd={(e) => onEnd(e, node)}
-            onDoubleClick={(e) => { if (!node._readOnly) onDoubleClick(e, node); }}
-            style={{
-                left: node.x,
-                top: node.y,
-                width: config.width,
-                // Se for arrastado, muda a ordem Z para ficar por cima de tudo
-                zIndex: isDragging ? 100 : (isSelected ? 50 : 10)
-            }}
-            className={`
-                absolute rounded-lg border-2 transition-all 
-                ${isSelected
-                    ? 'border-blue-600 shadow-xl ring-2 ring-blue-300 dark:ring-blue-900'
-                    : 'border-slate-300 dark:border-gray-600 hover:border-blue-400 shadow-sm'
-                } 
-                ${isDragging ? 'opacity-80 cursor-grabbing' : ''}
-                ${isUnlocked ? 'cursor-grab' : 'cursor-default'} 
-                bg-white dark:bg-gray-800 group select-none
-            `}
-        >
-            {/* Faixa Colorida no Topo */}
-            <div className="h-2 rounded-t-md w-full transition-colors" style={{ backgroundColor: node.color || config.defaultColor || '#000000' }}></div>
-
-            {/* Conteúdo do Card */}
-            <div className="p-3 flex flex-col gap-1">
-                {/* Cabeçalho do Card (Ícone + Tipo) */}
-                <div className="flex items-center gap-2 opacity-70">
-                    <IconComponent size={14} className="text-gray-600 dark:text-gray-300" />
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-gray-500 dark:text-gray-400">
-                        {config.label}
-                    </span>
-                </div>
-
-                {/* Nome do Node */}
-                <div className="font-semibold text-sm truncate text-gray-800 dark:text-gray-100" title={node.name}>
-                    {node.name}
-                </div>
-            </div>
-
-            {/* --- TOOLBAR (MENU DE AÇÕES) --- 
-                Renderiza acima do node, estilo "Popup" igual ao do mapa
-            */}
-            {/* Toolbar: não exibe para itens restritos nem quando é o 1º nó do DRAW_CABLE */}
-            {isSelected && !isCableStart && !node._readOnly && (
-                <div
-                    className="absolute pointer-events-auto z-[60] animate-in slide-in-from-bottom-2 fade-in duration-200"
-                    style={{ left: '-10%', top: '80px', transform: 'translateX(-50%)' }}
-                >
-                    <DraggableToolbar>
-                        {/* 1. Nome no Topo (Header) */}
-                        <div className="w-full text-center border-b border-gray-300/50 dark:border-gray-600/50 px-2.5 py-2 mb-1.5">
-                            <span className="text-xs font-bold text-black dark:text-white block truncate max-w-[200px]">
-                                {node.name}
-                            </span>
-                        </div>
-
-                        {/* 2. Botões de Ação (Lista Vertical) */}
-                        <div className="flex flex-col gap-1 w-full min-w-[170px]">
-
-                            {/* TRAVAR / DESTRAVAR */}
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setIsUnlocked(!isUnlocked); }}
-                                className={`w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium rounded-lg transition-colors text-left ${isUnlocked
-                                    ? 'bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20'
-                                    : 'bg-transparent text-gray-700 dark:text-gray-200 hover:bg-white/50 dark:hover:bg-neutral-800'
-                                    }`}
-                                title={isUnlocked ? "Bloquear Posição" : "Liberar Movimento"}
-                            >
-                                {isUnlocked ? <Unlock size={16} /> : <Lock size={16} />}
-                                <span className="flex-1">{isUnlocked ? "Travar Posição" : "Destravar Posição"}</span>
-                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">D</span>
-                            </button>
-
-                            {/* DETALHES */}
-                            <button
-                                onClick={(e) => { e.stopPropagation(); if (onOpen) onOpen(node.id); }}
-                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
-                            >
-                                <DoorOpen size={16} />
-                                <span className="flex-1">Abrir Detalhes</span>
-                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">Enter</span>
-                            </button>
-
-                            {/* EDITAR */}
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onEdit(node.id, node.name); }}
-                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
-                            >
-                                <Edit3 size={16} />
-                                <span className="flex-1">Editar Equipamento</span>
-                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">E</span>
-                            </button>
-
-                            {/* MAPA (Voar para o nó) */}
-                            <button
-                                onClick={(e) => { e.stopPropagation(); if (onFlyToMap) onFlyToMap(node); }}
-                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-transparent hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors text-left"
-                            >
-                                <MapPinned size={16} />
-                                <span className="flex-1">Ver no Mapa</span>
-                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold px-1 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">A</span>
-                            </button>
-
-                            {/* Linha Divisória */}
-                            <div className="h-px bg-gray-300/50 dark:bg-gray-600/50 my-0.5 mx-1"></div>
-
-                            {/* EXCLUIR */}
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onDelete(node.id); }}
-                                className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-transparent hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-left"
-                            >
-                                <Trash2 size={16} />
-                                <span className="flex-1">Excluir Equipamento</span>
-                                <span className="text-[10px] text-red-400 font-bold px-1 rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">Del</span>
-                            </button>
-
-                        </div>
-                    </DraggableToolbar>
-                </div>
-            )}
-        </div>
-    );
-}, (prev, next) => { // Só re-renderiza os ícones caso algum desses parametro mudar
-    return (
-        prev.node.x === next.node.x &&
-        prev.node.y === next.node.y &&
-        prev.node.name === next.node.name &&
-        prev.node.color === next.node.color &&
-        prev.node.iconType === next.node.iconType &&
-        prev.isSelected === next.isSelected &&
-        prev.isDragging === next.isDragging &&
-        prev.node.type === next.node.type
-    );
-});
-
-// 2. Cabo Otimizado
-// Recebe index e count calculados pelo Pai, evitando filtro O(N^2) interno
-const CableLine = memo(({ cable, nodeA, nodeB, index, count, itemTypes, onSelect, onOpen, onSplit, onDelete, onEdit, isSelected }) => {
-
-    const [isHovered, setIsHovered] = useState(false);
-
-    // Estados para controle igual ao EditableCable
-    //const [isUnlocked, setIsUnlocked] = useState(false);
-    const [clickPosition, setClickPosition] = useState(null);
-
-    // Reseta estado se perder seleção
-    useEffect(() => {
-        if (!isSelected) {
-            //setIsUnlocked(false);
-            setClickPosition(null);
-        }
-    }, [isSelected]);
-
-    if (!nodeA || !nodeB) return null;
-
-    // --- Cálculos de Geometria (Mantidos) ---
-    const isCurved = count > 1;
-    const spread = 40;
-    const curvature = isCurved ? (index - (count - 1) / 2) * spread : 0;
-
-    // Pegar dimensões baseadas no tipo ou padrão
-    const widthA = itemTypes[nodeA.type]?.width || 100; // Ajuste conforme sua config
-    const widthB = itemTypes[nodeB.type]?.width || 100;
-
-    // Centro aproximado dos nós (ajuste o +30 se necessário para alinhar com o centro vertical do node)
-    const centerA = { x: nodeA.x + (widthA / 2), y: nodeA.y + 30 };
-    const centerB = { x: nodeB.x + (widthB / 2), y: nodeB.y + 30 };
-
-    const strokeColor = cable.color || '#334155';
-    const displayColor = strokeColor === '#334155' ? '#94a3b8' : strokeColor;
-
-    let d = '';
-    let midX = (centerA.x + centerB.x) / 2;
-    let midY = (centerA.y + centerB.y) / 2;
-
-    if (isCurved) {
-        const dx = centerB.x - centerA.x;
-        const dy = centerB.y - centerA.y;
-        const len = Math.sqrt(dx * dx + dy * dy);
-        const nx = -dy / len;
-        const ny = dx / len;
-
-        // Ponto de controle da curva Bezier
-        const cx = midX + nx * curvature;
-        const cy = midY + ny * curvature;
-
-        d = `M ${centerA.x} ${centerA.y} Q ${cx} ${cy} ${centerB.x} ${centerB.y}`;
-
-        // Recalcula o meio baseado na curva para posicionar o texto corretamente
-        midX = 0.25 * centerA.x + 0.5 * cx + 0.25 * centerB.x;
-        midY = 0.25 * centerA.y + 0.5 * cy + 0.25 * centerB.y;
-    } else {
-        d = `M ${centerA.x} ${centerA.y} L ${centerB.x} ${centerB.y}`;
-    }
-    // -------------------------------------------
-
-    // MANIPULAÇÃO DE CLIQUES
-    const handleClick = (e) => {
-        e.stopPropagation();
-
-        // Captura a posição do clique relativa ao SVG (aproximada)
-        // e.nativeEvent.offsetX/Y pega a posição dentro do elemento SVG container
-        setClickPosition({ x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY });
-
-        if (!isSelected) {
-            onSelect(cable.id);
-        }
-    };
-
-    const handleDoubleClick = (e) => {
-        e.stopPropagation();
-        if (onOpen) onOpen(cable.id);
-    };
-
-    // --- PORTAL DO POPUP ---
-    const tooltipLayer = document.getElementById('cable-tooltips-layer');
-
-    // Determina a posição do popup: 
-    // Prioriza onde foi clicado (clickPosition). Se não tiver (ex: seleção via lista), usa o meio da linha (midX/midY).
-    const popupX = clickPosition ? clickPosition.x : midX;
-    const popupY = clickPosition ? clickPosition.y : midY;
-
-    const toolbarPortal = (isSelected && tooltipLayer) ? ReactDOM.createPortal(
-        <div
-            className="absolute pointer-events-auto z-[60] animate-in slide-in-from-bottom-2 fade-in"
-            style={{
-                left: popupX - 95,
-                top: popupY + 20, // Um pouco acima do clique
-                transform: 'translate(-50%, -100%)' // Centraliza e joga pra cima
-            }}
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-        >
-            <DraggableToolbar>
-                {/* 1. Nome no Topo */}
-                <div className="w-full text-center border-b border-gray-300/50 dark:border-gray-600/50 px-2.5 py-2 mb-1.5">
-                    <span className="text-xs font-bold text-black dark:text-white block truncate max-w-[200px]">
-                        {cable.name}
-                    </span>
-                </div>
-
-                {/* 2. Botões (Lista Vertical) */}
-                <div className="flex flex-col gap-1 w-full min-w-[170px]">
-
-                    {/* DETALHES */}
-                    <button
-                        onClick={(e) => { e.stopPropagation(); if (onOpen) onOpen(cable.id); }}
-                        className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
-                    >
-                        <DoorOpen size={16} />
-                        Abrir Detalhes
-                    </button>
-
-                    {/* EDITAR */}
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onEdit(cable.id, cable.name); }}
-                        className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-transparent hover:bg-white/50 dark:hover:bg-neutral-800 rounded-lg transition-colors text-left"
-                    >
-                        <Edit3 size={16} />
-                        Editar Cabo
-                    </button>
-
-                    {/* Linha Divisória */}
-                    <div className="h-px bg-gray-300/50 dark:bg-gray-600/50 my-0.5 mx-1"></div>
-
-                    {/* EXCLUIR */}
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onDelete(cable.id); }}
-                        className="w-full flex items-center gap-3 px-2.5 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-transparent hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-left"
-                    >
-                        <Trash2 size={16} />
-                        Excluir Cabo
-                    </button>
-
-                </div>
-            </DraggableToolbar>
-        </div>,
-        tooltipLayer
-    ) : null;
-
-    return (
-        <>
-            {/* Renderiza a toolbar via Portal */}
-            {toolbarPortal}
-
-            <g
-                onClick={handleClick}
-                onDoubleClick={handleDoubleClick}
-                onMouseEnter={() => setIsHovered(true)}
-                onMouseLeave={() => setIsHovered(false)}
-                className="cursor-pointer hover:opacity-80 group transition-all pointer-events-auto"
-            >
-                {/* Linha grossa invisível para facilitar o clique (Hitbox) */}
-                <path d={d} stroke="transparent" strokeWidth="20" fill="none" />
-
-                {/* Linha visível */}
-                <path
-                    d={d}
-                    stroke={isSelected ? '#3b82f6' : displayColor}
-                    strokeWidth={isSelected ? "6" : "4"}
-                    fill="none"
-                    className={!isSelected ? "dark:stroke-opacity-80" : ""}
-                // Se quiser linha pontilhada quando desbloqueado/editando:
-                //strokeDasharray={ (isSelected && isUnlocked) ? "5,5" : "none" }
-                />
-
-                {/* Linha central branca tracejada quando selecionado */}
-                {isSelected && <path d={d} stroke="#fff" strokeWidth="2" strokeDasharray="4" fill="none" />}
-
-                {/* Rótulo com o Nome (Sempre visível no meio da linha) */}
-                <foreignObject
-                    x={midX - 50}
-                    y={midY - 10}
-                    width="100"
-                    height="20"
-                    className="pointer-events-none overflow-visible"
-                >
-                    <div className="flex items-center justify-center w-full h-full">
-                        <div className={`
-                            bg-white dark:bg-gray-800 border rounded px-2 py-0.5 text-[10px] text-center shadow-sm truncate select-none font-medium max-w-full 
-                            ${isSelected ? 'border-blue-500 text-blue-600' : 'border-slate-300 text-slate-700 dark:text-gray-300'}
-                        `}>
-                            {cable.name}
-                        </div>
-                    </div>
-                </foreignObject>
-            </g>
-        </>
-    );
-}, (prev, next) => {
-    return (
-        prev.cable.id === next.cable.id &&
-        prev.cable.name === next.cable.name &&
-        prev.cable.color === next.cable.color &&
-        prev.nodeA.x === next.nodeA.x && prev.nodeA.y === next.nodeA.y &&
-        prev.nodeB.x === next.nodeB.x && prev.nodeB.y === next.nodeB.y &&
-        prev.index === next.index &&
-        prev.count === next.count &&
-        prev.isSelected === next.isSelected
-    );
-});
-
-// 3. Drop Otimizado (Recebe coordenadas diretas)
-const DropLine = memo(({ x1, y1, x2, y2 }) => {
-    if (x1 === undefined || x2 === undefined) return null;
-    return (
-        <g className="pointer-events-none">
-            <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#ffffff" strokeWidth="2" strokeDasharray="6,4" className="opacity-40 dark:opacity-80" />
-            <circle cx={x1} cy={y1} r="3" fill="#94a3b8" className="opacity-80" />
-        </g>
-    );
-});
-
-
-// FIM COMPONENTES MEMOIZADOS (PERFORMANCE) ========================================================================
 
 // Componente Input otimizado para não "comer" letras durante digitação rápida
 const DebouncedInput = ({ value, onChange, ...props }) => {
@@ -595,7 +159,7 @@ const DebouncedInput = ({ value, onChange, ...props }) => {
 // FIM FUNCOES ========================================================================
 
 
-// CANVAS (PRINCIPAL) ========================================================================
+// APP (PRINCIPAL) ========================================================================
 const App = () => {
     // useState (ESTADOS)------------------------------------------------------------------------------------------------------------------------------------------
     // --- ESTADOS DE PROJETOS & COLABORAÇÃO ---
@@ -713,16 +277,12 @@ const App = () => {
     const [traceModalData, setTraceModalData] = useState(null); //Rastreio de sinal
     const [newClientPosition, setNewClientPosition] = useState(null); //Posição de novo cliente
     const [isLoading, setIsLoading] = useState(true);  //Está carregando?
-    const [mapStartConfig, setMapStartConfig] = useState(null); // Guarda o centro do mapa salvo
     const [isBackupModalOpen, setIsBackupModalOpen] = useState(false); // Modal de Salvar Backup
     const [isKMLExportModalOpen, setIsKMLExportModalOpen] = useState(false); // Modal de Exportar KML
 
     // --- ESTADOS DE INTERFACE ---
     const [pendingConn, setPendingConn] = useState(null); //Conexao pendente
-    const [selectedIds, setSelectedIds] = useState(new Set());
     const [detailId, setDetailId] = useState(null);
-    const [scale, setScale] = useState(1);
-    const [pan, setPan] = useState({ x: 0, y: 0 });
 
     const [modalConfig, setModalConfig] = useState(null); //Define se o creationModal está trabalhando com nós, cabos ou itens
     const [editModalConfig, setEditModalConfig] = useState(null); //Define se o modal de edição está trabalhando com nós, cabos ou itens
@@ -746,7 +306,6 @@ const App = () => {
     }, [interactionMode]);
     const [nodeTypeToAdd, setNodeTypeToAdd] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [hasCentered, setHasCentered] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false); //Modal de perfil
     const [searchMode, setSearchMode] = useState('ITEMS'); // 'ITEMS' ou 'ADDRESS'
     const [flyToCoords, setFlyToCoords] = useState(null); // Coordenada para enviar ao mapa
@@ -758,12 +317,6 @@ const App = () => {
         const tema = localStorage.getItem('ftth_theme');
         return tema ? tema === 'dark' : true;
     });
-    const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
-    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-    const [draggingNode, setDraggingNode] = useState(null);
-    const [selectionBox, setSelectionBox] = useState(null);
-    const [selectedItemsOffset, setSelectedItemsOffset] = useState({ dx: 0, dy: 0 });
-    const [viewMode, setViewMode] = useState('MAP'); // Novo estado: 'CANVAS' ou 'MAP'
     const [importModalData, setImportModalData] = useState(null); // Estado para controlar os dados da importação antes de salvar
     const [fixConnectionsData, setFixConnectionsData] = useState(null);
     const [duplicatesData, setDuplicatesData] = useState(null);    // Estado para controlar os conflitos de duplicidade
@@ -784,11 +337,6 @@ const App = () => {
 
     // useRef (REFERENCIAS)------------------------------------------------------------------------------------------------------------------------------
     const backupInputRef = useRef(null); //Backup
-    const canvasRef = useRef(null);
-    const dragStartPosRef = useRef({ x: 0, y: 0 });
-    const clickTimeoutRef = useRef(null);
-    const touchRef = useRef({ dist: 0 });
-    const boxSelectionRef = useRef(null);
     const fileInputRef = useRef(null); // KML/Fotos
 
 
@@ -856,8 +404,7 @@ const App = () => {
                 }
 
                 if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
-                    // Força modo mapa e voa para lá
-                    setViewMode('MAP');
+                    // Voa para a coordenada recebida via Deep Link
                     setFlyToCoords({ coords: [lat, lng], id_solicitacao: Date.now() });
 
                     // Feedback visual temporário (opcional, pode ser um toast)
@@ -1338,13 +885,13 @@ const App = () => {
     }, [projectDataCache, myProjects.length, sharedProjects.length, isProjectsMetadataLoading]);
 
     // DERIVAÇÕES DE ITENS E CONEXÕES VISÍVEIS
-    // Filtra para o Mapa e Canvas apenas os itens de projetos ativos (com "olho" aberto) e tags selecionadas
+    // Filtra para o Mapa apenas os itens de projetos ativos (com "olho" aberto) e tags selecionadas
     const visibleItems = useMemo(() => {
         if (!items || !Array.isArray(items)) return [];
 
         return items.filter(item => {
             // 1. Filtro de Visibilidade por Projeto (O Olhinho do Projeto)
-            // Se o item pertence a um projeto que NÃO está visível, oculta do mapa e canvas
+            // Se o item pertence a um projeto que NÃO está visível, oculta do mapa
             if (item._projectId && !visibleProjectIds.includes(item._projectId)) {
                 return false;
             }
@@ -1381,39 +928,6 @@ const App = () => {
         });
     }, [connections, visibleProjectIds]);
 
-    // Centralizar nós visíveis na tela
-    useEffect(() => {
-        if (!isLoading && visibleItems.length > 0 && !hasCentered) {
-            const visibleNodes = visibleItems.filter(i => !i.parentId && ITEM_TYPES[i.type]?.category === 'NODE');
-            if (visibleNodes.length > 0) {
-                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-                visibleNodes.forEach(node => {
-                    const width = ITEM_TYPES[node.type]?.width || 120;
-                    const height = 100;
-                    if (node.x < minX) minX = node.x;
-                    if (node.y < minY) minY = node.y;
-                    if (node.x + width > maxX) maxX = node.x + width;
-                    if (node.y + height > maxY) maxY = node.y + height;
-                });
-                const contentW = maxX - minX;
-                const contentH = maxY - minY;
-                const screenW = window.innerWidth;
-                const screenH = window.innerHeight;
-                const padding = 100;
-                const scaleX = (screenW - padding * 2) / contentW;
-                const scaleY = (screenH - padding * 2) / contentH;
-                const newScale = Math.min(scaleX, scaleY, 1);
-                const contentCenterX = minX + (contentW / 2);
-                const contentCenterY = minY + (contentH / 2);
-                const newPanX = (screenW / 2) - (contentCenterX * newScale);
-                const newPanY = (screenH / 2) - (contentCenterY * newScale);
-                setPan({ x: newPanX, y: newPanY });
-                setScale(newScale);
-                setHasCentered(true);
-            }
-        }
-    }, [isLoading, visibleItems.length, hasCentered]);
-
     // Função auxiliar: obtém a localização atual do usuário via GPS
     // Retorna { lat, lng } ou null se não conseguir (sem travar a busca)
     const getUserLocation = () => {
@@ -1442,7 +956,7 @@ const App = () => {
         const timer = setTimeout(async () => {
 
             // --- MODO 1: BUSCA DE ENDEREÇO (API) ---
-            if (viewMode === 'MAP' && searchMode === 'ADDRESS') {
+            if (searchMode === 'ADDRESS') {
                 if (searchTerm.length < 3) return;
 
                 // Ignora se for coordenada
@@ -1498,7 +1012,7 @@ const App = () => {
         }, 300); // <--- CORRIGIDO: 300ms (era 3000ms/3segundos)
 
         return () => clearTimeout(timer);
-    }, [searchTerm, searchMode, viewMode, visibleItems]);
+    }, [searchTerm, searchMode, visibleItems]);
 
     // Atalhos de teclado
     useEffect(() => {
@@ -1516,52 +1030,28 @@ const App = () => {
                 setInteractionMode('SELECT');
             }
 
-            // --- ATALHO 2: SHIFT (Seleção em Área) ---
-            if (e.key === 'Shift') {
-                // Só ativa se estiver no modo CANVAS
-                if (viewMode === 'CANVAS') {
-                    e.preventDefault(); // Opcional no Shift, mas mal não faz
-                    setInteractionMode('BOX_SELECT');
-                }
-            }
-
-            // --- ATALHO 3: "1" (Ferramenta POP) ---
+            // --- ATALHO 2: "1" (Ferramenta POP) ---
             if (e.key === '1') {
                 setInteractionMode('ADD_NODE');
                 setNodeTypeToAdd("POP");
             }
 
-            // --- ATALHO 4: "2" (Ferramenta CEO) ---
+            // --- ATALHO 3: "2" (Ferramenta CEO) ---
             if (e.key === '2') {
                 setInteractionMode('ADD_NODE');
                 setNodeTypeToAdd("CEO");
             }
 
-            // --- ATALHO 5: "3" (Ferramenta CTO) ---
+            // --- ATALHO 4: "3" (Ferramenta CTO) ---
             if (e.key === '3') {
                 setInteractionMode('ADD_NODE');
                 setNodeTypeToAdd("CTO");
             }
 
-            // --- ATALHO 6: "4" (Ferramenta Desenhar Cabo) ---
+            // --- ATALHO 5: "4" (Ferramenta Desenhar Cabo) ---
             if (e.key === '4') {
                 setInteractionMode('DRAW_CABLE');
             }
-
-            // --- ATALHO 7: "R" (Relatório) VOU MUDAR. RELATORIO NÃO VAI MAIS TER ATALHO E O 'R' SERA PARA NORTEAR O MAPA---
-            // if (e.key.toLowerCase() === 'r') {
-            //     setReportOpen(prev => !prev);
-            // }
-
-            // --- ATALHO 8: "M" (MAPA/CANVAS) ---
-            if (e.key.toLowerCase() === 'm') {
-                setViewMode(viewMode === 'CANVAS' ? 'MAP' : 'CANVAS');
-            }
-
-            // --- ATALHO 9: "N" (Novo Cliente) ---
-            // if (e.key.toLowerCase() === 'n') {
-            //     setInteractionMode('ADD_CLIENT');
-            // }
         };
 
         window.addEventListener('keydown', handleKeyDown);
@@ -1569,28 +1059,12 @@ const App = () => {
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [viewMode]);
+    }, []);
 
 
 
     // COMPONENTES -----------
 
-
-    // OTIMIZAÇÃO: Agrupar cabos (Bundles) para curvatura
-    // Isso evita rodar um .filter() dentro de cada cabo no render (O(N^2) -> O(N))
-    const cableGroups = useMemo(() => {
-        const groups = {};
-        items.filter(i => i.type === 'CABLE').forEach(c => {
-            // Cria uma chave única baseada nos IDs dos nós (ordem alfabética para ser agnóstico de direção)
-            const [n1, n2] = [c.fromNode, c.toNode].sort();
-            const key = `${n1}-${n2}`;
-            if (!groups[key]) groups[key] = [];
-            groups[key].push(c);
-        });
-        // Ordena para manter consistência visual (quem fica em cima/baixo)
-        Object.values(groups).forEach(g => g.sort((a, b) => a.id.localeCompare(b.id)));
-        return groups;
-    }, [items]);
     // Lida com a seleção do arquivo de restauração de BackUp   
     const handleRestore = async (event) => {
         const file = event.target.files[0];
@@ -1680,37 +1154,12 @@ const App = () => {
                 }
             }
 
-            // A partir daqui, usamos 'targetItem' (que será o Pai ou o próprio item se não tiver pai)
-
-            //setDetailId(targetItem.id); // Abre o Detail Painel do item 
-            setSelectedIds(new Set([targetItem.id])); // Seleciona o item, tipo um clique simples
-
-            // Se estiver no MODO MAPA, voa até as coordenadas do ALVO
-            if (viewMode === 'MAP') {
-                // Verifica coordenadas (Nós filhos geralmente não têm lat/lng próprias, usam a do pai)
-                if (targetItem.lat !== undefined && targetItem.lng !== undefined) {
-                    setFlyToCoords({ coords: [targetItem.lat, targetItem.lng], id_solicitacao: Date.now() });
-                } else {
-                    openAlert("Aviso", "Este item não possui localização no mapa.");
-                }
-            }
-
-            // Se estiver no MODO CANVAS, centraliza no ALVO com ZOOM
-            if (viewMode === 'CANVAS') {
-                const rect = canvasRef.current.getBoundingClientRect();
-
-                // 1. Defina o Zoom que você quer aplicar ao focar (Ex: 1.5 = 150%)
-                const targetZoom = 1.5;
-
-                // 2. Atualiza o estado do Zoom
-                setScale(targetZoom);
-
-                // 3. Calcula o Pan usando o NOVO ZOOM (targetZoom)
-                // Importante: Não use a variável 'scale' antiga aqui, use 'targetZoom'
-                setPan({
-                    x: (rect.width / 2) - (targetItem.x * targetZoom) - (ITEM_TYPES[targetItem.type]?.width || 0),
-                    y: (rect.height / 2) - (targetItem.y * targetZoom)
-                });
+            // Voa até as coordenadas do ALVO no mapa
+            // (Nós filhos geralmente não têm lat/lng próprias, usam a do pai)
+            if (targetItem.lat !== undefined && targetItem.lng !== undefined) {
+                setFlyToCoords({ coords: [targetItem.lat, targetItem.lng], id_solicitacao: Date.now() });
+            } else {
+                openAlert("Aviso", "Este item não possui localização no mapa.");
             }
         }
     };
@@ -1781,7 +1230,7 @@ const App = () => {
         }
     };
 
-    // --- Impede que o usuario tente criar algum item no mapa/canvas sem um projeto ativo. ---
+    // --- Impede que o usuario tente criar algum item no mapa sem um projeto ativo. ---
     const activeProjectGuard = () => {
         if (!activeProjectId) {
             openAlert(
@@ -1800,25 +1249,9 @@ const App = () => {
 
 
 
-    // --- LÓGICA DE SUBMISSÃO (COM PROJEÇÃO AUTOMÁTICA CANVAS -> MAPA) ---
+    // --- LÓGICA DE SUBMISSÃO (CRIAÇÃO DE ITENS NO MAPA) ---
     const handleModalSubmit = async (data) => {
         const id = Date.now().toString();
-
-        // 1. DEFINIÇÃO DO PONTO ZERO (ÂNCORA)
-        // Se tivermos uma config de mapa salva, usamos ela. Se não, usamos o centro de SP como fallback.
-        const anchorLat = mapStartConfig?.center?.[0] || -23.550520;
-        const anchorLng = mapStartConfig?.center?.[1] || -46.633308;
-
-        // 2. FATOR DE ESCALA (Pixel -> Grau)
-        // 0.00001 grau é aprox. 1 metro. 
-        // Multiplicamos o X/Y do canvas para espalhar os itens no mapa mantendo o desenho relativo.
-        const pixelToDegree = 0.00001;
-
-        // 3. FUNÇÃO AUXILIAR DE CÁLCULO
-        // Se já tem lat/lng (veio do clique no mapa), usa.
-        // Se não tem (veio do canvas), calcula baseado no X/Y relativo ao 0,0 do canvas.
-        const getLat = (manualLat, canvasY) => manualLat || (anchorLat - (canvasY * pixelToDegree));
-        const getLng = (manualLng, canvasX) => manualLng || (anchorLng + (canvasX * pixelToDegree));
 
         // --- NOVA LÓGICA: HERANÇA DE PROJETO (FIX E TAGS) ---
         // Se o item que estamos criando tem um Pai (está dentro de algo),
@@ -1873,14 +1306,8 @@ const App = () => {
                 id,
                 type: modalConfig.itemType,
                 name: data.name,
-                x: modalConfig.x || 0,
-                y: modalConfig.y || 0,
-
-                // --- AQUI ACONTECE A MÁGICA ---
-                lat: getLat(modalConfig.lat, modalConfig.y),
-                lng: getLng(modalConfig.lng, modalConfig.x),
-                // -------------------------------
-
+                lat: modalConfig.lat,
+                lng: modalConfig.lng,
                 ports: 0,
                 color: data.nodeColor,
                 parentId: null,
@@ -1979,7 +1406,6 @@ const App = () => {
     // 1. Clique no Fundo do Mapa (Adicionar Nó)
     const handleMapBgClick = (latlng) => {
         if (!latlng) {
-            setSelectedIds(new Set());
             setDetailId(null);
             return;
         }
@@ -2013,9 +1439,8 @@ const App = () => {
         }
     };
 
-    // 2. Clique em um Nó no Mapa (Conectar Cabo, Cliente ou Selecionar)
+    // 2. Clique em um Nó no Mapa (Conectar Cabo ou Selecionar)
     const handleMapNodeClick = (node) => {
-        // Lógica de desenhar cabo (Igual ao Canvas)
         if (interactionMode === 'DRAW_CABLE') {
 
             // LÊ o valor ATUAL via ref (sem stale closure)
@@ -2024,7 +1449,7 @@ const App = () => {
             if (!currentStart) {
                 console.log('[App] -> Definindo 1º nó:', node.name);
                 cableStartNodeRef.current = node;  // Atualiza ref IMEDIATAMENTE
-                setCableStartNode(node);            // Atualiza state para UI/canvas
+                setCableStartNode(node);            // Atualiza state para UI
             } else if (currentStart.id !== node.id) {
                 console.log('[App] -> Criando cabo entre:', currentStart.name, 'e', node.name);
                 setModalConfig({
@@ -2036,42 +1461,8 @@ const App = () => {
                 });
             }
         }
-
-        // if (interactionMode === 'PICK_RECONNECT_NODE') {
-        //     executeReconnection(node);
-        //     return;
-        // }
-        // Lógica de adicionar Cliente (Igual ao Canvas)
-        // else if (clientWizard.step === 'PICK_CTO') {
-        //     if (node.type !== 'CTO') {
-        //         openAlert("Atenção", "Selecione uma CTO válida.");
-        //         return;
-        //     }
-        //     // (Reutiliza lógica de buscar splitter dentro da CTO)
-        //     const splitter = items.find(i => i.parentId === node.id && i.type === 'SPLITTER');
-        //     if (!splitter) {
-        //         openAlert("Erro", "Esta CTO não possui Splitter instalado.");
-        //         return;
-        //     }
-        //     const freePorts = [];
-        //     for (let i = 1; i < splitter.ports; i++) {
-        //         const isBusy = findConnection(connections, splitter.id, i, 'A');
-        //         if (!isBusy) freePorts.push({ id: i, label: i, splitterId: splitter.id });
-        //     }
-        //     if (freePorts.length === 0) {
-        //         openAlert("Lotada", "Esta CTO não tem portas disponíveis.");
-        //         return;
-        //     }
-        //     setClientWizard({
-        //         step: 'PICK_PORT',
-        //         data: { ...clientWizard.data, ctoNode: node, splitter, freePorts }
-        //     });
-        // }
-
         else {         // Seleção Normal
-
             setDetailId(node.id);
-            setSelectedIds(new Set([node.id]));
         }
     };
 
@@ -3080,7 +2471,6 @@ const App = () => {
             setIsProcessing(false);
             setProcessingMessage('');
 
-            setSelectedIds(new Set());
             if (detailId && allItemIdsToDelete.has(detailId)) {
                 setDetailId(null);
             }
@@ -3360,36 +2750,6 @@ const App = () => {
         }
     };
 
-    const handleSearchSelect = (item) => {
-        let tId = item.id;
-        let tItem = item;
-        if (item.parentId) {
-            tId = item.parentId;
-            tItem = items.find(i => i.id === tId);
-        }
-        if (tItem) {
-            const w = ITEM_TYPES[tItem.type]?.width || 120;
-            setPan({
-                x: (window.innerWidth / 2) - (tItem.x * scale) - ((w * scale) / 2),
-                y: (window.innerHeight / 2) - (tItem.y * scale) - (50 * scale)
-            });
-            setDetailId(tId);
-            setSearchTerm('');
-        }
-    };
-
-    const filteredItems = visibleItems.filter(i => i.name.toLowerCase().includes(searchTerm.toLowerCase()));
-
-    // Atualiza a posição do nó APENAS no state local (sem write ao Firestore).
-    // O salvamento no banco ocorre apenas no handleEnd (ao soltar o item).
-    const updateNodePosition = (id, x, y) => {
-        setItems(prev => prev.map(i =>
-            i.id === id
-                ? { ...i, x, y }
-                : i
-        ));
-    };
-
     const renameItem = (id, oldName) => {
         const item = items.find(i => i.id === id);
         if (!item) return;
@@ -3553,327 +2913,10 @@ const App = () => {
         // 3. SE PASSOU NAS VERIFICAÇÕES, CONFIRMA A EXCLUSÃO
         openConfirm("Remover Item", "Tem certeza que deseja excluir este item permanentemente?", () => {
             deleteItemDB(id);
-            // A função deleteItemDB (que atualizamos antes) já cuida de limpar conexões internas órfãs,
-            // mas agora garantimos que não sobrarão cabos externos quebrados.
-
-            if (selectedIds.has(id)) {
-                const newSet = new Set(selectedIds);
-                newSet.delete(id);
-                setSelectedIds(newSet);
-            }
+            // A função deleteItemDB já cuida de limpar conexões internas órfãs,
+            // garantindo que não sobrarão cabos externos quebrados.
             if (detailId === id) setDetailId(null);
         });
-    };
-
-    const deleteSelected = () => { openConfirm("Excluir Múltiplos", `Deseja excluir ${selectedIds.size} itens?`, () => { batchDelete(Array.from(selectedIds)); setSelectedIds(new Set()); }); };
-
-    const getClientPos = (e) => { if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY }; if (e.changedTouches && e.changedTouches.length > 0) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY }; return { x: e.clientX, y: e.clientY }; };
-
-    const getTouchDistance = (t1, t2) => { const dx = t1.clientX - t2.clientX; const dy = t1.clientY - t2.clientY; return Math.sqrt(dx * dx + dy * dy); };
-
-    const handleEnd = (e, node) => {
-        if (draggingNode?.isMultiSelect) { setSelectedItemsOffset({ dx: 0, dy: 0 }); } if (e.touches && e.touches.length < 2) { touchRef.current.dist = 0; } if (interactionMode === 'SELECT') { if (node) { const pos = getClientPos(e.changedTouches ? e.changedTouches[0] : e); const dist = Math.sqrt(Math.pow(pos.x - dragStartPosRef.current.x, 2) + Math.pow(pos.y - dragStartPosRef.current.y, 2)); if (dist < 5) { if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current); clickTimeoutRef.current = setTimeout(() => { setSelectedIds(new Set([node.id])); setDetailId(null); }, 250); } } else { const pos = getClientPos(e.changedTouches ? e.changedTouches[0] : e); const dist = Math.sqrt(Math.pow(pos.x - dragStartPosRef.current.x, 2) + Math.pow(pos.y - dragStartPosRef.current.y, 2)); if (dist < 5) { setSelectedIds(new Set()); setDetailId(null); } } } else if (interactionMode === 'DRAW_CABLE' && node) {
-
-            // USA REF para evitar stale closure (igual ao modo mapa)
-            const currentStart = cableStartNodeRef.current;
-            if (!currentStart) {
-                cableStartNodeRef.current = node; // atualiza ref IMEDIATAMENTE
-                setCableStartNode(node);          // atualiza state para UI
-            } else if (currentStart.id !== node.id) {
-                setModalConfig({ mode: 'CABLE', fromNode: currentStart, toNode: node, defaultName: `Cabo ${items.filter(i => i.type === 'CABLE').length + 1}`, defaultPorts: 12 });
-            }
-        } else if (interactionMode === 'BOX_SELECT' && boxSelectionRef.current) {
-            const selBox = selectionBox;
-            if (selBox) {
-                const newSelection = new Set();
-
-                // 1. ITERAÇÃO DE NÓS (Corrigido para usar visibleItems)
-                // Antes: items.filter(...) -> Agora: visibleItems.filter(...)
-                visibleItems.filter(i => !i.parentId && ITEM_TYPES[i.type].category === 'NODE').forEach(item => {
-                    const w = ITEM_TYPES[item.type].width;
-                    const h = 100;
-                    // Verifica colisão
-                    if (item.x < selBox.x + selBox.w &&
-                        item.x + w > selBox.x &&
-                        item.y < selBox.y + selBox.h &&
-                        item.y + h > selBox.y) {
-                        newSelection.add(item.id);
-                    }
-                });
-
-                // 2. ITERAÇÃO DE CABOS (Corrigido para usar visibleItems)
-                // Antes: items.filter(...) -> Agora: visibleItems.filter(...)
-                visibleItems.filter(i => i.type === 'CABLE').forEach(cable => {
-                    // Nota: Aqui mantemos 'items.find' para buscar as pontas (nA e nB),
-                    // pois precisamos das coordenadas delas mesmo que estejam ocultas,
-                    // já que decidiste que cabos podem aparecer sem os nós.
-                    const nA = items.find(n => n.id === cable.fromNode);
-                    const nB = items.find(n => n.id === cable.toNode);
-
-                    if (nA && nB) {
-                        const wA = ITEM_TYPES[nA.type].width;
-                        const wB = ITEM_TYPES[nB.type].width;
-                        const cAx = nA.x + wA / 2;
-                        const cAy = nA.y + 30;
-                        const cBx = nB.x + wB / 2;
-                        const cBy = nB.y + 30;
-
-                        const midX = (cAx + cBx) / 2;
-                        const midY = (cAy + cBy) / 2;
-
-                        if (midX >= selBox.x && midX <= selBox.x + selBox.w &&
-                            midY >= selBox.y && midY <= selBox.y + selBox.h) {
-                            newSelection.add(cable.id);
-                        }
-                    }
-                });
-
-                setSelectedIds(newSelection);
-                if (newSelection.size > 0) setInteractionMode('SELECT');
-            }
-            setSelectionBox(null);
-            boxSelectionRef.current = null;
-        }
-        // SALVAR NO FIRESTORE AO SOLTAR: Uma única write por item, com a posição final.
-        // Usamos setItems com callback para garantir as posições mais atuais (sem stale closure).
-        if (draggingNode) {
-            setItems(currentItems => {
-                if (draggingNode.isMultiSelect && selectedIds.size > 1) {
-                    // Multi-select: salva todos os itens arrastados
-                    selectedIds.forEach(id => {
-                        const movedItem = currentItems.find(i => i.id === id);
-                        if (movedItem && !movedItem.parentId) {
-                            saveItem({ ...movedItem });
-                        }
-                    });
-                } else {
-                    // Single: salva apenas o item arrastado
-                    const movedItem = currentItems.find(i => i.id === draggingNode.id);
-                    if (movedItem) {
-                        saveItem({ ...movedItem });
-                    }
-                }
-                return currentItems; // Não muda o state, só aproveita o callback para ler o valor atual
-            });
-        }
-        setIsDraggingCanvas(false); setDraggingNode(null);
-    };
-
-    const handleNodeDoubleClick = (e, node) => {
-        e.stopPropagation();
-        if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current);
-        // GUARD: Bloqueia detail panel para itens de projetos restritos
-        const targetItem = items.find(i => i.id === node.id);
-        if (targetItem?._readOnly) return; // Silenciosamente ignora
-        setDetailId(node.id);
-        setSelectedIds(new Set([node.id]));
-    };
-
-    const handleCanvasClick = (e) => {
-        const rect = canvasRef.current.getBoundingClientRect();
-        const clickX = (e.clientX - rect.left - pan.x) / scale;
-        const clickY = (e.clientY - rect.top - pan.y) / scale;
-
-        if (interactionMode === 'ADD_NODE' && nodeTypeToAdd) {
-            if (!activeProjectGuard()) return; //Impede o usuario de criar um nó sem que um projeto esteja selecionado
-
-            setModalConfig({
-                mode: 'NODE',
-                itemType: nodeTypeToAdd,
-                x: clickX,
-                y: clickY,
-                defaultName: `${ITEM_TYPES[nodeTypeToAdd].label} ${items.filter(i => i.type === nodeTypeToAdd).length + 1}`
-            });
-        }
-        else if (interactionMode === 'ADD_CLIENT') {
-            if (!activeProjectGuard()) return; //Impede o usuario de criar um nó sem que um projeto esteja selecionado
-
-            // MUDANÇA: Guarda na memória dedicada
-            setNewClientPosition({ x: clickX, y: clickY });
-            setClientWizard({ step: 'NAME', data: {} });
-            setInteractionMode('SELECT');
-        }
-    };
-
-    const handleZoom = (delta) => setScale(s => Math.min(Math.max(0.1, s + delta), 5));
-
-    // 1. Início do Toque (Captura a distância inicial)
-    const handleStart = (e, node) => {
-        // Se o elemento clicado (ou o pai dele) tiver a classe 'prevent-pan', PARE.
-        if (e.target.closest('.prevent-pan')) {
-            return;
-        }
-
-        if (e.touches && e.touches.length === 2) {
-            e.preventDefault(); // Evita zoom nativo do navegador
-            touchRef.current.dist = getTouchDistance(e.touches[0], e.touches[1]);
-            return;
-        }
-        const pos = getClientPos(e);
-        dragStartPosRef.current = pos;
-
-        if (interactionMode === 'SELECT') {
-            if (node) {
-                // --- LÓGICA NOVA: SELECIONAR CTO PARA O CLIENTE ---
-                if (clientWizard.step === 'PICK_CTO') {
-                    e.stopPropagation();
-                    if (node.type !== 'CTO') {
-                        openAlert("Atenção", "Selecione uma CTO válida (Caixa de Terminação).");
-                        return;
-                    }
-
-                    // Buscar Splitter dentro da CTO
-                    const splitter = items.find(i => i.parentId === node.id && i.type === 'SPLITTER');
-                    if (!splitter) {
-                        openAlert("Erro", "Esta CTO não possui Splitter instalado.");
-                        return;
-                    }
-
-                    // Calcular portas livres
-                    const freePorts = [];
-                    // Começamos do 1 porque 0 é entrada
-                    for (let i = 1; i < splitter.ports; i++) {
-                        // Verifica se tem conexão nesta porta (Lado A é a saída do splitter)
-                        const isBusy = findConnection(connections, splitter.id, i, 'A');
-                        if (!isBusy) {
-                            freePorts.push({ id: i, label: i, splitterId: splitter.id });
-                        }
-                    }
-
-                    if (freePorts.length === 0) {
-                        openAlert("Lotada", "Esta CTO não tem portas disponíveis.");
-                        return;
-                    }
-
-                    // Avança para o passo de escolher a porta
-                    setClientWizard({
-                        step: 'PICK_PORT',
-                        data: { ...clientWizard.data, ctoNode: node, splitter, freePorts }
-                    });
-                    return;
-                }
-                // --------------------------------------------------            
-                e.stopPropagation();
-
-                // Se o nó clicado está entre os selecionados, move todos os selecionados
-                if (selectedIds.has(node.id)) {
-                    // Armazena o ponto inicial do arrasto
-                    dragStartPosRef.current = { x: pos.x, y: pos.y };
-                    setDraggingNode({ id: node.id, isMultiSelect: true });
-                } else {
-                    // Move apenas o nó clicado
-                    setDraggingNode({ id: node.id, isMultiSelect: false });
-                }
-            } else {
-                setIsDraggingCanvas(true);
-                setDragStart({ x: pos.x - pan.x, y: pos.y - pan.y });
-            }
-        }
-        else if (interactionMode === 'BOX_SELECT') {
-            const rect = canvasRef.current.getBoundingClientRect();
-            const mapX = (pos.x - rect.left - pan.x) / scale;
-            const mapY = (pos.y - rect.top - pan.y) / scale;
-            boxSelectionRef.current = { startX: mapX, startY: mapY };
-            setSelectionBox({ x: mapX, y: mapY, w: 0, h: 0 });
-        }
-    };
-
-    // 2. Movimento (Pinça Suave e Zoom no Centro dos Dedos)
-    const handleMove = useCallback((e) => {
-        if (e.touches && e.touches.length === 2) {
-            e.preventDefault();
-            const newDist = getTouchDistance(e.touches[0], e.touches[1]);
-            const oldDist = touchRef.current.dist;
-
-            if (oldDist < 10) return;
-
-            const ratio = newDist / oldDist;
-            const newScale = Math.min(Math.max(0.1, scale * ratio), 5);
-
-            const rect = canvasRef.current.getBoundingClientRect();
-            const midX = ((e.touches[0].clientX + e.touches[1].clientX) / 2) - rect.left;
-            const midY = ((e.touches[0].clientY + e.touches[1].clientY) / 2) - rect.top;
-
-            const scaleChange = newScale / scale;
-            const newPanX = midX - (midX - pan.x) * scaleChange;
-            const newPanY = midY - (midY - pan.y) * scaleChange;
-
-            setScale(newScale);
-            setPan({ x: newPanX, y: newPanY });
-            touchRef.current.dist = newDist;
-            return;
-        }
-        // Lógica de Arraste (Pan) normal
-        const pos = getClientPos(e);
-        if (isDraggingCanvas) {
-            setPan({ x: pos.x - dragStart.x, y: pos.y - dragStart.y });
-        }
-        else if (draggingNode) {
-            const rect = canvasRef.current.getBoundingClientRect();
-            const newX = (pos.x - rect.left - pan.x) / scale;
-            const newY = (pos.y - rect.top - pan.y) / scale;
-
-            if (draggingNode.isMultiSelect && selectedIds.size > 1) {
-                // Move todos os itens selecionados
-                const draggedItem = items.find(i => i.id === draggingNode.id);
-                if (!draggedItem) return;
-
-                // Calcula o deslocamento desde o início do arrasto
-                const itemWidth = ITEM_TYPES[draggedItem.type]?.width || 120;
-                const deltaX = newX - draggedItem.x - (itemWidth / 2);
-                const deltaY = newY - draggedItem.y;
-
-                // Atualiza o deslocamento
-                setSelectedItemsOffset({ dx: deltaX, dy: deltaY });
-
-                // Move cada item selecionado
-                selectedIds.forEach(id => {
-                    const item = items.find(i => i.id === id);
-                    if (item && !item.parentId) { // Só move itens no canvas principal (não filhos)
-                        const newItemX = item.x + deltaX;
-                        const newItemY = item.y + deltaY;
-                        updateNodePosition(item.id, newItemX, newItemY);
-                    }
-                });
-
-                // Reseta o deslocamento para o próximo frame
-                setSelectedItemsOffset({ dx: 0, dy: 0 });
-            } else {
-                // Move apenas o item arrastado (comportamento original)
-                updateNodePosition(draggingNode.id, newX - (ITEM_TYPES[items.find(i => i.id === draggingNode.id).type].width / 2), newY);
-            }
-        }
-        else if (interactionMode === 'BOX_SELECT' && boxSelectionRef.current) {
-            const rect = canvasRef.current.getBoundingClientRect();
-            const currX = (pos.x - rect.left - pan.x) / scale;
-            const currY = (pos.y - rect.top - pan.y) / scale;
-            const startX = boxSelectionRef.current.startX;
-            const startY = boxSelectionRef.current.startY;
-            setSelectionBox({ x: Math.min(startX, currX), y: Math.min(startY, currY), w: Math.abs(currX - startX), h: Math.abs(currY - startY) });
-        }
-    }, [scale, pan, isDraggingCanvas, draggingNode, interactionMode]); // Adicione useCallback
-
-    // 3. Roda do Mouse (Zoom Suave no Cursor)
-    const handleWheel = (e) => {
-        // Permite scroll normal se não estiver no canvas ou se o usuário quiser (opcional)
-        // Aqui vamos focar no zoom do canvas
-        if (!isDraggingCanvas) {
-            // Fator de suavização (0.001 é bem suave, aumente se quiser mais rápido)
-            const zoomIntensity = 0.001;
-            const newScale = Math.min(Math.max(0.1, scale - e.deltaY * zoomIntensity), 5);
-
-            const rect = canvasRef.current.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
-
-            // Matemática do Zoom no Cursor
-            const scaleRatio = newScale / scale;
-            const newPanX = mouseX - (mouseX - pan.x) * scaleRatio;
-            const newPanY = mouseY - (mouseY - pan.y) * scaleRatio;
-
-            setPan({ x: newPanX, y: newPanY });
-            setScale(newScale);
-        }
     };
 
     const handleClientFinish = async (portSelection) => {
@@ -3888,32 +2931,18 @@ const App = () => {
             if (!finalClientId) {
                 finalClientName = name || "Novo Cliente";
 
-                // Posição padrão (Fallback)
-                const offset = 80;
-                const angle = Math.random() * Math.PI * 2;
+                let lat = ctoNode.lat ?? null;
+                let lng = ctoNode.lng ?? null;
 
-                let x = ctoNode.x + Math.cos(angle) * offset;
-                let y = ctoNode.y + Math.sin(angle) * offset;
-                let lat = null;
-                let lng = null;
-
-                // NOVA ABORDAGEM: Lê da memória dedicada 'newClientPosition'
-                if (newClientPosition) {
-                    if (newClientPosition.x !== undefined) {
-                        x = newClientPosition.x;
-                        y = newClientPosition.y;
-                    }
-                    if (newClientPosition.lat !== undefined) {
-                        lat = newClientPosition.lat;
-                        lng = newClientPosition.lng;
-                    }
+                // Lê a coordenada geográfica salva ao clicar no mapa
+                if (newClientPosition && newClientPosition.lat !== undefined && newClientPosition.lng !== undefined) {
+                    lat = newClientPosition.lat;
+                    lng = newClientPosition.lng;
                 }
 
                 const newClient = {
                     id: Date.now().toString(),
                     type: 'CLIENT',
-                    x,
-                    y,
                     lat,
                     lng,
                     name: finalClientName,
@@ -4313,7 +3342,7 @@ const App = () => {
             let finalLat = null;
             let finalLng = null;
 
-            if (viewMode === 'MAP' && lastCableClickCoords) {
+            if (lastCableClickCoords) {
                 finalLat = lastCableClickCoords.lat;
                 finalLng = lastCableClickCoords.lng;
                 setLastCableClickCoords(null);
@@ -4353,26 +3382,29 @@ const App = () => {
                         splitIndex = bestSegmentIndex;
                     }
                 }
+            } else {
+                // Fallback geográfico (caso o seccionamento seja acionado pelo DetailPanel sem clique direto no mapa)
+                if (originalWaypoints.length > 0) {
+                    splitIndex = Math.floor(originalWaypoints.length / 2);
+                    const midWp = originalWaypoints[splitIndex];
+                    if (midWp && midWp.lat != null && midWp.lng != null) {
+                        finalLat = midWp.lat;
+                        finalLng = midWp.lng;
+                    }
+                }
+                if ((finalLat === null || finalLng === null) && nodeA.lat != null && nodeB.lat != null && nodeA.lng != null && nodeB.lng != null) {
+                    finalLat = (Number(nodeA.lat) + Number(nodeB.lat)) / 2;
+                    finalLng = (Number(nodeA.lng) + Number(nodeB.lng)) / 2;
+                }
             }
 
-            // 2. Calcular ponto médio provisório para Canvas e X/Y
-            const midX = (nodeA.x + nodeB.x) / 2;
-            const midY = (nodeA.y + nodeB.y) / 2;
-
-            if (viewMode === 'CANVAS' && splitIndex === -1 && originalWaypoints.length > 0) {
-                // Divisão burra se for pelo canvas com waypoints (metade pra cada)
-                splitIndex = Math.floor(originalWaypoints.length / 2);
-            }
-
-            // 3. Criar a Nova Caixa
+            // 2. Criar a Nova Caixa
             const newBoxId = `node_${Date.now()}`;
             const newBox = {
                 id: newBoxId,
                 type: 'CEO',
                 name: 'CX Emenda (Reparo)',
                 _projectId: cable._projectId,
-                x: midX,
-                y: midY,
                 ...(finalLat !== null && { lat: finalLat }),
                 ...(finalLng !== null && { lng: finalLng }),
                 ports: 0,
@@ -4474,7 +3506,6 @@ const App = () => {
                 return [...cleanList, ...allNewConnections];
             });
 
-            setSelectedIds(new Set([newBoxId]));
             setDetailId(newBoxId);
 
             openAlert("Sucesso", isCaraACara ? "Cabo seccionado com fusões cara-a-cara!" : "Cabo seccionado.");
@@ -5117,11 +4148,6 @@ const App = () => {
                     lat: fix.coords.lat,
                     lng: fix.coords.lng,
 
-                    // CORREÇÃO AQUI: O Canvas precisa do X e Y em pixels para não "crashar" com NaN.
-                    // Tenta pegar o X/Y se o KML gerou, senão joga pro ponto 0,0 do Canvas.
-                    x: fix.coords.x || 0,
-                    y: fix.coords.y || 0,
-
                     // Garante que o nó pertença ao mesmo projeto do cabo (se aplicável no seu sistema)
                     _projectId: cable._projectId || cable.projectId || null,
                     _tempTagNames: cable._tempTagNames ? [...cable._tempTagNames] : [] // <-- Herda tag do cabo pai
@@ -5262,82 +4288,37 @@ const App = () => {
             return;
         }
 
-        // --- SE CHEGAMOS AQUI, OS ITENS EXISTEM! VAMOS FOCAR. ---
+        // --- SE CHEGAMOS AQUI, OS ITENS EXISTEM! VAMOS FOCAR NO MAPA. ---
+        let totalLat = 0, totalLng = 0, count = 0;
+        projectItems.forEach(i => {
+            // 1. Verifica se tem coordenadas básicas
+            if (!i.lat || !i.lng) return;
 
-        // (Opcional) Desliga loading se tiver ligado
-        // setIsProcessing(false);
+            // 2. Considera APENAS itens da categoria 'NODE'
+            // (Ignora Cabos, Splitters, DIOs, Clientes ou qualquer coisa que não seja estrutural)
+            if (ITEM_TYPES[i.type]?.category !== 'NODE') return;
 
-        if (viewMode === 'CANVAS') {
-            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-            let hasValidCoords = false;
+            const lat = parseFloat(i.lat);
+            const lng = parseFloat(i.lng);
 
-            projectItems.forEach(node => {
-                if (node.x !== undefined && node.y !== undefined && ITEM_TYPES[node.type]?.category === 'NODE') {
-                    const width = ITEM_TYPES[node.type]?.width || 100;
-                    const height = 100;
-                    if (node.x < minX) minX = node.x;
-                    if (node.y < minY) minY = node.y;
-                    if (node.x + width > maxX) maxX = node.x + width;
-                    if (node.y + height > maxY) maxY = node.y + height;
-                    hasValidCoords = true;
-                }
-            });
+            // 3. Filtro extra de segurança para "Null Island" (0,0)
+            if (Math.abs(lat) < 0.1 && Math.abs(lng) < 0.1) return;
 
-            if (hasValidCoords && minX !== Infinity) {
-                const contentW = maxX - minX;
-                const contentH = maxY - minY;
-                const screenW = window.innerWidth;
-                const screenH = window.innerHeight;
-                const padding = 150;
+            totalLat += lat;
+            totalLng += lng;
+            count++;
+        });
 
-                const scaleX = (screenW - padding * 2) / contentW;
-                const scaleY = (screenH - padding * 2) / contentH;
-                const newScale = Math.min(scaleX, scaleY, 1.2);
-
-                const contentCenterX = minX + (contentW / 2);
-                const contentCenterY = minY + (contentH / 2);
-
-                setPan({
-                    x: (screenW / 2) - (contentCenterX * newScale),
-                    y: (screenH / 2) - (contentCenterY * newScale)
-                });
-                setScale(newScale);
-            } else {
-                openAlert("Projeto Vazio", "Este projeto não possui itens desenhados no Canvas.");
-            }
-        }
-        else if (viewMode === 'MAP') {
-            let totalLat = 0, totalLng = 0, count = 0;
-            projectItems.forEach(i => {
-                // 1. Verifica se tem coordenadas básicas
-                if (!i.lat || !i.lng) return;
-
-                // 2. FILTRO NOVO: Considera APENAS itens da categoria 'NODE'
-                // (Ignora Cabos, Splitters, DIOs, Clientes ou qualquer coisa que não seja estrutural)
-                if (ITEM_TYPES[i.type]?.category !== 'NODE') return;
-
-                const lat = parseFloat(i.lat);
-                const lng = parseFloat(i.lng);
-
-                // 3. Filtro extra de segurança para "Null Island" (0,0)
-                if (Math.abs(lat) < 0.1 && Math.abs(lng) < 0.1) return;
-
-                totalLat += lat;
-                totalLng += lng;
-                count++;
-            });
-
-            if (count > 0) {
-                setFlyToCoords({ coords: [totalLat / count, totalLng / count], id_solicitacao: Date.now() });
-            } else {
-                openAlert("Sem GPS", "Itens deste projeto não possuem coordenadas.");
-            }
+        if (count > 0) {
+            setFlyToCoords({ coords: [totalLat / count, totalLng / count], id_solicitacao: Date.now() });
+        } else {
+            openAlert("Sem GPS", "Itens deste projeto não possuem coordenadas.");
         }
 
         // IMPORTANTE: Limpa a pendência para não ficar focando toda vez que você criar um item novo
         setPendingFocusProjectId(null);
 
-    }, [items, pendingFocusProjectId, viewMode]); // Roda sempre que 'items' atualiza ou mudamos o foco
+    }, [items, pendingFocusProjectId]); // Roda sempre que 'items' atualiza ou mudamos o foco
     // Função para focar em um projeto específico
     const handleFocusProject = (projectId) => {
         // 1. Fecha o gerenciador
@@ -5394,10 +4375,6 @@ const App = () => {
         if (toolId === 'SELECT') {
             setInteractionMode('SELECT');
         }
-        else if (toolId === 'RULER') {
-            // Assumindo que RULER ativa o Box Select ou régua se tiver
-            setInteractionMode('BOX_SELECT');
-        }
         else if (toolId === 'MEASURE') {
             setInteractionMode('MEASURE');
         }
@@ -5453,7 +4430,6 @@ const App = () => {
     // Helper para saber qual botão deixar ativo visualmente no Dock
     const getActiveDockTool = () => {
         if (interactionMode === 'SELECT') return 'SELECT';
-        if (interactionMode === 'BOX_SELECT') return 'RULER';
         if (interactionMode === 'MEASURE') return 'MEASURE';
         if (interactionMode === 'DRAW_CABLE') return 'ADD_CABLE';
         if (interactionMode === 'ADD_CLIENT') return 'ADD_CLIENT';
@@ -5517,181 +4493,63 @@ const App = () => {
                 onDeleteTag={handleDeleteProjectTag}
             />
 
-            {/* 1. ÁREA PRINCIPAL (MAPA OU CANVAS) - Ocupa toda a tela (z-0) */}
+            {/* 1. ÁREA PRINCIPAL (MAPA) - Ocupa toda a tela (z-0) */}
             <div className="flex-1 relative flex flex-col overflow-hidden">
 
-                {/* Renderização do Mapa ou Canvas */}
+                {/* Renderização do Mapa */}
                 <div className="flex-1 relative z-0 overflow-hidden bg-[#e5e5e5] dark:bg-[#121212]">
-                    {viewMode === 'CANVAS' ? (
-                        /* --- MODO CANVAS --- */
-                        <div
-                            ref={canvasRef}
-                            className={`w-full h-full relative overflow-hidden bg-[#ddd] dark:bg-[#222] ${interactionMode === 'SELECT' ? (isDraggingCanvas ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-crosshair'} touch-none`}
-                            onMouseDown={(e) => handleStart(e, null)}
-                            onMouseMove={handleMove}
-                            onMouseUp={(e) => handleEnd(e, null)}
-                            onClick={handleCanvasClick}
-                            onTouchStart={(e) => handleStart(e, null)}
-                            onTouchMove={handleMove}
-                            onTouchEnd={(e) => handleEnd(e, null)}
-                            onWheel={handleWheel}
-                            style={{ backgroundImage: isDarkMode ? 'radial-gradient(#333 1px, transparent 1px)' : 'radial-gradient(#bbb 1px, transparent 1px)', backgroundSize: `${20 * scale}px ${20 * scale}px`, backgroundPosition: `${pan.x}px ${pan.y}px` }}
-                        >
-                            <div className="origin-top-left absolute top-0 left-0 w-full h-full pointer-events-none" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})` }}>
-                                <svg className="absolute top-0 left-0 w-[5000px] h-[5000px] pointer-events-none overflow-visible">
-                                    {/* 1. Cabos Otimizados */}
-                                    {visibleItems.filter(i => i.type === 'CABLE').map(c => {
-                                        const nodeA = items.find(n => n.id === c.fromNode);
-                                        const nodeB = items.find(n => n.id === c.toNode);
-                                        if (!nodeA || !nodeB) return null;
+                    <div className={`w-full h-full relative overflow-hidden ${isDarkMode ? 'bg-slate-900' : 'bg-gray-200'}`}>
+                        <FiberMap
+                            items={visibleItems}
+                            allItems={items}
+                            activeProjectId={activeProjectId}
+                            onAlertRequest={openAlert}
+                            saveItem={saveItem}
+                            isDarkMode={isDarkMode}
+                            connections={visibleConnections}
+                            signalNames={signalNames}
 
-                                        // Recupera dados do grupo (topoologia)
-                                        const [n1, n2] = [c.fromNode, c.toNode].sort();
-                                        const group = cableGroups[`${n1}-${n2}`] || [c];
-                                        const index = group.findIndex(g => g.id === c.id);
-                                        const count = group.length;
+                            previewAreaConfig={previewAreaConfig}
+                            onUpdatePreviewAreaConfig={setPreviewAreaConfig}
+                            interactionMode={interactionMode}
+                            onMapClick={handleMapBgClick}
+                            onNodeClick={handleMapNodeClick}
+                            isPickingMode={interactionMode === 'DRAW_CABLE' || clientWizard.step === 'PICK_CTO'}
+                            flyToCoords={flyToCoords}
+                            onClearSearch={() => setFlyToCoords(null)}
+                            searchTerm={searchTerm}
+                            searchMode={searchMode}
+                            onEdit={renameItem}
+                            onDelete={deleteItem}
+                            onOpen={(id, coords) => {
+                                // GUARD: Bloqueia abertura do detail panel para itens restritos
+                                const targetItem = items.find(i => i.id === id);
+                                if (targetItem?._readOnly) return;
+                                setDetailId(id);
+                                if (coords && coords.lat != null) {
+                                    setLastCableClickCoords(coords);
+                                }
+                            }}
+                            onSplit={(id, coords) => {
+                                if (coords && coords.lat != null) {
+                                    setLastCableClickCoords(coords);
+                                }
+                                splitCable(id);
+                            }}
+                            cableStartNodeId={cableStartNode?.id}
+                            onLocationFound={(latlng) => setUserLocation({ lat: latlng.lat, lng: latlng.lng })}
+                            onAreaDrawComplete={(positions) => {
+                                if (!activeProjectGuard()) return;
+                                setAreaModalConfig({
+                                    isCircleMode: false,
+                                    positions,
+                                    defaultName: `Área ${items.filter(i => i.type === 'AREA').length + 1}`
+                                });
+                                setInteractionMode('SELECT');
+                            }}
 
-                                        return (
-                                            <CableLine
-                                                key={c.id}
-                                                cable={c}
-                                                nodeA={nodeA} // Passamos o nó inteiro
-                                                nodeB={nodeB}
-                                                index={index} // Passamos a posição já calculada
-                                                count={count}
-                                                itemTypes={ITEM_TYPES}
-                                                onSelect={(id) => setSelectedIds(new Set([id]))}
-                                                onOpen={setDetailId}
-                                                onSplit={splitCable}
-                                                onDelete={deleteItem}
-                                                onEdit={renameItem}
-                                                isSelected={selectedIds.has(c.id)}
-                                            />
-                                        );
-                                    })}
-
-                                    {/* 2. Drops Otimizados */}
-                                    {/* {visibleConnections.filter(c => c.type === 'DROP').map(c => {
-                                    const client = items.find(i => i.id === c.toId);
-                                    let sourceItem = items.find(i => i.id === c.fromId);
-                                    if (!client) return null;
-                                    if (sourceItem?.parentId) sourceItem = items.find(i => i.id === sourceItem.parentId);
-                                    if (!sourceItem) return null;
-
-                                    // Calculamos aqui para o componente ser "burro" e rápido
-                                    const x1 = (sourceItem.x || 0) + 60;
-                                    const y1 = (sourceItem.y || 0) + 40;
-                                    const x2 = (client.x || 0) + 60;
-                                    const y2 = (client.y || 0) + 40;
-
-                                    return <DropLine key={c.id} x1={x1} y1={y1} x2={x2} y2={y2} />;
-                                })} */}
-
-                                    {/* Linha de desenho (Mantém igual) */}
-                                    {interactionMode === 'DRAW_CABLE' && cableStartNode && <line x1={cableStartNode.x + ITEM_TYPES[cableStartNode.type].width / 2} y1={cableStartNode.y + 30} x2={draggingNode ? draggingNode.x : 0} y2={0} stroke={isDarkMode ? "white" : "black"} strokeDasharray="4" />}
-                                </svg>
-
-                                {/* Caixa de Seleção */}
-                                {selectionBox && <div style={{ position: 'absolute', left: selectionBox.x, top: selectionBox.y, width: selectionBox.w, height: selectionBox.h, border: '1px dashed #3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', pointerEvents: 'none' }}></div>}
-
-                                {/* Nós (Caixas e Clientes) */}
-                                <div className="pointer-events-auto">
-                                    {visibleItems.filter(i => !i.parentId && ITEM_TYPES[i.type].category === 'NODE').map(n => (
-                                        <CanvasNodes
-                                            key={n.id}
-                                            node={n}
-                                            config={ITEM_TYPES[n.type]}
-                                            isSelected={selectedIds.has(n.id)}
-                                            isCableStart={interactionMode === 'DRAW_CABLE' && n.id === cableStartNode?.id}
-                                            isDragging={draggingNode?.isMultiSelect && selectedIds.has(n.id)}
-                                            onStart={handleStart}
-                                            onEnd={handleEnd}
-                                            onDoubleClick={handleNodeDoubleClick}
-                                            onOpen={(id) => {
-                                                setDetailId(id);
-                                                setSelectedIds(new Set([id]));
-                                            }}
-                                            onEdit={renameItem}
-                                            onDelete={deleteItem}
-                                            onSelect={(id) => {
-                                                setSelectedIds(new Set([id]));
-                                            }}
-                                            onFlyToMap={(n) => {
-                                                if (n.lat && n.lng) {
-                                                    setViewMode('MAP');
-                                                    setFlyToCoords({ coords: [n.lat, n.lng], id_solicitacao: Date.now() });
-                                                } else {
-                                                    setAlertConfig({ title: 'Aviso', message: 'Este nó não possui localização geográfica definida no mapa.' });
-                                                }
-                                            }}
-                                        />
-                                    ))}
-
-                                    {/* Esta div é invisível e serve apenas como destino para os tooltips dos cabos saltarem para frente de tudo */}
-                                    <div
-                                        id="cable-tooltips-layer"
-                                        className="absolute top-0 left-0 w-full h-full pointer-events-none"
-                                        style={{ zIndex: 9999 }} // Z-index altíssimo para garantir
-                                    ></div>
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        /* --- MODO MAPA --- */
-                        <div className={`w-full h-full relative overflow-hidden ${isDarkMode ? 'bg-slate-900' : 'bg-gray-200'}`}>
-                            <FiberMap
-                                items={visibleItems}
-                                allItems={items}
-                                activeProjectId={activeProjectId}
-                                onAlertRequest={openAlert}
-                                saveItem={saveItem}
-                                isDarkMode={isDarkMode}
-                                connections={visibleConnections}
-                                signalNames={signalNames}
-
-                                previewAreaConfig={previewAreaConfig}
-                                onUpdatePreviewAreaConfig={setPreviewAreaConfig}
-                                interactionMode={interactionMode}
-                                onMapClick={handleMapBgClick}
-                                onNodeClick={handleMapNodeClick}
-                                isPickingMode={interactionMode === 'DRAW_CABLE' || clientWizard.step === 'PICK_CTO'}
-                                flyToCoords={flyToCoords}
-                                onClearSearch={() => setFlyToCoords(null)}
-                                searchTerm={searchTerm}
-                                searchMode={searchMode}
-                                onEdit={renameItem}
-                                onDelete={deleteItem}
-                                onOpen={(id, coords) => {
-                                    // GUARD: Bloqueia abertura do detail panel para itens restritos
-                                    const targetItem = items.find(i => i.id === id);
-                                    if (targetItem?._readOnly) return;
-                                    setDetailId(id);
-                                    if (coords && coords.lat != null) {
-                                        setLastCableClickCoords(coords);
-                                    }
-                                }}
-                                onSplit={(id, coords) => {
-                                    if (coords && coords.lat != null) {
-                                        setLastCableClickCoords(coords);
-                                    }
-                                    splitCable(id);
-                                }}
-                                onSwitchToCanvas={() => setViewMode('CANVAS')}
-                                cableStartNodeId={cableStartNode?.id}
-                                onLocationFound={(latlng) => setUserLocation({ lat: latlng.lat, lng: latlng.lng })}
-                                onAreaDrawComplete={(positions) => {
-                                    if (!activeProjectGuard()) return;
-                                    setAreaModalConfig({
-                                        isCircleMode: false,
-                                        positions,
-                                        defaultName: `Área ${items.filter(i => i.type === 'AREA').length + 1}`
-                                    });
-                                    setInteractionMode('SELECT');
-                                }}
-
-                            />
-                        </div>
-                    )}
+                        />
+                    </div>
                 </div>
 
                 {/* 2. BARRA DE BUSCA */}
@@ -5699,37 +4557,27 @@ const App = () => {
                     <div className="w-full flex items-center justify-between gap-5 px-1 py-1 bg-white/40 dark:bg-black/60 border border-white/60 dark:border-black/60 backdrop-blur-xl rounded-full shadow-2xl transition-all relative z-20 pointer-events-auto">
 
                         {/* Switch de Troca de Modo (Item vs Endereço) */}
-                        {viewMode === 'MAP' ? (
-                            <div
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSearchMode(prev => prev === 'ITEMS' ? 'ADDRESS' : 'ITEMS');
-                                    setSuggestions([]);
-                                }}
-                                className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-full p-0.5 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-all shrink-0"
-                                title={searchMode === 'ITEMS' ? "Mudar para Busca de Endereço" : "Mudar para Filtro de Itens"}
-                            >
-                                <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ${searchMode === 'ITEMS' ? 'bg-blue-600 shadow-md text-white' : 'text-gray-400'}`}>
-                                    <Search size={20} />
-                                </div>
-                                <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ${searchMode === 'ADDRESS' ? 'bg-blue-600 shadow-md text-white' : 'text-gray-400'}`}>
-                                    <MapPin size={20} />
-                                </div>
+                        <div
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setSearchMode(prev => prev === 'ITEMS' ? 'ADDRESS' : 'ITEMS');
+                                setSuggestions([]);
+                            }}
+                            className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-full p-0.5 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-all shrink-0"
+                            title={searchMode === 'ITEMS' ? "Mudar para Busca de Endereço" : "Mudar para Filtro de Itens"}
+                        >
+                            <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ${searchMode === 'ITEMS' ? 'bg-blue-600 shadow-md text-white' : 'text-gray-400'}`}>
+                                <Search size={20} />
                             </div>
-                        ) : (
-                            <div
-                                className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-full p-0.5 transition-all shrink-0"
-                            >
-                                <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 bg-blue-600 shadow-md text-white`}>
-                                    <Search size={20} />
-                                </div>
+                            <div className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ${searchMode === 'ADDRESS' ? 'bg-blue-600 shadow-md text-white' : 'text-gray-400'}`}>
+                                <MapPin size={20} />
                             </div>
-                        )}
+                        </div>
 
                         {/* Input Otimizado (Debounced) */}
                         <DebouncedInput
                             className="ml-2 bg-transparent outline-none text-base w-full text-black dark:text-white placeholder-black dark:placeholder-white"
-                            placeholder={viewMode === 'MAP' && searchMode === 'ADDRESS' ? "Pesquisar endereço/coordenadas" : "Pesquisar itens"}
+                            placeholder={searchMode === 'ADDRESS' ? "Pesquisar endereço/coordenadas" : "Pesquisar itens"}
                             value={searchTerm}
 
                             /* 1. MUDANÇA NO ONCHANGE: Recebe o valor direto (val) em vez do evento */
@@ -5869,8 +4717,6 @@ const App = () => {
                     <Dock
                         activeTool={getActiveDockTool()}
                         setActiveTool={handleDockChange}
-                        viewMode={viewMode}
-                        setViewMode={setViewMode}
                         isDarkMode={isDarkMode}
                         setIsDarkMode={setIsDarkMode}
                         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -5983,32 +4829,6 @@ const App = () => {
                 })()}
 
                 {/* 6. MODAIS EXISTENTES E INPUTS INVISÍVEIS */}
-
-
-
-                {/* Controles de Zoom (Canvas) */}
-                {viewMode === 'CANVAS' && (
-                    <div className="absolute bottom-24 right-2.5 z-20 flex flex-col gap-1 bg-white dark:bg-gray-800 p-1.5 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
-                        <button onClick={() => handleZoom(0.1)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-300"><ZoomIn size={18} /></button>
-                        <div className="h-px bg-gray-200 dark:bg-gray-700 w-full"></div>
-                        <button onClick={() => handleZoom(-0.1)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-300"><ZoomOut size={18} /></button>
-                    </div>
-                )}
-
-                {/* Barra de Múltipla Seleção */}
-                {selectedIds.size > 1 && (
-                    <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 shadow-xl rounded-full px-4 py-2 flex items-center gap-4 animate-in slide-in-from-top-2">
-                        <span className="text-sm font-bold text-gray-700 dark:text-gray-200">{selectedIds.size} itens selecionados</span>
-                        <button onClick={deleteSelected} className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-3 py-1 rounded text-xs font-bold hover:bg-red-100 dark:hover:bg-red-900/40 flex items-center gap-1">
-                            <Trash2 size={14} /> Excluir Itens
-                        </button>
-                        <button onClick={() => setSelectedIds(new Set())} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                            <X size={16} />
-                        </button>
-                    </div>
-                )}
-
-
 
                 {/* Inputs de Arquivo */}
                 <input type="file" ref={backupInputRef} style={{ display: 'none' }} onChange={handleRestore} accept=".ftth,.json" />
@@ -6170,7 +4990,7 @@ const App = () => {
 
 
 };
-// FIM CANVAS (PRINCIPAL)--------------------------------------------------
+// FIM APP (PRINCIPAL)--------------------------------------------------
 
 
 export default App; // Export do arquivo completo

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Hexagon, Tag, X, ChevronDown, CircleDashed, Minus } from 'lucide-react';
-import '../ItemModal/styles.css';
+import './ItemModal/styles.css';
 
 const AreaModal = ({
     isCircleMode = false,
