@@ -1,7 +1,8 @@
 {
   "projects": {
     "default": "ftth-mgr",
-    "ftthmanager-test": "ftthmanager-test"
+    "ftthmanager-test": "ftthmanager-test",
+    "y": "ftth-mgr"
   },
   "targets": {},
   "etags": {}
