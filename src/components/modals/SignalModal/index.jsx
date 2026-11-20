@@ -32,7 +32,18 @@ const SignalModal = ({ portKey, initialConfig, upstreamSignals, onSave, onClose 
         setAllowedIds(Array.from(newSet));
     };
     const handleSave = () => {
-        onSave({ local: localSignals, allowed: allowedIds.length === upstreamSignals.length ? null : allowedIds });
+        const cleanedLocal = localSignals
+            .map(s => ({ ...s, name: (s.name || '').trim() }))
+            .filter(s => s.name.length > 0);
+
+        if (newSignalName.trim()) {
+            cleanedLocal.push({ id: uuidv4(), name: newSignalName.trim() });
+        }
+
+        onSave({
+            local: cleanedLocal,
+            allowed: allowedIds.length === upstreamSignals.length ? null : allowedIds
+        });
         onClose();
     };
 
