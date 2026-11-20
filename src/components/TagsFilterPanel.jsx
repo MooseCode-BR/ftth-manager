@@ -43,7 +43,7 @@ const TagsFilterPanel = ({
         .sort((a, b) => a.localeCompare(b));
 
     return (
-        <div ref={panelRef} className="absolute bottom-24 left-4 right-4 bg-white/90 dark:bg-black/70 backdrop-blur-xl p-4 rounded-xl shadow-2xl z-[60] border border-gray-200 dark:border-gray-800 animate-in fade-in slide-in-from-bottom-4">
+        <div ref={panelRef} className="pointer-events-auto absolute bottom-24 left-4 right-4 bg-white/90 dark:bg-black/70 backdrop-blur-xl p-4 rounded-xl shadow-2xl z-[60] border border-gray-200 dark:border-gray-800 animate-in fade-in slide-in-from-bottom-4">
             <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-bold flex items-center gap-2 text-gray-800 dark:text-white">
                     <Tag size={16} /> Filtrar Itens
