@@ -19,6 +19,8 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 // uuid: Gera identificadores únicos universais (UUID v4) para novos itens
 import { v4 as uuidv4 } from 'uuid';
 import { App as CapacitorApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { Dialog } from '@capacitor/dialog';
 
 // ============================================================================
@@ -2586,6 +2588,10 @@ const App = () => {
     const handleLogout = async () => {
         try {
             setIsProfileOpen(false);
+            // No Android nativo, encerra também a sessão do plugin para permitir escolher outra conta Google
+            if (Capacitor.isNativePlatform()) {
+                await FirebaseAuthentication.signOut().catch(() => {});
+            }
             // Chama o logout oficial do Firebase passando a instância auth
             await signOut(auth);
             // Limpa o estado do usuário localmente para forçar a tela de login aparecer

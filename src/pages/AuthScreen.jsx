@@ -19,7 +19,12 @@ import {
     verifyPasswordResetCode,
     confirmPasswordReset,
     applyActionCode,
-    signOut
+    signOut,
+    GoogleAuthProvider,
+    signInWithPopup,
+    signInWithRedirect,
+    getRedirectResult,
+    signInWithCredential
 } from 'firebase/auth';
 import { auth } from '../config/firebaseConfig';
 
@@ -38,6 +43,8 @@ import {
     LogOut
 } from 'lucide-react';
 import { App as CapacitorApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 
 // Configurações e Componentes Internos
 import { VERSAO } from '../config/constants';
@@ -146,10 +153,40 @@ const mapAuthErrorMessage = (err) => {
             return 'O link expirou. Por favor, solicite um novo.';
         case 'auth/invalid-action-code':
             return 'Link inválido ou já utilizado.';
+        case 'auth/account-exists-with-different-credential':
+            return 'Já existe uma conta cadastrada com este e-mail usando outro método de login.';
+        case 'auth/unauthorized-domain':
+            return 'Domínio não autorizado no Firebase Auth.';
+        case 'auth/operation-not-allowed':
+            return 'Login com Google não está habilitado no Firebase Console.';
         default:
             return `Erro: ${err.message}`;
     }
 };
+
+/**
+ * Ícone oficial colorido do Google (SVG inline para evitar dependência externa).
+ */
+const GoogleIcon = () => (
+    <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0" aria-hidden="true">
+        <path
+            fill="#4285F4"
+            d="M23.49 12.27c0-.79-.07-1.54-.2-2.27H12v4.3h6.44a5.5 5.5 0 0 1-2.39 3.61v3h3.87c2.26-2.08 3.57-5.15 3.57-8.64z"
+        />
+        <path
+            fill="#34A853"
+            d="M12 24c3.24 0 5.95-1.07 7.93-2.91l-3.87-3c-1.07.72-2.45 1.15-4.06 1.15-3.12 0-5.77-2.11-6.72-4.95H1.29v3.09A12 12 0 0 0 12 24z"
+        />
+        <path
+            fill="#FBBC05"
+            d="M5.28 14.29A7.18 7.18 0 0 1 4.9 12c0-.8.14-1.57.38-2.29V6.62H1.29A12 12 0 0 0 0 12c0 1.94.46 3.77 1.29 5.38l3.99-3.09z"
+        />
+        <path
+            fill="#EA4335"
+            d="M12 4.76c1.76 0 3.34.61 4.58 1.8l3.44-3.44C17.95 1.19 15.24 0 12 0A12 12 0 0 0 1.29 6.62l3.99 3.09C6.23 6.87 8.88 4.76 12 4.76z"
+        />
+    </svg>
+);
 
 /**
  * Converte códigos de erro do envio de e-mail de redefinição de senha.
@@ -187,6 +224,7 @@ const AuthScreen = ({ unverifiedUser = null, onEmailVerified = null }) => {
     const [error, setError] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
     const [loading, setLoading] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);               // Loading exclusivo do botão Google
     const [checkingVerification, setCheckingVerification] = useState(false); // Loading do botão "Já confirmei"
     const [resendCooldown, setResendCooldown] = useState(0);                 // Cooldown em segundos para reenvio do e-mail
     const [isDarkMode, setIsDarkMode] = useState(getInitialTheme);
@@ -240,6 +278,16 @@ const AuthScreen = ({ unverifiedUser = null, onEmailVerified = null }) => {
     // ------------------------------------------------------------------------
     // 5. EFEITOS COLATERAIS (useEffect)
     // ------------------------------------------------------------------------
+
+    // Captura retorno de login via redirect (fallback Web quando o navegador bloqueia popups)
+    useEffect(() => {
+        if (Capacitor.isNativePlatform()) return;
+        getRedirectResult(auth).catch((err) => {
+            if (err?.code && !['auth/popup-closed-by-user', 'auth/cancelled-popup-request'].includes(err.code)) {
+                setError(mapAuthErrorMessage(err));
+            }
+        });
+    }, []);
 
     // Sincroniza a classe "dark" no elemento raiz <html> e persiste no localStorage
     useEffect(() => {
@@ -452,6 +500,61 @@ const AuthScreen = ({ unverifiedUser = null, onEmailVerified = null }) => {
             setError(mapAuthErrorMessage(err));
         } finally {
             setLoading(false);
+        }
+    };
+
+    /**
+     * Autenticação com Google de forma híbrida:
+     * - Android nativo (Capacitor): usa o plugin nativo @capacitor-firebase/authentication
+     *   e sincroniza o JS SDK com signInWithCredential.
+     * - Web / PWA: usa signInWithPopup (com fallback automático para signInWithRedirect se bloqueado).
+     */
+    const handleGoogleSignIn = async () => {
+        clearFeedback();
+        setGoogleLoading(true);
+
+        try {
+            if (Capacitor.isNativePlatform()) {
+                const result = await FirebaseAuthentication.signInWithGoogle();
+                const idToken = result?.credential?.idToken;
+
+                if (!idToken) {
+                    throw new Error('Não foi possível obter a credencial do Google.');
+                }
+
+                const credential = GoogleAuthProvider.credential(idToken);
+                await signInWithCredential(auth, credential);
+            } else {
+                const provider = new GoogleAuthProvider();
+                provider.setCustomParameters({ prompt: 'select_account' });
+
+                try {
+                    await signInWithPopup(auth, provider);
+                } catch (popupErr) {
+                    if (popupErr?.code === 'auth/popup-blocked') {
+                        await signInWithRedirect(auth, provider);
+                        return;
+                    }
+                    throw popupErr;
+                }
+            }
+        } catch (err) {
+            // Ignora cancelamento voluntário do usuário ao fechar a janela/seletor de contas
+            const cancelledCodes = [
+                'auth/popup-closed-by-user',
+                'auth/cancelled-popup-request'
+            ];
+            const msgLower = String(err?.message || '').toLowerCase();
+            const wasUserCancelled =
+                cancelledCodes.includes(err?.code) ||
+                msgLower.includes('cancel') ||
+                msgLower.includes('12501');
+
+            if (!wasUserCancelled) {
+                setError(mapAuthErrorMessage(err));
+            }
+        } finally {
+            setGoogleLoading(false);
         }
     };
 
@@ -781,12 +884,41 @@ const AuthScreen = ({ unverifiedUser = null, onEmailVerified = null }) => {
                                 {/* Botão principal de submissão */}
                                 <button
                                     type="submit"
-                                    disabled={loading}
+                                    disabled={loading || googleLoading}
                                     className="w-full bg-sky-500 hover:bg-blue-600 active:scale-[0.98] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-sky-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-4"
                                 >
                                     {loading ? <Loader2 size={20} className="animate-spin" /> : submitLabel}
                                 </button>
                             </form>
+
+                            {/* Login / Cadastro com Google (visível nos modos Login e Cadastro) */}
+                            {!isResetting && !isPasswordChangeMode && (
+                                <div className="mt-5 space-y-4">
+                                    <div className="relative flex items-center justify-center">
+                                        <div className="w-full border-t border-gray-300/80 dark:border-white/15" />
+                                        <span className="px-3 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 bg-transparent shrink-0">
+                                            ou
+                                        </span>
+                                        <div className="w-full border-t border-gray-300/80 dark:border-white/15" />
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={handleGoogleSignIn}
+                                        disabled={loading || googleLoading}
+                                        className="w-full bg-white/85 hover:bg-white dark:bg-white/10 dark:hover:bg-white/15 active:scale-[0.98] text-gray-800 dark:text-white font-bold py-3.5 px-4 rounded-xl border border-gray-200/90 dark:border-white/15 shadow-sm transition-all flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
+                                    >
+                                        {googleLoading ? (
+                                            <Loader2 size={20} className="animate-spin" />
+                                        ) : (
+                                            <>
+                                                <GoogleIcon />
+                                                <span>Continuar com Google</span>
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            )}
 
                             {/* Rodapé de alternância entre Login, Cadastro e Recuperação */}
                             {!isPasswordChangeMode && (

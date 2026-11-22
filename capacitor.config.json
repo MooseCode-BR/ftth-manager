@@ -13,6 +13,12 @@
     },
     "FirebaseAppCheck": {
       "provider": "debug"
+    },
+    "FirebaseAuthentication": {
+      "skipNativeAuth": false,
+      "providers": [
+        "google.com"
+      ]
     }
   }
 }
