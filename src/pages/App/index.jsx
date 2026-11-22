@@ -345,10 +345,23 @@ const App = () => {
 
     // useEffect (EFEITOS)---------------------------------------------------------------------------------------------------------------------
     // --- LISTENER DE AUTENTICAÇÃO ---
+    const [unverifiedUser, setUnverifiedUser] = useState(null);
+
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            setUser(currentUser); // Atualiza o estado: O React agora sabe que você logou!
             setAuthLoading(false); // O carregamento da autenticação terminou
+
+            if (currentUser && !currentUser.emailVerified) {
+                // Conta autenticada mas com e-mail ainda não confirmado:
+                // bloqueia entrada no app e evita criar documentos lixo no Firestore
+                setUnverifiedUser(currentUser);
+                setUser(null);
+                setIsLoading(false);
+                return;
+            }
+
+            setUnverifiedUser(null);
+            setUser(currentUser); // Atualiza o estado: O React agora sabe que você logou com e-mail verificado!
 
             if (currentUser) {
                 // Sincroniza perfil do usuário no Firestore (para lookup dinâmico)
@@ -4401,9 +4414,18 @@ const App = () => {
             />
         );
     }
-    // Se não tiver usuário, mostra Login
+    // Se não tiver usuário autenticado e com e-mail verificado, mostra AuthScreen (Login / Cadastro / Verificação)
     if (!user) {
-        return <AuthScreen onLogin={() => { }} />; // Ajuste para o seu componente de Login
+        return (
+            <AuthScreen
+                unverifiedUser={unverifiedUser}
+                onEmailVerified={(verifiedUser) => {
+                    setUnverifiedUser(null);
+                    setUser(verifiedUser);
+                    syncUserProfile(verifiedUser);
+                }}
+            />
+        );
     }
 
     // --- LÓGICA DE TRADUÇÃO DO DOCK PARA O APP ---

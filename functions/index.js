@@ -1,7 +1,9 @@
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const { initializeApp } = require("firebase-admin/app");
+const { getAuth } = require("firebase-admin/auth");
 const { getFirestore } = require("firebase-admin/firestore");
 const { getMessaging } = require("firebase-admin/messaging");
 const logger = require("firebase-functions/logger");
@@ -9,6 +11,7 @@ const logger = require("firebase-functions/logger");
 setGlobalOptions({ region: 'southamerica-east1', maxInstances: 10 });
 
 initializeApp();
+const adminAuth = getAuth();
 const db = getFirestore();
 const messaging = getMessaging();
 
@@ -165,9 +168,12 @@ async function checkUserPermission(userEmail, projectId) {
  * Parâmetros: { projectId: string, ownerId: string }
  */
 exports.getRestrictedProjectItems = onCall(async (request) => {
-    // 1. Verificar autenticação
+    // 1. Verificar autenticação e confirmação de e-mail
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Usuário não autenticado.');
+    }
+    if (!request.auth.token.email_verified) {
+        throw new HttpsError('permission-denied', 'É necessário confirmar seu e-mail antes de acessar este recurso.');
     }
 
     const { projectId, ownerId } = request.data;
@@ -237,6 +243,9 @@ exports.validateWritePermission = onCall(async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Usuário não autenticado.');
     }
+    if (!request.auth.token.email_verified) {
+        throw new HttpsError('permission-denied', 'É necessário confirmar seu e-mail antes de realizar esta operação.');
+    }
 
     const { projectId, operation } = request.data;
     if (!projectId) {
@@ -260,6 +269,132 @@ exports.validateWritePermission = onCall(async (request) => {
 
     return { allowed: true, permission: access.permission };
 });
+
+// ============================================================================
+// LIMPEZA AUTOMÁTICA DE CONTAS NÃO VERIFICADAS E INATIVAS SEM USO
+// ============================================================================
+
+const CLEANUP_SCHEDULE = '0 3 * * 0';                 // 1x por semana (domingo às 03:00)
+const UNVERIFIED_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;  // 7 dias sem confirmar e-mail
+const INACTIVE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;   // 30 dias sem uso (e sem projetos/convites)
+
+/**
+ * Verifica se o usuário possui ao menos 1 projeto próprio ou 1 convite aceito.
+ * Contas com qualquer projeto próprio ou compartilhado NUNCA são removidas pela faxina.
+ */
+async function userHasProjectsOrAcceptedInvites(uid, email) {
+    const ownProjectsSnap = await db
+        .collection(`artifacts/ftth-production/users/${uid}/projects`)
+        .limit(1)
+        .get();
+
+    if (!ownProjectsSnap.empty) return true;
+
+    if (email) {
+        const invitesSnap = await db
+            .collection('ftth_invitations')
+            .where('toEmail', '==', email)
+            .get();
+
+        const hasAcceptedInvite = invitesSnap.docs.some((d) => d.data()?.status === 'accepted');
+        if (hasAcceptedInvite) return true;
+    }
+
+    return false;
+}
+
+/**
+ * Remove documentos residuais da conta no Firestore (documento do usuário e userProfile).
+ */
+async function deleteUserResidualData(uid) {
+    const userDocRef = db.doc(`artifacts/ftth-production/users/${uid}`);
+    const profileDocRef = db.doc(`artifacts/ftth-production/userProfiles/${uid}`);
+
+    await Promise.all([
+        db.recursiveDelete(userDocRef),
+        profileDocRef.delete().catch(() => null)
+    ]);
+}
+
+/**
+ * Scheduled Cloud Function: Remove automaticamente:
+ * 1) Contas não verificadas (emailVerified === false) que excederam UNVERIFIED_MAX_AGE_MS sem projetos.
+ * 2) Contas verificadas sem uso (0 projetos próprios e 0 convites aceitos) inativas há mais de INACTIVE_MAX_AGE_MS.
+ */
+exports.cleanupInactiveAndUnverifiedUsers = onSchedule(
+    {
+        schedule: CLEANUP_SCHEDULE,
+        timeZone: 'America/Sao_Paulo'
+    },
+    async () => {
+        const now = Date.now();
+        let checked = 0;
+        let deletedUnverified = 0;
+        let deletedInactive = 0;
+        let protectedWithData = 0;
+        let errors = 0;
+
+        let nextPageToken = undefined;
+
+        do {
+            const listResult = await adminAuth.listUsers(1000, nextPageToken);
+            nextPageToken = listResult.pageToken;
+
+            for (const userRecord of listResult.users) {
+                checked++;
+                const { uid, email, emailVerified, metadata } = userRecord;
+
+                try {
+                    const createdAtMs = metadata?.creationTime ? new Date(metadata.creationTime).getTime() : 0;
+                    const lastSignInMs = metadata?.lastSignInTime ? new Date(metadata.lastSignInTime).getTime() : createdAtMs;
+
+                    const isUnverifiedExpired =
+                        !emailVerified &&
+                        createdAtMs > 0 &&
+                        (now - createdAtMs) >= UNVERIFIED_MAX_AGE_MS;
+
+                    const isInactiveCandidate =
+                        emailVerified &&
+                        lastSignInMs > 0 &&
+                        (now - lastSignInMs) >= INACTIVE_MAX_AGE_MS;
+
+                    if (!isUnverifiedExpired && !isInactiveCandidate) {
+                        continue;
+                    }
+
+                    // Proteção absoluta: nunca exclui contas que já possuem projetos ou convites aceitos
+                    const hasData = await userHasProjectsOrAcceptedInvites(uid, email);
+                    if (hasData) {
+                        protectedWithData++;
+                        continue;
+                    }
+
+                    await adminAuth.deleteUser(uid);
+                    await deleteUserResidualData(uid);
+
+                    if (isUnverifiedExpired) {
+                        deletedUnverified++;
+                        logger.info(`Conta não verificada removida: ${email || uid} (uid=${uid})`);
+                    } else {
+                        deletedInactive++;
+                        logger.info(`Conta inativa sem uso removida: ${email || uid} (uid=${uid})`);
+                    }
+                } catch (err) {
+                    errors++;
+                    logger.error(`Erro ao processar limpeza da conta ${email || uid} (uid=${uid}):`, err);
+                }
+            }
+        } while (nextPageToken);
+
+        logger.info(
+            `Limpeza de contas finalizada — analisadas: ${checked}, ` +
+            `não verificadas removidas: ${deletedUnverified}, ` +
+            `inativas sem uso removidas: ${deletedInactive}, ` +
+            `protegidas (com projetos/convites): ${protectedWithData}, ` +
+            `erros: ${errors}`
+        );
+    }
+);
 
 
 
