@@ -14,7 +14,15 @@
       },
       "oauth_client": [
         {
-          "client_id": "235638910340-ngnglqpqocelcmetc36lv8cv32pu7n8d.apps.googleusercontent.com",
+          "client_id": "235638910340-4ppivrfia1emal2nv5r0bn0dmhjdn4nd.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ftthmanager.app",
+            "certificate_hash": "125d8ae664516f5b1ce2b4001183277414b9d5eb"
+          }
+        },
+        {
+          "client_id": "235638910340-s92edbqhe8qbbskjtam9nbaiqi3nl1en.apps.googleusercontent.com",
           "client_type": 3
         }
       ],

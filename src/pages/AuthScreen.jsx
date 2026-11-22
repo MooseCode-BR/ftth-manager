@@ -1,6 +1,6 @@
 /*
- * Tela de autenticação do sistema: login, criação de conta, envio de e-mail
- * de recuperação e redefinição de senha (com suporte a Web, PWA e Capacitor).
+ * Tela de autenticação do sistema: login, criação de conta, verificação obrigatória
+ * de e-mail, envio de recuperação e redefinição de senha (Web, PWA e Capacitor).
  */
 
 // ============================================================================
@@ -8,15 +8,23 @@
 // ============================================================================
 
 // React
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 // Firebase Auth
 import {
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
     sendPasswordResetEmail,
+    sendEmailVerification,
     verifyPasswordResetCode,
-    confirmPasswordReset
+    confirmPasswordReset,
+    applyActionCode,
+    signOut,
+    GoogleAuthProvider,
+    signInWithPopup,
+    signInWithRedirect,
+    getRedirectResult,
+    signInWithCredential
 } from 'firebase/auth';
 import { auth } from '../config/firebaseConfig';
 
@@ -29,9 +37,14 @@ import {
     CheckCircle2,
     ChevronLeft,
     Eye,
-    EyeOff
+    EyeOff,
+    MailCheck,
+    RefreshCw,
+    LogOut
 } from 'lucide-react';
 import { App as CapacitorApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 
 // Configurações e Componentes Internos
 import { VERSAO } from '../config/constants';
@@ -44,6 +57,65 @@ import ThemeToggleButton from '../components/ThemeToggleButton';
 const THEME_STORAGE_KEY = 'ftth_theme';
 const MIN_PASSWORD_LENGTH = 8;
 const RESET_REDIRECT_DELAY_MS = 3000;
+const RESEND_COOLDOWN_SECONDS = 60;
+
+/**
+ * Lista de domínios de e-mail temporário/descartável bloqueados no cadastro.
+ */
+const DISPOSABLE_EMAIL_DOMAINS = new Set([
+    '10minutemail.com',
+    '10minutemail.net',
+    'burnermail.io',
+    'crazymailing.com',
+    'discard.email',
+    'dispostable.com',
+    'emailondeck.com',
+    'fakeinbox.com',
+    'getairmail.com',
+    'getnada.com',
+    'guerrillamail.biz',
+    'guerrillamail.com',
+    'guerrillamail.de',
+    'guerrillamail.info',
+    'guerrillamail.net',
+    'guerrillamail.org',
+    'guerrillamailblock.com',
+    'harakirimail.com',
+    'inboxbear.com',
+    'mailcatch.com',
+    'maildrop.cc',
+    'mailinator.com',
+    'mailnesia.com',
+    'mintemail.com',
+    'moakt.com',
+    'mohmal.com',
+    'mytemp.email',
+    'nada.email',
+    'sharklasers.com',
+    'spam4.me',
+    'temp-mail.io',
+    'temp-mail.org',
+    'tempail.com',
+    'tempmail.com',
+    'tempmail.net',
+    'tempmailo.com',
+    'throwawaymail.com',
+    'tmpmail.net',
+    'tmpmail.org',
+    'trashmail.com',
+    'yopmail.com',
+    'yopmail.fr',
+    'yopmail.net'
+]);
+
+/**
+ * Verifica se o domínio do e-mail pertence à lista de provedores descartáveis.
+ */
+const isDisposableEmail = (emailValue) => {
+    const parts = String(emailValue || '').trim().toLowerCase().split('@');
+    if (parts.length !== 2) return false;
+    return DISPOSABLE_EMAIL_DOMAINS.has(parts[1]);
+};
 
 /**
  * Determina o tema inicial a partir do localStorage.
@@ -57,7 +129,7 @@ const getInitialTheme = () => {
 };
 
 /**
- * Converte códigos de erro do Firebase Auth (login, cadastro e troca de senha)
+ * Converte códigos de erro do Firebase Auth (login, cadastro, verificação e troca de senha)
  * em mensagens amigáveis para exibição ao usuário.
  */
 const mapAuthErrorMessage = (err) => {
@@ -74,24 +146,54 @@ const mapAuthErrorMessage = (err) => {
         case 'auth/invalid-email':
             return 'O formato do e-mail é inválido.';
         case 'auth/too-many-requests':
-            return 'Muitas tentativas falhadas. Tente novamente mais tarde.';
+            return 'Muitas tentativas em sequência. Aguarde alguns instantes e tente novamente.';
         case 'auth/network-request-failed':
             return 'Erro de conexão com o servidor.';
         case 'auth/expired-action-code':
             return 'O link expirou. Por favor, solicite um novo.';
         case 'auth/invalid-action-code':
             return 'Link inválido ou já utilizado.';
+        case 'auth/account-exists-with-different-credential':
+            return 'Já existe uma conta cadastrada com este e-mail usando outro método de login.';
+        case 'auth/unauthorized-domain':
+            return 'Domínio não autorizado no Firebase Auth.';
+        case 'auth/operation-not-allowed':
+            return 'Login com Google não está habilitado no Firebase Console.';
         default:
             return `Erro: ${err.message}`;
     }
 };
 
 /**
+ * Ícone oficial colorido do Google (SVG inline para evitar dependência externa).
+ */
+const GoogleIcon = () => (
+    <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0" aria-hidden="true">
+        <path
+            fill="#4285F4"
+            d="M23.49 12.27c0-.79-.07-1.54-.2-2.27H12v4.3h6.44a5.5 5.5 0 0 1-2.39 3.61v3h3.87c2.26-2.08 3.57-5.15 3.57-8.64z"
+        />
+        <path
+            fill="#34A853"
+            d="M12 24c3.24 0 5.95-1.07 7.93-2.91l-3.87-3c-1.07.72-2.45 1.15-4.06 1.15-3.12 0-5.77-2.11-6.72-4.95H1.29v3.09A12 12 0 0 0 12 24z"
+        />
+        <path
+            fill="#FBBC05"
+            d="M5.28 14.29A7.18 7.18 0 0 1 4.9 12c0-.8.14-1.57.38-2.29V6.62H1.29A12 12 0 0 0 0 12c0 1.94.46 3.77 1.29 5.38l3.99-3.09z"
+        />
+        <path
+            fill="#EA4335"
+            d="M12 4.76c1.76 0 3.34.61 4.58 1.8l3.44-3.44C17.95 1.19 15.24 0 12 0A12 12 0 0 0 1.29 6.62l3.99 3.09C6.23 6.87 8.88 4.76 12 4.76z"
+        />
+    </svg>
+);
+
+/**
  * Converte códigos de erro do envio de e-mail de redefinição de senha.
  */
 const mapResetErrorMessage = (err) => {
-    if (err.code === 'auth/user-not-found') return 'E-mail incorreto.';
-    if (err.code === 'auth/invalid-email') return 'O formato do e-mail é inválido.';
+    if (err.code === 'auth/user-not-found') return 'Não existe conta com este e-mail.';
+    if (err.code === 'auth/invalid-email') return 'E-mail inválido.';
     return 'Erro ao enviar e-mail.';
 };
 
@@ -99,14 +201,14 @@ const mapResetErrorMessage = (err) => {
 // COMPONENTE PRINCIPAL
 // ============================================================================
 
-const AuthScreen = () => {
+const AuthScreen = ({ unverifiedUser = null, onEmailVerified = null }) => {
     // ------------------------------------------------------------------------
     // 1. ESTADOS DE NAVEGAÇÃO / MODO DA TELA
     // ------------------------------------------------------------------------
-    const [isLogin, setIsLogin] = useState(true);                         // Alterna entre Login (true) e Cadastro (false)
-    const [isResetting, setIsResetting] = useState(false);                // Exibe o formulário de solicitação de recuperação de senha
+    const [isLogin, setIsLogin] = useState(true);                            // Alterna entre Login (true) e Cadastro (false)
+    const [isResetting, setIsResetting] = useState(false);                   // Exibe o formulário de solicitação de recuperação de senha
     const [isPasswordChangeMode, setIsPasswordChangeMode] = useState(false); // Exibe o formulário de criação de nova senha via oobCode
-    const [oobCode, setOobCode] = useState(null);                         // Código de verificação extraído do link de recuperação
+    const [oobCode, setOobCode] = useState(null);                            // Código de verificação extraído do link de recuperação
 
     // ------------------------------------------------------------------------
     // 2. ESTADOS DOS CAMPOS DO FORMULÁRIO
@@ -114,19 +216,78 @@ const AuthScreen = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);              // Controla visibilidade dos campos de senha
+    const [showPassword, setShowPassword] = useState(false);                 // Controla visibilidade dos campos de senha
 
     // ------------------------------------------------------------------------
-    // 3. ESTADOS DE INTERFACE E FEEDBACK
+    // 3. ESTADOS DE INTERFACE, VERIFICAÇÃO E FEEDBACK
     // ------------------------------------------------------------------------
-    const [error, setError] = useState('');                               // Estado para mensagens de erro
-    const [successMsg, setSuccessMsg] = useState('');                     // Estado para mensagens de sucesso
-    const [loading, setLoading] = useState(false);                        // Estado para indicar carregamento dentro do botão "Entrar"
-    const [isDarkMode, setIsDarkMode] = useState(getInitialTheme);        // Estado para indicar tema escuro
+    const [error, setError] = useState('');
+    const [successMsg, setSuccessMsg] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);               // Loading exclusivo do botão Google
+    const [checkingVerification, setCheckingVerification] = useState(false); // Loading do botão "Já confirmei"
+    const [resendCooldown, setResendCooldown] = useState(0);                 // Cooldown em segundos para reenvio do e-mail
+    const [isDarkMode, setIsDarkMode] = useState(getInitialTheme);
 
     // ------------------------------------------------------------------------
-    // 4. EFEITOS COLATERAIS (useEffect)
+    // 4. HELPERS DE VERIFICAÇÃO DE E-MAIL
     // ------------------------------------------------------------------------
+
+    /**
+     * Recarrega os dados do usuário no Firebase Auth e atualiza o token JWT.
+     * Caso o e-mail já esteja confirmado, libera o acesso ao sistema.
+     */
+    const checkEmailVerificationStatus = useCallback(async (silent = false) => {
+        const targetUser = auth.currentUser || unverifiedUser;
+        if (!targetUser) return false;
+
+        if (!silent) {
+            setCheckingVerification(true);
+            setError('');
+        }
+
+        try {
+            await targetUser.reload();
+            const refreshedUser = auth.currentUser || targetUser;
+
+            if (refreshedUser.emailVerified) {
+                // Força renovação do JWT para que request.auth.token.email_verified seja true nas Rules
+                await refreshedUser.getIdToken(true);
+                if (onEmailVerified) {
+                    onEmailVerified(refreshedUser);
+                }
+                return true;
+            }
+
+            if (!silent) {
+                setError('Seu e-mail ainda não foi confirmado. Clique no link enviado para sua caixa de entrada (ou spam) e tente novamente.');
+            }
+            return false;
+        } catch (err) {
+            if (!silent) {
+                setError(mapAuthErrorMessage(err));
+            }
+            return false;
+        } finally {
+            if (!silent) {
+                setCheckingVerification(false);
+            }
+        }
+    }, [unverifiedUser, onEmailVerified]);
+
+    // ------------------------------------------------------------------------
+    // 5. EFEITOS COLATERAIS (useEffect)
+    // ------------------------------------------------------------------------
+
+    // Captura retorno de login via redirect (fallback Web quando o navegador bloqueia popups)
+    useEffect(() => {
+        if (Capacitor.isNativePlatform()) return;
+        getRedirectResult(auth).catch((err) => {
+            if (err?.code && !['auth/popup-closed-by-user', 'auth/cancelled-popup-request'].includes(err.code)) {
+                setError(mapAuthErrorMessage(err));
+            }
+        });
+    }, []);
 
     // Sincroniza a classe "dark" no elemento raiz <html> e persiste no localStorage
     useEffect(() => {
@@ -140,15 +301,46 @@ const AuthScreen = () => {
         }
     }, [isDarkMode]);
 
-    // Detecta e valida links de redefinição de senha vindos de URL Web, PWA ou Deep Link Capacitor
+    // Contagem regressiva do cooldown do botão de reenviar confirmação
     useEffect(() => {
-        const processResetLink = (urlStr) => {
+        if (resendCooldown <= 0) return;
+        const timer = setInterval(() => {
+            setResendCooldown((prev) => (prev <= 1 ? 0 : prev - 1));
+        }, 1000);
+        return () => clearInterval(timer);
+    }, [resendCooldown]);
+
+    // Checagem silenciosa automática quando o usuário retorna à aba/app após clicar no link do e-mail
+    useEffect(() => {
+        if (!unverifiedUser) return;
+
+        const handleReturnToApp = () => {
+            if (document.visibilityState === 'visible') {
+                checkEmailVerificationStatus(true);
+            }
+        };
+
+        window.addEventListener('focus', handleReturnToApp);
+        document.addEventListener('visibilitychange', handleReturnToApp);
+
+        return () => {
+            window.removeEventListener('focus', handleReturnToApp);
+            document.removeEventListener('visibilitychange', handleReturnToApp);
+        };
+    }, [unverifiedUser, checkEmailVerificationStatus]);
+
+    // Detecta e processa links do Firebase Auth (redefinição de senha e confirmação de e-mail)
+    // via URL inicial, navegação PWA (popstate) e Deep Link nativo (Capacitor)
+    useEffect(() => {
+        const processAuthActionLink = async (urlStr) => {
             try {
                 const url = new URL(urlStr, window.location.origin);
                 const mode = url.searchParams.get('mode');
                 const code = url.searchParams.get('oobCode');
 
-                if (mode === 'resetPassword' && code) {
+                if (!mode || !code) return;
+
+                if (mode === 'resetPassword') {
                     setOobCode(code);
                     setIsPasswordChangeMode(true);
                     setIsLogin(false);
@@ -158,17 +350,36 @@ const AuthScreen = () => {
                     verifyPasswordResetCode(auth, code).catch(() => {
                         setError('Este link de recuperação expirou ou é inválido. Solicite um novo.');
                     });
+                } else if (mode === 'verifyEmail') {
+                    setLoading(true);
+                    setError('');
+                    try {
+                        await applyActionCode(auth, code);
+                        window.history.replaceState({}, document.title, window.location.pathname);
+
+                        const verifiedNow = await checkEmailVerificationStatus(true);
+                        if (!verifiedNow) {
+                            setIsLogin(true);
+                            setIsResetting(false);
+                            setIsPasswordChangeMode(false);
+                            setSuccessMsg('E-mail confirmado com sucesso! Agora você já pode fazer login.');
+                        }
+                    } catch (err) {
+                        setError(mapAuthErrorMessage(err));
+                    } finally {
+                        setLoading(false);
+                    }
                 }
             } catch (err) {
-                console.error('Erro ao processar URL de recuperação:', err);
+                console.error('Erro ao processar URL de ação do Firebase Auth:', err);
             }
         };
 
         // A) Checagem inicial ao abrir ou recarregar a página
-        processResetLink(window.location.href);
+        processAuthActionLink(window.location.href);
 
         // B) Checagem PWA quando o navegador reaproveita a aba existente
-        const handlePopState = () => processResetLink(window.location.href);
+        const handlePopState = () => processAuthActionLink(window.location.href);
         window.addEventListener('popstate', handlePopState);
 
         // C) Checagem Mobile Nativo via deep link do Capacitor
@@ -176,7 +387,7 @@ const AuthScreen = () => {
         const setupCapacitorListener = async () => {
             try {
                 deepLinkListener = await CapacitorApp.addListener('appUrlOpen', (data) => {
-                    processResetLink(data.url);
+                    processAuthActionLink(data.url);
                 });
             } catch {
                 // Ignora silenciosamente quando executando apenas no navegador web
@@ -188,10 +399,10 @@ const AuthScreen = () => {
             window.removeEventListener('popstate', handlePopState);
             if (deepLinkListener) deepLinkListener.remove();
         };
-    }, []);
+    }, [checkEmailVerificationStatus]);
 
     // ------------------------------------------------------------------------
-    // 5. FUNÇÕES AUXILIARES (HELPERS)
+    // 6. FUNÇÕES AUXILIARES (HELPERS)
     // ------------------------------------------------------------------------
 
     /** Alterna entre tema claro e tema escuro. */
@@ -225,18 +436,19 @@ const AuthScreen = () => {
     const passwordsMismatch = Boolean(confirmPassword && password !== confirmPassword);
 
     // ------------------------------------------------------------------------
-    // 6. HANDLERS DE AUTENTICAÇÃO
+    // 7. HANDLERS DE AUTENTICAÇÃO E VERIFICAÇÃO
     // ------------------------------------------------------------------------
 
     /**
      * Processa o envio do formulário nos modos:
      * - Troca de senha via código de recuperação (confirmPasswordReset)
      * - Login com e-mail e senha (signInWithEmailAndPassword)
-     * - Criação de nova conta (createUserWithEmailAndPassword)
+     * - Criação de nova conta + envio automático de verificação de e-mail
      */
     const handleAuth = async (e) => {
         e.preventDefault();
         setError('');
+        setSuccessMsg('');
         setLoading(true);
 
         try {
@@ -253,7 +465,6 @@ const AuthScreen = () => {
                 await confirmPasswordReset(auth, oobCode, password);
                 setSuccessMsg('Senha alterada com sucesso! Redirecionando...');
 
-                // Limpa os parâmetros da URL e retorna para o login após breve feedback
                 setTimeout(() => {
                     window.history.replaceState({}, document.title, window.location.pathname);
                     setIsPasswordChangeMode(false);
@@ -263,13 +474,27 @@ const AuthScreen = () => {
                     setConfirmPassword('');
                 }, RESET_REDIRECT_DELAY_MS);
             } else if (isLogin) {
-                await signInWithEmailAndPassword(auth, email, password);
+                const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
+                if (!credential.user.emailVerified) {
+                    // O listener onAuthStateChanged exibirá automaticamente a tela de confirmação pendente
+                    setSuccessMsg('Confirme seu e-mail para liberar o acesso ao sistema.');
+                }
             } else {
+                const cleanEmail = email.trim();
+
+                if (isDisposableEmail(cleanEmail)) {
+                    setError('E-mails temporários ou descartáveis não são permitidos. Utilize um e-mail pessoal ou corporativo válido.');
+                    return;
+                }
                 if (password !== confirmPassword) {
                     setError('As senhas não coincidem.');
                     return;
                 }
-                await createUserWithEmailAndPassword(auth, email, password);
+
+                const credential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+                await sendEmailVerification(credential.user);
+                setResendCooldown(RESEND_COOLDOWN_SECONDS);
+                setSuccessMsg('Conta criada! Enviamos um link de confirmação para o seu e-mail. Verifique sua caixa de entrada (e spam).');
             }
         } catch (err) {
             setError(mapAuthErrorMessage(err));
@@ -279,11 +504,66 @@ const AuthScreen = () => {
     };
 
     /**
+     * Autenticação com Google de forma híbrida:
+     * - Android nativo (Capacitor): usa o plugin nativo @capacitor-firebase/authentication
+     *   e sincroniza o JS SDK com signInWithCredential.
+     * - Web / PWA: usa signInWithPopup (com fallback automático para signInWithRedirect se bloqueado).
+     */
+    const handleGoogleSignIn = async () => {
+        clearFeedback();
+        setGoogleLoading(true);
+
+        try {
+            if (Capacitor.isNativePlatform()) {
+                const result = await FirebaseAuthentication.signInWithGoogle();
+                const idToken = result?.credential?.idToken;
+
+                if (!idToken) {
+                    throw new Error('Não foi possível obter a credencial do Google.');
+                }
+
+                const credential = GoogleAuthProvider.credential(idToken);
+                await signInWithCredential(auth, credential);
+            } else {
+                const provider = new GoogleAuthProvider();
+                provider.setCustomParameters({ prompt: 'select_account' });
+
+                try {
+                    await signInWithPopup(auth, provider);
+                } catch (popupErr) {
+                    if (popupErr?.code === 'auth/popup-blocked') {
+                        await signInWithRedirect(auth, provider);
+                        return;
+                    }
+                    throw popupErr;
+                }
+            }
+        } catch (err) {
+            // Ignora cancelamento voluntário do usuário ao fechar a janela/seletor de contas
+            const cancelledCodes = [
+                'auth/popup-closed-by-user',
+                'auth/cancelled-popup-request'
+            ];
+            const msgLower = String(err?.message || '').toLowerCase();
+            const wasUserCancelled =
+                cancelledCodes.includes(err?.code) ||
+                msgLower.includes('cancel') ||
+                msgLower.includes('12501');
+
+            if (!wasUserCancelled) {
+                setError(mapAuthErrorMessage(err));
+            }
+        } finally {
+            setGoogleLoading(false);
+        }
+    };
+
+    /**
      * Envia o e-mail de redefinição de senha para o endereço informado.
      */
     const handleResetPassword = async (e) => {
         e.preventDefault();
-        if (!email) {
+        if (!email.trim()) {
             setError('Digite seu e-mail para recuperar a senha.');
             return;
         }
@@ -292,7 +572,7 @@ const AuthScreen = () => {
         setLoading(true);
 
         try {
-            await sendPasswordResetEmail(auth, email);
+            await sendPasswordResetEmail(auth, email.trim());
             setSuccessMsg('E-mail de redefinição enviado! Verifique sua caixa de entrada (e spam).');
         } catch (err) {
             console.error(err);
@@ -302,9 +582,50 @@ const AuthScreen = () => {
         }
     };
 
+    /**
+     * Reenvia o e-mail de verificação para a conta pendente (com proteção de cooldown).
+     */
+    const handleResendVerification = async () => {
+        const targetUser = auth.currentUser || unverifiedUser;
+        if (!targetUser || resendCooldown > 0) return;
+
+        clearFeedback();
+        setLoading(true);
+
+        try {
+            await sendEmailVerification(targetUser);
+            setResendCooldown(RESEND_COOLDOWN_SECONDS);
+            setSuccessMsg('Novo e-mail de confirmação enviado! Verifique sua caixa de entrada (e spam).');
+        } catch (err) {
+            setError(mapAuthErrorMessage(err));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    /**
+     * Encerra a sessão pendente para permitir entrar com outra conta ou corrigir o e-mail.
+     */
+    const handleSignOutUnverified = async () => {
+        clearFeedback();
+        setLoading(true);
+        try {
+            await signOut(auth);
+            setPassword('');
+            setConfirmPassword('');
+            setIsLogin(true);
+        } catch (err) {
+            setError(mapAuthErrorMessage(err));
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // ------------------------------------------------------------------------
-    // 7. RENDERIZAÇÃO
+    // 8. RENDERIZAÇÃO
     // ------------------------------------------------------------------------
+    const isAwaitingEmailVerification = Boolean(unverifiedUser && !isPasswordChangeMode);
+
     return (
         <div className="flex flex-col lg:flex-row items-center lg:items-stretch justify-center lg:justify-between min-h-screen p-6 lg:p-12 relative overflow-hidden transition-all duration-500 ease-in-out bg-gradient-to-br from-slate-200 via-slate-300 to-slate-200 dark:from-black dark:via-slate-800 dark:to-black">
 
@@ -343,174 +664,294 @@ const AuthScreen = () => {
                 </div>
             </div>
 
-            {/* Card principal de autenticação */}
+            {/* Card principal de autenticação / verificação */}
             <div className="w-full max-w-md self-center bg-white/20 dark:bg-black/40 border border-white/60 dark:border-white/10 backdrop-blur-2xl rounded-2xl shadow-2xl overflow-hidden text-black dark:text-white transition-all duration-500 ease-in-out lg:mr-8 xl:mr-16 z-10">
                 <div className="p-8 sm:p-10">
-                    <h3 className="text-2xl font-bold mb-8 text-center text-gray-800 dark:text-white">
-                        {formTitle}
-                    </h3>
 
-                    <form onSubmit={isResetting ? handleResetPassword : handleAuth} className="space-y-5">
-
-                        {/* Campo de E-mail (oculto no modo de definição de nova senha) */}
-                        {!isPasswordChangeMode && (
-                            <div className="space-y-1.5">
-                                <label className="text-[11px] font-bold uppercase tracking-wider opacity-70 ml-1 text-gray-700 dark:text-gray-300">
-                                    E-MAIL
-                                </label>
-                                <div className="relative">
-                                    <Mail
-                                        className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 dark:text-gray-400"
-                                        size={18}
-                                    />
-                                    <input
-                                        type="email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="Digite o seu e-mail"
-                                        autoFocus={!isPasswordChangeMode}
-                                        className="w-full pl-10 pr-4 py-3 rounded-xl border bg-white/50 dark:bg-black/50 outline-none transition-all duration-500 text-[16px] border-white/60 dark:border-white/10 focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500"
-                                        required
-                                    />
-                                </div>
+                    {/* TELA DEDICADA: CONFIRMAÇÃO DE E-MAIL PENDENTE */}
+                    {isAwaitingEmailVerification ? (
+                        <div className="space-y-5 text-center">
+                            <div className="w-16 h-16 mx-auto rounded-2xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-500">
+                                <MailCheck size={32} />
                             </div>
-                        )}
 
-                        {/* Campos de Senha e Confirmação (ocultos ao solicitar e-mail de recuperação) */}
-                        {!isResetting && (
-                            <>
-                                <div className="space-y-1.5">
-                                    <label className="text-[11px] font-bold uppercase tracking-wider opacity-70 ml-1 text-gray-700 dark:text-gray-300">
-                                        {isPasswordChangeMode ? 'NOVA SENHA' : 'SENHA'}
-                                    </label>
-                                    <div className="relative">
-                                        <Lock
-                                            className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 dark:text-gray-400"
-                                            size={18}
-                                        />
-                                        <input
-                                            type={showPassword ? 'text' : 'password'}
-                                            value={password}
-                                            onChange={(e) => setPassword(e.target.value)}
-                                            placeholder={isPasswordChangeMode ? 'Digite a nova senha' : 'Digite a sua senha'}
-                                            autoFocus={isPasswordChangeMode}
-                                            className="w-full pl-10 pr-10 py-3 rounded-xl border bg-white/50 dark:bg-black/50 outline-none transition-all duration-500 text-[16px] border-white/60 dark:border-white/10 focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500"
-                                            required
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPassword((prev) => !prev)}
-                                            className="absolute right-3.5 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-100 transition-opacity text-gray-600 dark:text-gray-300"
-                                            tabIndex="-1"
-                                        >
-                                            {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
-                                        </button>
-                                    </div>
+                            <div className="space-y-2">
+                                <h3 className="text-2xl font-bold text-gray-800 dark:text-white">
+                                    Confirme seu e-mail
+                                </h3>
+                                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                                    Enviamos um link de confirmação para:
+                                </p>
+                                <p className="text-sm font-bold text-sky-600 dark:text-sky-400 break-all bg-white/40 dark:bg-black/40 px-3 py-2 rounded-xl border border-white/50 dark:border-white/10">
+                                    {unverifiedUser.email}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 pt-1">
+                                    Abra sua caixa de entrada (ou pasta de spam), clique no link de confirmação e depois clique no botão abaixo.
+                                </p>
+                            </div>
+
+                            {/* Mensagens de feedback */}
+                            {error && (
+                                <div className="p-3.5 rounded-xl border flex items-start gap-2 text-sm text-left animate-in fade-in backdrop-blur-sm bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400 font-medium">
+                                    <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                                    <span className="whitespace-pre-line">{error}</span>
                                 </div>
+                            )}
+                            {successMsg && (
+                                <div className="p-3.5 rounded-xl border flex items-center gap-2 text-sm text-left animate-in fade-in backdrop-blur-sm bg-green-500/10 border-green-500/20 text-green-600 dark:text-green-400 font-medium">
+                                    <CheckCircle2 size={16} className="shrink-0" />
+                                    <span>{successMsg}</span>
+                                </div>
+                            )}
 
-                                {/* Confirmação de senha (exibida no Cadastro e na Troca de Senha) */}
-                                {(isPasswordChangeMode || !isLogin) && (
-                                    <div className="space-y-1.5 animate-in slide-in-from-top-2">
+                            {/* Ações de verificação */}
+                            <div className="space-y-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => checkEmailVerificationStatus(false)}
+                                    disabled={checkingVerification || loading}
+                                    className="w-full bg-sky-500 hover:bg-blue-600 active:scale-[0.98] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-sky-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                                >
+                                    {checkingVerification ? (
+                                        <Loader2 size={20} className="animate-spin" />
+                                    ) : (
+                                        <>
+                                            <CheckCircle2 size={18} />
+                                            <span>Já confirmei meu e-mail</span>
+                                        </>
+                                    )}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={handleResendVerification}
+                                    disabled={loading || resendCooldown > 0}
+                                    className="w-full bg-white/50 hover:bg-white/70 dark:bg-white/10 dark:hover:bg-white/15 border border-white/60 dark:border-white/10 text-gray-800 dark:text-white font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {loading ? (
+                                        <Loader2 size={18} className="animate-spin" />
+                                    ) : (
+                                        <>
+                                            <RefreshCw size={16} />
+                                            <span>
+                                                {resendCooldown > 0
+                                                    ? `Reenviar e-mail em ${resendCooldown}s`
+                                                    : 'Reenviar e-mail de confirmação'}
+                                            </span>
+                                        </>
+                                    )}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={handleSignOutUnverified}
+                                    disabled={loading}
+                                    className="w-full text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white font-medium py-2 flex items-center justify-center gap-1.5 transition-colors"
+                                >
+                                    <LogOut size={15} />
+                                    <span>Sair / Usar outro e-mail</span>
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <h3 className="text-2xl font-bold mb-8 text-center text-gray-800 dark:text-white">
+                                {formTitle}
+                            </h3>
+
+                            <form onSubmit={isResetting ? handleResetPassword : handleAuth} className="space-y-5">
+
+                                {/* Campo de E-mail (oculto no modo de definição de nova senha) */}
+                                {!isPasswordChangeMode && (
+                                    <div className="space-y-1.5">
                                         <label className="text-[11px] font-bold uppercase tracking-wider opacity-70 ml-1 text-gray-700 dark:text-gray-300">
-                                            CONFIRMAR SENHA
+                                            E-MAIL
                                         </label>
                                         <div className="relative">
-                                            <CheckCircle2
+                                            <Mail
                                                 className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 dark:text-gray-400"
                                                 size={18}
                                             />
                                             <input
-                                                type={showPassword ? 'text' : 'password'}
-                                                value={confirmPassword}
-                                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                                placeholder="Digite a sua senha novamente"
-                                                className={`w-full pl-10 pr-10 py-3 rounded-xl border bg-white/50 dark:bg-black/50 outline-none transition-all duration-500 text-[16px] ${passwordsMismatch
-                                                    ? 'border-red-500/50 focus:ring-2 focus:ring-red-500/50 focus:border-red-500'
-                                                    : 'border-white/60 dark:border-white/10 focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500'
-                                                    }`}
+                                                type="email"
+                                                value={email}
+                                                onChange={(e) => setEmail(e.target.value)}
+                                                placeholder="Digite o seu e-mail"
+                                                autoFocus={!isPasswordChangeMode}
+                                                className="w-full pl-10 pr-4 py-3 rounded-xl border bg-white/50 dark:bg-black/50 outline-none transition-all duration-500 text-[16px] border-white/60 dark:border-white/10 focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500"
                                                 required
                                             />
                                         </div>
-                                        {passwordsMismatch && (
-                                            <p className="text-[11px] text-red-500 font-medium ml-1 mt-1">
-                                                As senhas não coincidem
-                                            </p>
-                                        )}
                                     </div>
                                 )}
-                            </>
-                        )}
 
-                        {/* Atalho para recuperação de senha (visível apenas no modo Login) */}
-                        {isLogin && !isResetting && !isPasswordChangeMode && (
-                            <div className="flex justify-end mt-2">
+                                {/* Campos de Senha e Confirmação (ocultos ao solicitar e-mail de recuperação) */}
+                                {!isResetting && (
+                                    <>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[11px] font-bold uppercase tracking-wider opacity-70 ml-1 text-gray-700 dark:text-gray-300">
+                                                {isPasswordChangeMode ? 'NOVA SENHA' : 'SENHA'}
+                                            </label>
+                                            <div className="relative">
+                                                <Lock
+                                                    className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 dark:text-gray-400"
+                                                    size={18}
+                                                />
+                                                <input
+                                                    type={showPassword ? 'text' : 'password'}
+                                                    value={password}
+                                                    onChange={(e) => setPassword(e.target.value)}
+                                                    placeholder={isPasswordChangeMode ? 'Digite a nova senha' : 'Digite a sua senha'}
+                                                    autoFocus={isPasswordChangeMode}
+                                                    className="w-full pl-10 pr-10 py-3 rounded-xl border bg-white/50 dark:bg-black/50 outline-none transition-all duration-500 text-[16px] border-white/60 dark:border-white/10 focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500"
+                                                    required
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowPassword((prev) => !prev)}
+                                                    className="absolute right-3.5 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-100 transition-opacity text-gray-600 dark:text-gray-300"
+                                                    tabIndex="-1"
+                                                >
+                                                    {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Confirmação de senha (exibida no Cadastro e na Troca de Senha) */}
+                                        {(isPasswordChangeMode || !isLogin) && (
+                                            <div className="space-y-1.5 animate-in slide-in-from-top-2">
+                                                <label className="text-[11px] font-bold uppercase tracking-wider opacity-70 ml-1 text-gray-700 dark:text-gray-300">
+                                                    CONFIRMAR SENHA
+                                                </label>
+                                                <div className="relative">
+                                                    <CheckCircle2
+                                                        className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 dark:text-gray-400"
+                                                        size={18}
+                                                    />
+                                                    <input
+                                                        type={showPassword ? 'text' : 'password'}
+                                                        value={confirmPassword}
+                                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                                        placeholder="Digite a sua senha novamente"
+                                                        className={`w-full pl-10 pr-10 py-3 rounded-xl border bg-white/50 dark:bg-black/50 outline-none transition-all duration-500 text-[16px] ${
+                                                            passwordsMismatch
+                                                                ? 'border-red-500/50 focus:ring-2 focus:ring-red-500/50 focus:border-red-500'
+                                                                : 'border-white/60 dark:border-white/10 focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500'
+                                                        }`}
+                                                        required
+                                                    />
+                                                </div>
+                                                {passwordsMismatch && (
+                                                    <p className="text-[11px] text-red-500 font-medium ml-1 mt-1">
+                                                        As senhas não coincidem
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+
+                                {/* Atalho para recuperação de senha (visível apenas no modo Login) */}
+                                {isLogin && !isResetting && !isPasswordChangeMode && (
+                                    <div className="flex justify-end mt-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setIsResetting(true);
+                                                clearFeedback();
+                                            }}
+                                            className="text-xs font-medium text-sky-500 hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors"
+                                        >
+                                            Esqueceu a senha?
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Mensagens de feedback (erro / sucesso) */}
+                                {error && (
+                                    <div className="p-3.5 rounded-xl border flex items-start gap-2 text-sm animate-in fade-in backdrop-blur-sm mt-4 bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400 font-medium">
+                                        <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                                        <span className="whitespace-pre-line">{error}</span>
+                                    </div>
+                                )}
+                                {successMsg && (
+                                    <div className="p-3.5 rounded-xl border flex items-center gap-2 text-sm animate-in fade-in backdrop-blur-sm mt-4 bg-green-500/10 border-green-500/20 text-green-600 dark:text-green-400 font-medium">
+                                        <CheckCircle2 size={16} className="shrink-0" />
+                                        <span>{successMsg}</span>
+                                    </div>
+                                )}
+
+                                {/* Botão principal de submissão */}
                                 <button
-                                    type="button"
-                                    onClick={() => {
-                                        setIsResetting(true);
-                                        clearFeedback();
-                                    }}
-                                    className="text-xs font-medium text-sky-500 hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors"
+                                    type="submit"
+                                    disabled={loading || googleLoading}
+                                    className="w-full bg-sky-500 hover:bg-blue-600 active:scale-[0.98] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-sky-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-4"
                                 >
-                                    Esqueceu a senha?
+                                    {loading ? <Loader2 size={20} className="animate-spin" /> : submitLabel}
                                 </button>
-                            </div>
-                        )}
+                            </form>
 
-                        {/* Mensagens de feedback (erro / sucesso) */}
-                        {error && (
-                            <div className="p-3.5 rounded-xl border flex items-start gap-2 text-sm animate-in fade-in backdrop-blur-sm mt-4 bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400 font-medium">
-                                <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                                <span className="whitespace-pre-line">{error}</span>
-                            </div>
-                        )}
-                        {successMsg && (
-                            <div className="p-3.5 rounded-xl border flex items-center gap-2 text-sm animate-in fade-in backdrop-blur-sm mt-4 bg-green-500/10 border-green-500/20 text-green-600 dark:text-green-400 font-medium">
-                                <CheckCircle2 size={16} className="shrink-0" />
-                                <span>{successMsg}</span>
-                            </div>
-                        )}
+                            {/* Login / Cadastro com Google (visível nos modos Login e Cadastro) */}
+                            {!isResetting && !isPasswordChangeMode && (
+                                <div className="mt-5 space-y-4">
+                                    <div className="relative flex items-center justify-center">
+                                        <div className="w-full border-t border-gray-300/80 dark:border-white/15" />
+                                        <span className="px-3 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 bg-transparent shrink-0">
+                                            ou
+                                        </span>
+                                        <div className="w-full border-t border-gray-300/80 dark:border-white/15" />
+                                    </div>
 
-                        {/* Botão principal de submissão */}
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full bg-sky-500 hover:bg-blue-600 active:scale-[0.98] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-sky-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-4"
-                        >
-                            {loading ? <Loader2 size={20} className="animate-spin" /> : submitLabel}
-                        </button>
-                    </form>
-
-                    {/* Rodapé de alternância entre Login, Cadastro e Recuperação */}
-                    {!isPasswordChangeMode && (
-                        <div className="mt-8 pt-6 border-t border-gray-200 dark:border-white/10 text-center">
-                            {isResetting ? (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setIsResetting(false);
-                                        clearFeedback();
-                                    }}
-                                    className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white font-medium flex items-center justify-center gap-1 mx-auto transition-colors"
-                                >
-                                    <ChevronLeft size={16} /> Voltar para o Login
-                                </button>
-                            ) : (
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    {isLogin ? 'Ainda não tem conta?' : 'Já possui cadastro?'}
                                     <button
                                         type="button"
-                                        onClick={() => {
-                                            setIsLogin((prev) => !prev);
-                                            clearFeedback();
-                                        }}
-                                        className="ml-1.5 text-sky-500 font-bold hover:underline transition-colors"
+                                        onClick={handleGoogleSignIn}
+                                        disabled={loading || googleLoading}
+                                        className="w-full bg-white/85 hover:bg-white dark:bg-white/10 dark:hover:bg-white/15 active:scale-[0.98] text-gray-800 dark:text-white font-bold py-3.5 px-4 rounded-xl border border-gray-200/90 dark:border-white/15 shadow-sm transition-all flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
                                     >
-                                        {isLogin ? 'Criar agora' : 'Fazer Login'}
+                                        {googleLoading ? (
+                                            <Loader2 size={20} className="animate-spin" />
+                                        ) : (
+                                            <>
+                                                <GoogleIcon />
+                                                <span>Continuar com Google</span>
+                                            </>
+                                        )}
                                     </button>
-                                </p>
+                                </div>
                             )}
-                        </div>
+
+                            {/* Rodapé de alternância entre Login, Cadastro e Recuperação */}
+                            {!isPasswordChangeMode && (
+                                <div className="mt-8 pt-6 border-t border-gray-200 dark:border-white/10 text-center">
+                                    {isResetting ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setIsResetting(false);
+                                                clearFeedback();
+                                            }}
+                                            className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white font-medium flex items-center justify-center gap-1 mx-auto transition-colors"
+                                        >
+                                            <ChevronLeft size={16} /> Voltar para o Login
+                                        </button>
+                                    ) : (
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                                            {isLogin ? 'Ainda não tem conta?' : 'Já possui cadastro?'}
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setIsLogin((prev) => !prev);
+                                                    clearFeedback();
+                                                }}
+                                                className="ml-1.5 text-sky-500 font-bold hover:underline transition-colors"
+                                            >
+                                                {isLogin ? 'Criar agora' : 'Fazer Login'}
+                                            </button>
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
             </div>
