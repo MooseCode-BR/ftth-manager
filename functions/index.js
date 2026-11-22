@@ -2,23 +2,36 @@ const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { setGlobalOptions } = require("firebase-functions/v2");
-const { initializeApp } = require("firebase-admin/app");
-const { getAuth } = require("firebase-admin/auth");
-const { getFirestore } = require("firebase-admin/firestore");
-const { getMessaging } = require("firebase-admin/messaging");
 const logger = require("firebase-functions/logger");
 
 setGlobalOptions({ region: 'southamerica-east1', maxInstances: 10 });
 
-initializeApp();
-const adminAuth = getAuth();
-const db = getFirestore();
-const messaging = getMessaging();
+// Lazy initialization do Firebase Admin para evitar timeout de 10s na descoberta do deploy
+let adminInitialized = false;
+function ensureAdmin() {
+    if (!adminInitialized) {
+        const { initializeApp, getApps } = require("firebase-admin/app");
+        if (getApps().length === 0) initializeApp();
+        adminInitialized = true;
+    }
+}
+function getDb() {
+    ensureAdmin();
+    return require("firebase-admin/firestore").getFirestore();
+}
+function getAdminAuth() {
+    ensureAdmin();
+    return require("firebase-admin/auth").getAuth();
+}
+function getAdminMessaging() {
+    ensureAdmin();
+    return require("firebase-admin/messaging").getMessaging();
+}
 
 // Função auxiliar para buscar usuário no caminho correto
 async function getUserTokensByEmail(email) {
     // CAMINHO CORRETO: artifacts/ftth-production/users
-    const usersRef = db.collection('artifacts').doc('ftth-production').collection('users');
+    const usersRef = getDb().collection('artifacts').doc('ftth-production').collection('users');
 
     // Busca pelo campo 'email' que adicionamos no Frontend
     const q = usersRef.where('email', '==', email).limit(1);
@@ -72,7 +85,7 @@ exports.sendInviteNotification = onDocumentCreated("ftth_invitations/{inviteId}"
             tokens: tokens
         };
 
-        const response = await messaging.sendEachForMulticast(message);
+        const response = await getAdminMessaging().sendEachForMulticast(message);
         logger.log(`Invite Push: ${response.successCount} envios.`);
     } catch (error) {
         logger.error("Erro Invite:", error);
@@ -118,7 +131,7 @@ exports.sendTransferNotification = onDocumentCreated("ftth_transfers/{transferId
             tokens: tokens
         };
 
-        const response = await messaging.sendEachForMulticast(message);
+        const response = await getAdminMessaging().sendEachForMulticast(message);
         logger.log(`Transfer Push: ${response.successCount} envios.`);
 
     } catch (error) {
@@ -138,7 +151,7 @@ const GEOMETRY_ONLY_FIELDS = ['id', 'color', 'lat', 'lng', 'x', 'y', 'w', 'h', '
  * Retorna: { hasAccess: boolean, permission: string|null, invite: object|null }
  */
 async function checkUserPermission(userEmail, projectId) {
-    const invitesRef = db.collection('ftth_invitations');
+    const invitesRef = getDb().collection('ftth_invitations');
     const q = invitesRef
         .where('toEmail', '==', userEmail)
         .where('projectId', '==', projectId)
@@ -186,7 +199,7 @@ exports.getRestrictedProjectItems = onCall(async (request) => {
 
     // 2. Se o usuário é o dono, retorna tudo
     if (userId === ownerId) {
-        const itemsSnap = await db.collection(`artifacts/ftth-production/users/${ownerId}/projects/${projectId}/items`).get();
+        const itemsSnap = await getDb().collection(`artifacts/ftth-production/users/${ownerId}/projects/${projectId}/items`).get();
         return {
             permission: 'OWNER',
             items: itemsSnap.docs.map(d => ({ id: d.id, ...d.data() }))
@@ -201,7 +214,7 @@ exports.getRestrictedProjectItems = onCall(async (request) => {
     }
 
     // 4. Buscar itens
-    const itemsSnap = await db.collection(`artifacts/ftth-production/users/${ownerId}/projects/${projectId}/items`).get();
+    const itemsSnap = await getDb().collection(`artifacts/ftth-production/users/${ownerId}/projects/${projectId}/items`).get();
     let items = itemsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
     // 5. DATA SCRUBBING para READ_ONLY_GEOMETRY: Apenas CTOs com campos de geometria
@@ -283,6 +296,7 @@ const INACTIVE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;   // 30 dias sem uso (e se
  * Contas com qualquer projeto próprio ou compartilhado NUNCA são removidas pela faxina.
  */
 async function userHasProjectsOrAcceptedInvites(uid, email) {
+    const db = getDb();
     const ownProjectsSnap = await db
         .collection(`artifacts/ftth-production/users/${uid}/projects`)
         .limit(1)
@@ -307,6 +321,7 @@ async function userHasProjectsOrAcceptedInvites(uid, email) {
  * Remove documentos residuais da conta no Firestore (documento do usuário e userProfile).
  */
 async function deleteUserResidualData(uid) {
+    const db = getDb();
     const userDocRef = db.doc(`artifacts/ftth-production/users/${uid}`);
     const profileDocRef = db.doc(`artifacts/ftth-production/userProfiles/${uid}`);
 
@@ -327,6 +342,7 @@ exports.cleanupInactiveAndUnverifiedUsers = onSchedule(
         timeZone: 'America/Sao_Paulo'
     },
     async () => {
+        const adminAuth = getAdminAuth();
         const now = Date.now();
         let checked = 0;
         let deletedUnverified = 0;
