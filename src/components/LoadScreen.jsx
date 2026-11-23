@@ -22,7 +22,7 @@ export const LoadScreen = ({
                 </div>
 
                 {/* Título do Aplicativo */}
-                <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white mb-1">
+                <h1 className="font-brand text-2xl tracking-wider uppercase text-gray-900 dark:text-white mb-1">
                     FTTH Manager
                 </h1>
 

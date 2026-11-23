@@ -6,7 +6,11 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        brand: ['"Share Tech"', 'sans-serif'],
+      },
+    },
   },
   plugins: [
     require("tailwindcss-animate"),
