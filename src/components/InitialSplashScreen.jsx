@@ -1,0 +1,55 @@
+/*
+ * Tela de carregamento inicial (Initial Splash Screen).
+ * Sempre exibida em modo escuro fixo (#0b0b0b), com o ícone vetorial do FTTH Manager
+ * em amarelo sobre fundo transparente enquanto a aplicação inicializa e verifica a sessão.
+ */
+
+import React from 'react';
+
+export const InitialSplashScreen = () => {
+    return (
+        <div
+            className="fixed inset-0 z-[9999] flex flex-col items-center justify-between bg-[#0b0b0b] text-white select-none overflow-hidden"
+            style={{ backgroundColor: '#0b0b0b' }}
+            role="status"
+            aria-label="Carregando FTTH Manager Cloud"
+        >
+            {/* Espaçador superior para manter o ícone perfeitamente centralizado */}
+            <div className="h-16" />
+
+            {/* Logotipo central amarelo com fundo transparente */}
+            <div className="relative flex items-center justify-center">
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 27093.32 27093.32"
+                    className="w-24 h-24 sm:w-28 sm:h-28 animate-pulse"
+                    aria-hidden="true"
+                >
+                    <g fill="#fcaf17">
+                        <path d="M6679.35 13395.7l0 1719.08c-464.88,0 -845.12,-380.08 -845.12,-845l0 -29.04c0,-464.96 380.24,-845.04 845.12,-845.04z" />
+                        <path d="M5866.15 17483.34l15360.98 0c396.08,0 720.2,324.08 720.2,720.2l0 1459.83c0,396.12 -324.12,720.2 -720.2,720.2l-15360.98 0c-396.04,0 -720.2,-324.08 -720.2,-720.2l0 -1459.83c0,-396.12 324.16,-720.2 720.2,-720.2z" />
+                        <path d="M15734.68 20129.21l2449.98 0 0 3322.76c0,203.48 -249,369.48 -553.56,369.48l-1342.86 0c-304.62,0 -553.56,-166 -553.56,-369.48l0 -3322.76z" />
+                        <path d="M12227.32 20129.21l2450.04 0 0 3322.76c0,203.48 -249,369.48 -553.56,369.48l-1342.86 0c-304.62,0 -553.62,-166 -553.62,-369.48l0 -3322.76z" />
+                        <path d="M8773.78 20129.21l2449.98 0 0 3322.76c0,203.48 -249,369.48 -553.56,369.48l-1342.86 0c-304.62,0 -553.56,-166 -553.56,-369.48l0 -3322.76z" />
+                        <path d="M12188.26 8998.67l464.28 0 0 -5696.68c547.92,-36.2 1085.16,-44.36 1633.48,1.44l0 5695.24 463.96 0 0 1719.07 -463.96 0 0 6491.28 -1633.48 0 0 -6491.28 -464.28 0 0 -1719.07z" />
+                        <path d="M9339.02 8998.67l473.84 0 0 -3562.6c0,-128.88 760.52,-497.96 1375.76,-590 89.92,-13.48 176.8,-21.04 257.72,-21.04l0 4173.64 454.36 0 0 1719.07 -454.36 0 0 6491.28 -1633.48 0 0 -6491.28 -144.12 0 -329.72 0 0 -1719.07z" />
+                        <path d="M6693.79 8998.67l259.88 0 0 -1663.52c0,-1174.28 816.68,-3132.84 4492.67,-3884.4l0 996.44c-54.64,7.08 -107.84,14.92 -160.44,23.16 -2490.11,389.48 -2698.87,2061.24 -2698.87,2864.8l0 1663.52 464.51 0 0 1719.07 -464.51 0 0 4179.04 0 2312.24c-544.52,0 -1088.76,0 -1633.36,0l0 -6491.28 -259.88 0c-472.8,0 -859.56,-386.76 -859.56,-859.32l0 -0.44c0,-472.52 386.76,-859.31 859.56,-859.31z" />
+                        <path d="M20005.93 17209.02l-1633.32 0 0 -6491.28 -1227.39 0 0 6491.28 -1633.08 0 0 -6491.28 -464.24 0 0 -1719.07 464.24 0 0 -5540.52c565.28,97.84 1074.48,238.88 1633.08,456l0 5084.52 1227.39 0 0 -4452.12c816.64,570.08 1633.32,1437.56 1633.32,2780l0 9882.47z" />
+                    </g>
+                </svg>
+            </div>
+
+            {/* Assinatura discreta na base (estilo boot do Instagram) */}
+            <div className="pb-10 flex flex-col items-center gap-1">
+                <span className="font-brand text-xs sm:text-sm tracking-[0.26em] uppercase text-neutral-400">
+                    FTTH MANAGER
+                </span>
+                <span className="font-brand text-[10px] tracking-[0.34em] uppercase text-[#fcaf17]/90">
+                    CLOUD
+                </span>
+            </div>
+        </div>
+    );
+};
+
+export default InitialSplashScreen;

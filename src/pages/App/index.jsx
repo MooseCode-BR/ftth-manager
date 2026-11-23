@@ -84,6 +84,7 @@ import TraceModal from '../../components/modals/TraceModal'; // Rastreamento de 
 import AreaModal from '../../components/modals/AreaModal'; // Novo modal de Área
 import DetailPanel from '../DetailPanel'; // Painel lateral de detalhes
 import { LoadScreen } from '../../components/LoadScreen';
+import { InitialSplashScreen } from '../../components/InitialSplashScreen';
 import InstallPwaPopup from '../../components/InstallPwaPopup';
 import TagsFilterPanel from '../../components/TagsFilterPanel';
 import ProjectTagsModal from '../../components/modals/ProjectTagsModal';
@@ -180,29 +181,13 @@ const App = () => {
     // mas se passar muito tempo (ex: no dia seguinte), inicializa sem forçar o projeto antigo.
     const RECENT_SESSION_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas
 
-    // O activeProjectId continua sendo o ID do projeto selecionado (com persistência recente no localStorage)
-    const [activeProjectId, setActiveProjectId] = useState(() => {
+    // Função auxiliar para restaurar seleção recente de projetos SOMENTE após login verificado
+    const restoreRecentProjectSelection = () => {
         try {
             const savedTime = localStorage.getItem('ftth_last_active_time');
             const savedProj = localStorage.getItem('ftth_active_project');
-            if (savedTime && savedProj) {
-                const diff = Date.now() - parseInt(savedTime, 10);
-                if (diff < RECENT_SESSION_TTL_MS) {
-                    return savedProj;
-                }
-            }
-            localStorage.removeItem('ftth_active_project');
-            return null;
-        } catch {
-            return null;
-        }
-    });  // O projeto "Caneta"
-
-    const [visibleProjectIds, setVisibleProjectIds] = useState(() => {
-        try {
-            const savedTime = localStorage.getItem('ftth_last_active_time');
             const savedVisible = localStorage.getItem('ftth_visible_projects');
-            const savedProj = localStorage.getItem('ftth_active_project');
+
             if (savedTime) {
                 const diff = Date.now() - parseInt(savedTime, 10);
                 if (diff < RECENT_SESSION_TTL_MS) {
@@ -214,22 +199,31 @@ const App = () => {
                     if (savedProj && !list.includes(savedProj)) {
                         list.push(savedProj);
                     }
-                    return list;
+                    setActiveProjectId(savedProj || null);
+                    setVisibleProjectIds(list);
+                    return;
                 }
             }
+            localStorage.removeItem('ftth_active_project');
             localStorage.removeItem('ftth_visible_projects');
-            return [];
         } catch {
-            return [];
+            // Ignora erros de storage
         }
-    }); // Os projetos "Olho"
+        setActiveProjectId(null);
+        setVisibleProjectIds([]);
+    };
+
+    // O activeProjectId e visibleProjectIds iniciam vazios até que o usuário esteja autenticado
+    const [activeProjectId, setActiveProjectId] = useState(null);  // O projeto "Caneta"
+    const [visibleProjectIds, setVisibleProjectIds] = useState([]); // Os projetos "Olho"
     const hasRestoredFocusRef = useRef(false); // Flag para garantir foco automático apenas uma vez na restauração
     const [isProjectManagerOpen, setIsProjectManagerOpen] = useState(false); // Abre o modal de gerencia de projetos
     const [projectDataCache, setProjectDataCache] = useState({}); // Cache de dados separado por projeto: { [projectId]: { items: [], connections: [] } }
     const projectListenersRef = useRef(new Map()); // Map<projectId, unsubFunction[]> para manter listeners de projetos estáveis sem recriações desnecessárias
 
     // --- ESTADOS PARA CONTROLE DE CARREGAMENTO EM 2 FASES E FEEDBACK VISUAL ---
-    const [isProjectsMetadataLoading, setIsProjectsMetadataLoading] = useState(true);
+    const [isProjectsMetadataLoading, setIsProjectsMetadataLoading] = useState(false);
+    const [splashMinTimeElapsed, setSplashMinTimeElapsed] = useState(false);
     const [loadingProgress, setLoadingProgress] = useState({
         stage: 'Iniciando sistema...',
         progress: 15,
@@ -278,7 +272,7 @@ const App = () => {
     const [splitModalData, setSplitModalData] = useState(null); //Seccionar cabo
     const [traceModalData, setTraceModalData] = useState(null); //Rastreio de sinal
     const [newClientPosition, setNewClientPosition] = useState(null); //Posição de novo cliente
-    const [isLoading, setIsLoading] = useState(true);  //Está carregando?
+    const [isLoading, setIsLoading] = useState(false);  //Está carregando dados pós-login?
     const [isBackupModalOpen, setIsBackupModalOpen] = useState(false); // Modal de Salvar Backup
     const [isKMLExportModalOpen, setIsKMLExportModalOpen] = useState(false); // Modal de Exportar KML
 
@@ -349,30 +343,54 @@ const App = () => {
     // --- LISTENER DE AUTENTICAÇÃO ---
     const [unverifiedUser, setUnverifiedUser] = useState(null);
 
+    // Duração mínima suave da tela de boot inicial (estilo Instagram) para evitar flicker
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setSplashMinTimeElapsed(true);
+        }, 450);
+        return () => clearTimeout(timer);
+    }, []);
+
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
             setAuthLoading(false); // O carregamento da autenticação terminou
 
             if (currentUser && !currentUser.emailVerified) {
                 // Conta autenticada mas com e-mail ainda não confirmado:
-                // bloqueia entrada no app e evita criar documentos lixo no Firestore
+                // bloqueia entrada no app e evita carregar qualquer dado do usuário
                 setUnverifiedUser(currentUser);
                 setUser(null);
                 setIsLoading(false);
+                setIsProjectsMetadataLoading(false);
                 return;
             }
 
             setUnverifiedUser(null);
-            setUser(currentUser); // Atualiza o estado: O React agora sabe que você logou com e-mail verificado!
 
             if (currentUser) {
+                // Usuário autenticado e verificado: inicia a tela de carregamento pós-login (bandeja.svg + progresso)
+                setLoadingProgress({ stage: 'Carregando seus projetos...', progress: 15, projectName: '' });
+                setIsLoading(true);
+                setIsProjectsMetadataLoading(true);
+                restoreRecentProjectSelection();
+                setUser(currentUser);
                 // Sincroniza perfil do usuário no Firestore (para lookup dinâmico)
                 syncUserProfile(currentUser);
             } else {
-                // Se deslogou, limpa tudo
+                // Não autenticado ou deslogado: limpa dados do usuário e não carrega nada em segundo plano
+                setUser(null);
+                setIsLoading(false);
+                setIsProjectsMetadataLoading(false);
                 setProjectOwnerId(null);
                 setMyProjects([]);
-                // setSharedProjects([]);
+                setItems([]);
+                setConnections([]);
+                setPortLabels({});
+                setSignalNames({});
+                setCableColorStandards({});
+                setNodeColorSettings({});
+                setFavoriteColors([]);
+                setProjectTags({});
                 setActiveProjectId(null);
                 setVisibleProjectIds([]);
                 localStorage.removeItem('ftth_active_project');
@@ -438,8 +456,9 @@ const App = () => {
     }, [isDarkMode]);
 
     // --- PERSISTÊNCIA DE SESSÃO RECENTE DO PROJETO (PROTEÇÃO CONTRA RELOAD EM MOBILE) ---
-    // 1. Salva activeProjectId e atualiza timestamp de atividade
+    // 1. Salva activeProjectId e atualiza timestamp de atividade (apenas com usuário logado)
     useEffect(() => {
+        if (!user) return;
         try {
             if (activeProjectId) {
                 localStorage.setItem('ftth_active_project', activeProjectId);
@@ -450,10 +469,11 @@ const App = () => {
         } catch (e) {
             console.error('Erro ao persistir activeProjectId:', e);
         }
-    }, [activeProjectId]);
+    }, [activeProjectId, user]);
 
-    // 2. Salva visibleProjectIds e atualiza timestamp de atividade
+    // 2. Salva visibleProjectIds e atualiza timestamp de atividade (apenas com usuário logado)
     useEffect(() => {
+        if (!user) return;
         try {
             if (visibleProjectIds && visibleProjectIds.length > 0) {
                 localStorage.setItem('ftth_visible_projects', JSON.stringify(visibleProjectIds));
@@ -464,7 +484,7 @@ const App = () => {
         } catch (e) {
             console.error('Erro ao persistir visibleProjectIds:', e);
         }
-    }, [visibleProjectIds]);
+    }, [visibleProjectIds, user]);
 
     // 3. Atualiza timestamp quando o aplicativo é minimizado no celular (PageHide / VisibilityChange)
     useEffect(() => {
@@ -534,7 +554,7 @@ const App = () => {
     // CARREGAMENTO INICIAL E GERENCIAMENTO DE PROJETOS
     useEffect(() => {
         if (!user) {
-            setIsProjectsMetadataLoading(true);
+            setIsProjectsMetadataLoading(false);
             return; // Só roda se estiver logado
         }
 
@@ -4402,34 +4422,45 @@ const App = () => {
         }
     };
 
-    // Safety watchdog para a Splash Screen: garante que nunca trave
+    // Safety watchdog para a tela de carregamento pós-login: garante que nunca trave
     useEffect(() => {
+        if (!user || !isLoading) return;
         const timer = setTimeout(() => {
             setIsLoading(false);
         }, 6000);
         return () => clearTimeout(timer);
-    }, []);
+    }, [user, isLoading]);
 
-    // --- 1. TELA DE CARREGAMENTO (SPLASH SCREEN) ---
-    if (isLoading || authLoading) {
-        return (
-            <LoadScreen
-                stage={loadingProgress.stage}
-                progress={loadingProgress.progress}
-                projectName={loadingProgress.projectName}
-            />
-        );
+    // --- 1. TELA DE BOOT INICIAL (ESTILO INSTAGRAM — MODO ESCURO FIXO) ---
+    if (authLoading || !splashMinTimeElapsed) {
+        return <InitialSplashScreen />;
     }
-    // Se não tiver usuário autenticado e com e-mail verificado, mostra AuthScreen (Login / Cadastro / Verificação)
+
+    // --- 2. TELA DE AUTENTICAÇÃO (SEM CARREGAR PROJETOS OU DADOS DO USUÁRIO) ---
     if (!user) {
         return (
             <AuthScreen
                 unverifiedUser={unverifiedUser}
                 onEmailVerified={(verifiedUser) => {
                     setUnverifiedUser(null);
+                    setLoadingProgress({ stage: 'Carregando seus projetos...', progress: 15, projectName: '' });
+                    setIsLoading(true);
+                    setIsProjectsMetadataLoading(true);
+                    restoreRecentProjectSelection();
                     setUser(verifiedUser);
                     syncUserProfile(verifiedUser);
                 }}
+            />
+        );
+    }
+
+    // --- 3. TELA DE CARREGAMENTO PÓS-LOGIN (BANDEJA.SVG + BARRA DE PROGRESSO) ---
+    if (isLoading) {
+        return (
+            <LoadScreen
+                stage={loadingProgress.stage}
+                progress={loadingProgress.progress}
+                projectName={loadingProgress.projectName}
             />
         );
     }
