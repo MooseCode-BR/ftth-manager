@@ -6,7 +6,11 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './pages/App/index.jsx'
 import './index.css' // <--- Importante: Isso carrega o Tailwind
+import { applyDesignSystemTheme } from './theme/designSystem'
 import { Analytics } from '@vercel/analytics/react'
+
+// Injeta as variáveis CSS centralizadas (Light + Dark) do Design System
+applyDesignSystemTheme();
 import ForceUpdateController from './components/ForceUpdateController'
 
 // 1. Importa o Leaflet
