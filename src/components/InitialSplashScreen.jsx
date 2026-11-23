@@ -1,5 +1,5 @@
 /*
- * Tela de carregamento inicial (Initial Splash Screen) inspirada no boot do Instagram.
+ * Tela de carregamento inicial (Initial Splash Screen).
  * Sempre exibida em modo escuro fixo (#0b0b0b), com o ícone vetorial do FTTH Manager
  * em amarelo sobre fundo transparente enquanto a aplicação inicializa e verifica a sessão.
  */

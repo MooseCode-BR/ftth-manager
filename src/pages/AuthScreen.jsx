@@ -1,5 +1,5 @@
 /*
- * Tela inicial / autenticação do FTTH Manager Cloud inspirada no layout da Rockstar Games:
+ * Tela inicial / autenticação do FTTH Manager Cloud:
  * - Navbar transparente flutuante sobre a imagem do Hero (ganha vidro fosco ao rolar)
  * - Suporte completo a Modo Claro (Light) e Modo Escuro (Dark) sincronizado com localStorage
  * - Hero cinematográfico full-bleed responsivo (mobile, tablet e monitores ultrawide)
@@ -360,7 +360,7 @@ const isInstalledAppMode = () => {
             const params = new URLSearchParams(window.location.search);
             const forcedMode = params.get('app');
             if (forcedMode === '1' || forcedMode === 'true') return true;
-            if (forcedMode === '0' || forcedMode === 'false') return false;
+            if (forcedMode === '0' || forcedMode === 'false') return true; // RETIRAR O TRUE E COLOCAR O FALSE QUANDO FOR PUBLICAR COM A LANDING PAGE (Tem um mais pra baixo um pouco)
         }
     } catch {
         // Ignora erros de URL
@@ -382,7 +382,7 @@ const isInstalledAppMode = () => {
         // Ignora erros de matchMedia
     }
 
-    return false;
+    return true; // RETIRAR O TRUE E COLOCAR O FALSE QUANDO FOR PUBLICAR COM A LANDING PAGE (Tem um mais pra cima um pouco)
 };
 
 // ============================================================================
@@ -986,8 +986,8 @@ const AuthScreen = ({ unverifiedUser = null, onEmailVerified = null }) => {
                                         onChange={(e) => setConfirmPassword(e.target.value)}
                                         placeholder="Digite a sua senha novamente"
                                         className={`w-full pl-10 pr-10 py-3 rounded-lg border bg-slate-50 dark:bg-black text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-neutral-500 outline-none text-[15px] transition-colors ${passwordsMismatch
-                                                ? 'border-red-500 focus:border-red-500'
-                                                : 'border-slate-300 dark:border-neutral-800 focus:border-[#fcaf17]'
+                                            ? 'border-red-500 focus:border-red-500'
+                                            : 'border-slate-300 dark:border-neutral-800 focus:border-[#fcaf17]'
                                             }`}
                                         required
                                     />
@@ -1120,15 +1120,15 @@ const AuthScreen = ({ unverifiedUser = null, onEmailVerified = null }) => {
                             <Sun
                                 size={19}
                                 className={`absolute transition-all duration-500 ease-in-out ${isDarkMode
-                                        ? 'opacity-100 rotate-0 scale-100'
-                                        : 'opacity-0 rotate-180 scale-0'
+                                    ? 'opacity-100 rotate-0 scale-100'
+                                    : 'opacity-0 rotate-180 scale-0'
                                     }`}
                             />
                             <Moon
                                 size={19}
                                 className={`absolute transition-all duration-500 ease-in-out ${isDarkMode
-                                        ? 'opacity-0 -rotate-180 scale-0'
-                                        : 'opacity-100 rotate-0 scale-100'
+                                    ? 'opacity-0 -rotate-180 scale-0'
+                                    : 'opacity-100 rotate-0 scale-100'
                                     }`}
                             />
                         </span>
@@ -1139,11 +1139,27 @@ const AuthScreen = ({ unverifiedUser = null, onEmailVerified = null }) => {
                 <div className="flex-1 flex flex-col items-center justify-center px-5 pt-2 pb-10">
                     {/* Identidade da Aplicação */}
                     <div className="flex flex-col items-center text-center mb-6">
-                        <img
-                            src="/favicon.svg"
-                            alt="FTTH Manager"
-                            className="w-14 h-14 rounded-2xl shadow-lg shadow-black/20 object-contain mb-3"
-                        />
+                        {/* Logotipo cabeçalho canto superior esquerdo amarelo com fundo transparente */}
+                        <div className="relative flex items-center justify-center">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 27093.32 27093.32"
+                                className="w-24 h-24 sm:w-15 sm:h-15"
+                                aria-hidden="true"
+                            >
+                                <g fill="#fcaf17">
+                                    <path d="M6679.35 13395.7l0 1719.08c-464.88,0 -845.12,-380.08 -845.12,-845l0 -29.04c0,-464.96 380.24,-845.04 845.12,-845.04z" />
+                                    <path d="M5866.15 17483.34l15360.98 0c396.08,0 720.2,324.08 720.2,720.2l0 1459.83c0,396.12 -324.12,720.2 -720.2,720.2l-15360.98 0c-396.04,0 -720.2,-324.08 -720.2,-720.2l0 -1459.83c0,-396.12 324.16,-720.2 720.2,-720.2z" />
+                                    <path d="M15734.68 20129.21l2449.98 0 0 3322.76c0,203.48 -249,369.48 -553.56,369.48l-1342.86 0c-304.62,0 -553.56,-166 -553.56,-369.48l0 -3322.76z" />
+                                    <path d="M12227.32 20129.21l2450.04 0 0 3322.76c0,203.48 -249,369.48 -553.56,369.48l-1342.86 0c-304.62,0 -553.62,-166 -553.62,-369.48l0 -3322.76z" />
+                                    <path d="M8773.78 20129.21l2449.98 0 0 3322.76c0,203.48 -249,369.48 -553.56,369.48l-1342.86 0c-304.62,0 -553.56,-166 -553.56,-369.48l0 -3322.76z" />
+                                    <path d="M12188.26 8998.67l464.28 0 0 -5696.68c547.92,-36.2 1085.16,-44.36 1633.48,1.44l0 5695.24 463.96 0 0 1719.07 -463.96 0 0 6491.28 -1633.48 0 0 -6491.28 -464.28 0 0 -1719.07z" />
+                                    <path d="M9339.02 8998.67l473.84 0 0 -3562.6c0,-128.88 760.52,-497.96 1375.76,-590 89.92,-13.48 176.8,-21.04 257.72,-21.04l0 4173.64 454.36 0 0 1719.07 -454.36 0 0 6491.28 -1633.48 0 0 -6491.28 -144.12 0 -329.72 0 0 -1719.07z" />
+                                    <path d="M6693.79 8998.67l259.88 0 0 -1663.52c0,-1174.28 816.68,-3132.84 4492.67,-3884.4l0 996.44c-54.64,7.08 -107.84,14.92 -160.44,23.16 -2490.11,389.48 -2698.87,2061.24 -2698.87,2864.8l0 1663.52 464.51 0 0 1719.07 -464.51 0 0 4179.04 0 2312.24c-544.52,0 -1088.76,0 -1633.36,0l0 -6491.28 -259.88 0c-472.8,0 -859.56,-386.76 -859.56,-859.32l0 -0.44c0,-472.52 386.76,-859.31 859.56,-859.31z" />
+                                    <path d="M20005.93 17209.02l-1633.32 0 0 -6491.28 -1227.39 0 0 6491.28 -1633.08 0 0 -6491.28 -464.24 0 0 -1719.07 464.24 0 0 -5540.52c565.28,97.84 1074.48,238.88 1633.08,456l0 5084.52 1227.39 0 0 -4452.12c816.64,570.08 1633.32,1437.56 1633.32,2780l0 9882.47z" />
+                                </g>
+                            </svg>
+                        </div>
                         <h1 className="font-brand text-2xl tracking-[0.18em] uppercase text-slate-900 dark:text-white leading-none">
                             FTTH MANAGER
                         </h1>
@@ -1185,8 +1201,8 @@ const AuthScreen = ({ unverifiedUser = null, onEmailVerified = null }) => {
             ============================================================== */}
             <header
                 className={`fixed top-0 left-0 right-0 z-40 h-20 transition-all duration-300 ${isScrolled || isMobileMenuOpen
-                        ? 'bg-white/90 dark:bg-black/85 backdrop-blur-md'
-                        : 'bg-gradient-to-b from-black/55 via-black/20 to-transparent'
+                    ? 'bg-white/90 dark:bg-black/85 backdrop-blur-md'
+                    : 'bg-gradient-to-b from-black/55 via-black/20 to-transparent'
                     }`}
             >
                 <div className="max-w-[1440px] mx-auto h-full px-4 sm:px-6 lg:px-10 flex items-center justify-between gap-4">
@@ -1197,16 +1213,32 @@ const AuthScreen = ({ unverifiedUser = null, onEmailVerified = null }) => {
                         onClick={() => scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
                         className="flex items-center gap-3 group shrink-0"
                     >
-                        <img
-                            src="/favicon.svg"
-                            alt="FTTH Manager"
-                            className="w-10 h-10 rounded-lg shadow-lg shadow-black/20 group-hover:scale-105 transition-transform object-contain"
-                        />
+                        {/* Logotipo central amarelo com fundo transparente */}
+                        <div className="relative flex items-center justify-center">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 27093.32 27093.32"
+                                className="w-10 h-10 sm:w-10 sm:h-10"
+                                aria-hidden="true"
+                            >
+                                <g fill="#fcaf17">
+                                    <path d="M6679.35 13395.7l0 1719.08c-464.88,0 -845.12,-380.08 -845.12,-845l0 -29.04c0,-464.96 380.24,-845.04 845.12,-845.04z" />
+                                    <path d="M5866.15 17483.34l15360.98 0c396.08,0 720.2,324.08 720.2,720.2l0 1459.83c0,396.12 -324.12,720.2 -720.2,720.2l-15360.98 0c-396.04,0 -720.2,-324.08 -720.2,-720.2l0 -1459.83c0,-396.12 324.16,-720.2 720.2,-720.2z" />
+                                    <path d="M15734.68 20129.21l2449.98 0 0 3322.76c0,203.48 -249,369.48 -553.56,369.48l-1342.86 0c-304.62,0 -553.56,-166 -553.56,-369.48l0 -3322.76z" />
+                                    <path d="M12227.32 20129.21l2450.04 0 0 3322.76c0,203.48 -249,369.48 -553.56,369.48l-1342.86 0c-304.62,0 -553.62,-166 -553.62,-369.48l0 -3322.76z" />
+                                    <path d="M8773.78 20129.21l2449.98 0 0 3322.76c0,203.48 -249,369.48 -553.56,369.48l-1342.86 0c-304.62,0 -553.56,-166 -553.56,-369.48l0 -3322.76z" />
+                                    <path d="M12188.26 8998.67l464.28 0 0 -5696.68c547.92,-36.2 1085.16,-44.36 1633.48,1.44l0 5695.24 463.96 0 0 1719.07 -463.96 0 0 6491.28 -1633.48 0 0 -6491.28 -464.28 0 0 -1719.07z" />
+                                    <path d="M9339.02 8998.67l473.84 0 0 -3562.6c0,-128.88 760.52,-497.96 1375.76,-590 89.92,-13.48 176.8,-21.04 257.72,-21.04l0 4173.64 454.36 0 0 1719.07 -454.36 0 0 6491.28 -1633.48 0 0 -6491.28 -144.12 0 -329.72 0 0 -1719.07z" />
+                                    <path d="M6693.79 8998.67l259.88 0 0 -1663.52c0,-1174.28 816.68,-3132.84 4492.67,-3884.4l0 996.44c-54.64,7.08 -107.84,14.92 -160.44,23.16 -2490.11,389.48 -2698.87,2061.24 -2698.87,2864.8l0 1663.52 464.51 0 0 1719.07 -464.51 0 0 4179.04 0 2312.24c-544.52,0 -1088.76,0 -1633.36,0l0 -6491.28 -259.88 0c-472.8,0 -859.56,-386.76 -859.56,-859.32l0 -0.44c0,-472.52 386.76,-859.31 859.56,-859.31z" />
+                                    <path d="M20005.93 17209.02l-1633.32 0 0 -6491.28 -1227.39 0 0 6491.28 -1633.08 0 0 -6491.28 -464.24 0 0 -1719.07 464.24 0 0 -5540.52c565.28,97.84 1074.48,238.88 1633.08,456l0 5084.52 1227.39 0 0 -4452.12c816.64,570.08 1633.32,1437.56 1633.32,2780l0 9882.47z" />
+                                </g>
+                            </svg>
+                        </div>
                         <div className="hidden sm:flex flex-col text-left leading-none font-brand">
                             <span
                                 className={`text-base tracking-[0.16em] uppercase transition-colors ${isScrolled || isMobileMenuOpen
-                                        ? 'text-slate-900 dark:text-white'
-                                        : 'text-white drop-shadow'
+                                    ? 'text-slate-900 dark:text-white'
+                                    : 'text-white drop-shadow'
                                     }`}
                             >
                                 FTTH MANAGER
@@ -1220,8 +1252,8 @@ const AuthScreen = ({ unverifiedUser = null, onEmailVerified = null }) => {
                     {/* Centro: Links de navegação */}
                     <nav
                         className={`hidden md:flex items-center gap-8 text-sm font-semibold transition-colors ${isScrolled
-                                ? 'text-slate-600 dark:text-neutral-300'
-                                : 'text-white/90 drop-shadow'
+                            ? 'text-slate-600 dark:text-neutral-300'
+                            : 'text-white/90 drop-shadow'
                             }`}
                     >
                         <button
@@ -1257,8 +1289,8 @@ const AuthScreen = ({ unverifiedUser = null, onEmailVerified = null }) => {
                             type="button"
                             onClick={toggleTheme}
                             className={`w-10 h-10 rounded-full bg-transparent flex items-center justify-center transition-colors ${isScrolled || isMobileMenuOpen
-                                    ? 'text-slate-700 hover:text-amber-600 dark:text-amber-400 dark:hover:text-[#fcaf17]'
-                                    : 'text-white hover:text-[#fcaf17] drop-shadow'
+                                ? 'text-slate-700 hover:text-amber-600 dark:text-amber-400 dark:hover:text-[#fcaf17]'
+                                : 'text-white hover:text-[#fcaf17] drop-shadow'
                                 }`}
                             title={isDarkMode ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
                             aria-label={isDarkMode ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
@@ -1267,15 +1299,15 @@ const AuthScreen = ({ unverifiedUser = null, onEmailVerified = null }) => {
                                 <Sun
                                     size={19}
                                     className={`absolute transition-all duration-500 ease-in-out ${isDarkMode
-                                            ? 'opacity-100 rotate-0 scale-100'
-                                            : 'opacity-0 rotate-180 scale-0'
+                                        ? 'opacity-100 rotate-0 scale-100'
+                                        : 'opacity-0 rotate-180 scale-0'
                                         }`}
                                 />
                                 <Moon
                                     size={19}
                                     className={`absolute transition-all duration-500 ease-in-out ${isDarkMode
-                                            ? 'opacity-0 -rotate-180 scale-0'
-                                            : 'opacity-100 rotate-0 scale-100'
+                                        ? 'opacity-0 -rotate-180 scale-0'
+                                        : 'opacity-100 rotate-0 scale-100'
                                         }`}
                                 />
                             </span>
@@ -1286,8 +1318,8 @@ const AuthScreen = ({ unverifiedUser = null, onEmailVerified = null }) => {
                             type="button"
                             onClick={() => openAuthModal('login')}
                             className={`w-10 h-10 rounded-full bg-transparent flex items-center justify-center transition-colors ${isScrolled || isMobileMenuOpen
-                                    ? 'text-slate-700 hover:text-slate-950 dark:text-neutral-200 dark:hover:text-[#fcaf17]'
-                                    : 'text-white hover:text-[#fcaf17] drop-shadow'
+                                ? 'text-slate-700 hover:text-slate-950 dark:text-neutral-200 dark:hover:text-[#fcaf17]'
+                                : 'text-white hover:text-[#fcaf17] drop-shadow'
                                 }`}
                             title="Entrar na Conta"
                             aria-label="Entrar na Conta"
@@ -1300,8 +1332,8 @@ const AuthScreen = ({ unverifiedUser = null, onEmailVerified = null }) => {
                             type="button"
                             onClick={() => setIsMobileMenuOpen((prev) => !prev)}
                             className={`md:hidden w-10 h-10 rounded-full bg-transparent flex items-center justify-center transition-colors ${isScrolled || isMobileMenuOpen
-                                    ? 'text-slate-800 hover:text-amber-600 dark:text-neutral-200 dark:hover:text-[#fcaf17]'
-                                    : 'text-white hover:text-[#fcaf17] drop-shadow'
+                                ? 'text-slate-800 hover:text-amber-600 dark:text-neutral-200 dark:hover:text-[#fcaf17]'
+                                : 'text-white hover:text-[#fcaf17] drop-shadow'
                                 }`}
                             aria-label="Abrir menu"
                         >
@@ -1467,11 +1499,10 @@ const AuthScreen = ({ unverifiedUser = null, onEmailVerified = null }) => {
                                             type="button"
                                             onClick={() => setActiveSlide(idx)}
                                             aria-label={`Ir para slide ${idx + 1}`}
-                                            className={`h-1.5 rounded-full transition-all duration-300 ${
-                                                idx === activeSlide
-                                                    ? 'w-14 bg-slate-900 dark:bg-white'
-                                                    : 'w-4 bg-slate-300 hover:bg-slate-400 dark:bg-neutral-700 dark:hover:bg-neutral-500'
-                                            }`}
+                                            className={`h-1.5 rounded-full transition-all duration-300 ${idx === activeSlide
+                                                ? 'w-14 bg-slate-900 dark:bg-white'
+                                                : 'w-4 bg-slate-300 hover:bg-slate-400 dark:bg-neutral-700 dark:hover:bg-neutral-500'
+                                                }`}
                                         />
                                     ))}
                                 </div>
@@ -1481,279 +1512,279 @@ const AuthScreen = ({ unverifiedUser = null, onEmailVerified = null }) => {
                 </div>
             </section>
 
-                                    {/* ==============================================================
+            {/* ==============================================================
                 3. SEÇÃO "NOVIDADES" (Grade Newswire — 3 colunas)
             ============================================================== */}
-                                    <section id="novidades" className="max-w-[1380px] mx-auto px-5 lg:px-10 py-14 lg:py-20">
-                                        <div className="flex items-end justify-between mb-8">
-                                            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
-                                                Novidades
-                                            </h2>
-                                            <button
-                                                type="button"
-                                                onClick={() => openAuthModal('login')}
-                                                className="text-sm font-bold text-slate-700 dark:text-neutral-300 hover:text-amber-600 dark:hover:text-[#fcaf17] pb-0.5 border-b-2 border-[#fcaf17] transition-colors flex items-center gap-1"
-                                            >
-                                                Explorar na Plataforma <ArrowUpRight size={15} />
-                                            </button>
+            <section id="novidades" className="max-w-[1380px] mx-auto px-5 lg:px-10 py-14 lg:py-20">
+                <div className="flex items-end justify-between mb-8">
+                    <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+                        Novidades
+                    </h2>
+                    <button
+                        type="button"
+                        onClick={() => openAuthModal('login')}
+                        className="text-sm font-bold text-slate-700 dark:text-neutral-300 hover:text-amber-600 dark:hover:text-[#fcaf17] pb-0.5 border-b-2 border-[#fcaf17] transition-colors flex items-center gap-1"
+                    >
+                        Explorar na Plataforma <ArrowUpRight size={15} />
+                    </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-7">
+                    {NEWSWIRE_ITEMS.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                            <article
+                                key={item.id}
+                                onClick={() => openAuthModal('login')}
+                                className="group cursor-pointer bg-white dark:bg-black border border-slate-200 dark:border-neutral-800 hover:border-slate-400 dark:hover:border-neutral-600 rounded-md overflow-hidden flex flex-col shadow-sm hover:shadow-xl dark:shadow-none transition-all duration-300 hover:-translate-y-1"
+                            >
+                                {/* Capa 16:9 estilizada */}
+                                <div className={`aspect-video relative overflow-hidden bg-gradient-to-br ${item.accent} flex items-center justify-center`}>
+                                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),transparent_70%)]" />
+                                    <div className="w-16 h-16 rounded-2xl bg-black/55 border border-white/15 flex items-center justify-center text-white group-hover:scale-110 group-hover:text-[#fcaf17] transition-all duration-300">
+                                        <Icon size={30} />
+                                    </div>
+                                    <span className="absolute bottom-3 left-3 text-[10px] font-black uppercase tracking-[0.2em] px-2.5 py-1 rounded bg-black/75 border border-white/10 text-neutral-200">
+                                        {item.badge}
+                                    </span>
+                                </div>
+
+                                {/* Conteúdo editorial */}
+                                <div className="p-6 flex-1 flex flex-col justify-between gap-4">
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-3 text-xs font-bold">
+                                            <span className="text-slate-900 dark:text-white">{item.category}</span>
+                                            <span className="text-slate-500 dark:text-neutral-500">{item.date}</span>
                                         </div>
+                                        <h3 className="text-lg sm:text-xl font-extrabold leading-snug text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-[#fcaf17] transition-colors">
+                                            {item.title}
+                                        </h3>
+                                    </div>
+                                </div>
+                            </article>
+                        );
+                    })}
+                </div>
+            </section>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-7">
-                                            {NEWSWIRE_ITEMS.map((item) => {
-                                                const Icon = item.icon;
-                                                return (
-                                                    <article
-                                                        key={item.id}
-                                                        onClick={() => openAuthModal('login')}
-                                                        className="group cursor-pointer bg-white dark:bg-black border border-slate-200 dark:border-neutral-800 hover:border-slate-400 dark:hover:border-neutral-600 rounded-md overflow-hidden flex flex-col shadow-sm hover:shadow-xl dark:shadow-none transition-all duration-300 hover:-translate-y-1"
-                                                    >
-                                                        {/* Capa 16:9 estilizada */}
-                                                        <div className={`aspect-video relative overflow-hidden bg-gradient-to-br ${item.accent} flex items-center justify-center`}>
-                                                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),transparent_70%)]" />
-                                                            <div className="w-16 h-16 rounded-2xl bg-black/55 border border-white/15 flex items-center justify-center text-white group-hover:scale-110 group-hover:text-[#fcaf17] transition-all duration-300">
-                                                                <Icon size={30} />
-                                                            </div>
-                                                            <span className="absolute bottom-3 left-3 text-[10px] font-black uppercase tracking-[0.2em] px-2.5 py-1 rounded bg-black/75 border border-white/10 text-neutral-200">
-                                                                {item.badge}
-                                                            </span>
-                                                        </div>
-
-                                                        {/* Conteúdo editorial */}
-                                                        <div className="p-6 flex-1 flex flex-col justify-between gap-4">
-                                                            <div className="space-y-3">
-                                                                <div className="flex items-center gap-3 text-xs font-bold">
-                                                                    <span className="text-slate-900 dark:text-white">{item.category}</span>
-                                                                    <span className="text-slate-500 dark:text-neutral-500">{item.date}</span>
-                                                                </div>
-                                                                <h3 className="text-lg sm:text-xl font-extrabold leading-snug text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-[#fcaf17] transition-colors">
-                                                                    {item.title}
-                                                                </h3>
-                                                            </div>
-                                                        </div>
-                                                    </article>
-                                                );
-                                            })}
-                                        </div>
-                                    </section>
-
-                                    {/* ==============================================================
+            {/* ==============================================================
                 4. SEÇÃO "MÓDULOS EM DESTAQUE" (4 pôsteres verticais 3:4)
             ============================================================== */}
-                                    <section id="modulos" className="max-w-[1380px] mx-auto px-5 lg:px-10 py-10 lg:py-16">
-                                        <div className="flex items-end justify-between mb-8">
-                                            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
-                                                Módulos em Destaque
-                                            </h2>
-                                            <button
-                                                type="button"
-                                                onClick={() => openAuthModal('register')}
-                                                className="text-sm font-bold text-slate-700 dark:text-neutral-300 hover:text-amber-600 dark:hover:text-[#fcaf17] pb-0.5 border-b-2 border-[#fcaf17] transition-colors"
-                                            >
-                                                Começar agora
-                                            </button>
-                                        </div>
+            <section id="modulos" className="max-w-[1380px] mx-auto px-5 lg:px-10 py-10 lg:py-16">
+                <div className="flex items-end justify-between mb-8">
+                    <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+                        Módulos em Destaque
+                    </h2>
+                    <button
+                        type="button"
+                        onClick={() => openAuthModal('register')}
+                        className="text-sm font-bold text-slate-700 dark:text-neutral-300 hover:text-amber-600 dark:hover:text-[#fcaf17] pb-0.5 border-b-2 border-[#fcaf17] transition-colors"
+                    >
+                        Começar agora
+                    </button>
+                </div>
 
-                                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-7">
-                                            {FEATURED_MODULES.map((mod) => (
-                                                <button
-                                                    key={mod.id}
-                                                    type="button"
-                                                    onClick={() => openAuthModal('login')}
-                                                    className={`group relative aspect-[3/4] rounded-md overflow-hidden border border-slate-300 dark:border-neutral-800 ${mod.borderHover} bg-gradient-to-b ${mod.gradient} p-5 sm:p-6 flex flex-col justify-between text-left transition-all duration-300 hover:scale-[1.02] shadow-lg`}
-                                                >
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="w-8 h-1 rounded-full bg-white/30 group-hover:bg-[#fcaf17] transition-colors" />
-                                                        <ArrowUpRight size={18} className="text-neutral-400 group-hover:text-white transition-colors" />
-                                                    </div>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-7">
+                    {FEATURED_MODULES.map((mod) => (
+                        <button
+                            key={mod.id}
+                            type="button"
+                            onClick={() => openAuthModal('login')}
+                            className={`group relative aspect-[3/4] rounded-md overflow-hidden border border-slate-300 dark:border-neutral-800 ${mod.borderHover} bg-gradient-to-b ${mod.gradient} p-5 sm:p-6 flex flex-col justify-between text-left transition-all duration-300 hover:scale-[1.02] shadow-lg`}
+                        >
+                            <div className="flex items-center justify-between">
+                                <span className="w-8 h-1 rounded-full bg-white/30 group-hover:bg-[#fcaf17] transition-colors" />
+                                <ArrowUpRight size={18} className="text-neutral-400 group-hover:text-white transition-colors" />
+                            </div>
 
-                                                    <div className="space-y-1.5">
-                                                        <p className={`text-[10px] sm:text-xs font-black uppercase tracking-[0.22em] sm:tracking-[0.25em] ${mod.accentText}`}>
-                                                            {mod.subtitle}
-                                                        </p>
-                                                        <h3 className="text-lg sm:text-2xl lg:text-3xl font-black uppercase tracking-tight leading-none text-white">
-                                                            {mod.title}
-                                                        </h3>
-                                                    </div>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </section>
+                            <div className="space-y-1.5">
+                                <p className={`text-[10px] sm:text-xs font-black uppercase tracking-[0.22em] sm:tracking-[0.25em] ${mod.accentText}`}>
+                                    {mod.subtitle}
+                                </p>
+                                <h3 className="text-lg sm:text-2xl lg:text-3xl font-black uppercase tracking-tight leading-none text-white">
+                                    {mod.title}
+                                </h3>
+                            </div>
+                        </button>
+                    ))}
+                </div>
+            </section>
 
-                                    {/* ==============================================================
+            {/* ==============================================================
                 5. BANNER DE PLATAFORMA
             ============================================================== */}
-                                    <section id="app-banner" className="max-w-[1380px] mx-auto px-5 lg:px-10 py-12 lg:py-14">
-                                        <div className="relative rounded-md overflow-hidden border border-slate-200 dark:border-neutral-800 bg-gradient-to-r from-white via-slate-50 to-amber-50/80 dark:from-black dark:via-neutral-950 dark:to-[#1a1304] p-8 sm:p-12 lg:p-16 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8 shadow-sm dark:shadow-none">
-                                            <div className="space-y-4 max-w-xl">
-                                                <span className="inline-block font-brand text-xs uppercase tracking-[0.25em] text-amber-600 dark:text-[#fcaf17]">
-                                                    FTTH MANAGER CLOUD
-                                                </span>
-                                                <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white leading-tight">
-                                                    Pronto para mapear sua rede de fibra óptica com velocidade?
-                                                </h2>
-                                                 <p className="text-sm sm:text-base text-slate-600 dark:text-neutral-400">
-                                                     Entre com sua conta Google ou crie seu acesso verificado em segundos — sincronizado entre navegador, PWA e aplicativos Android e iOS.
-                                                 </p>
+            <section id="app-banner" className="max-w-[1380px] mx-auto px-5 lg:px-10 py-12 lg:py-14">
+                <div className="relative rounded-md overflow-hidden border border-slate-200 dark:border-neutral-800 bg-gradient-to-r from-white via-slate-50 to-amber-50/80 dark:from-black dark:via-neutral-950 dark:to-[#1a1304] p-8 sm:p-12 lg:p-16 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8 shadow-sm dark:shadow-none">
+                    <div className="space-y-4 max-w-xl">
+                        <span className="inline-block font-brand text-xs uppercase tracking-[0.25em] text-amber-600 dark:text-[#fcaf17]">
+                            FTTH MANAGER CLOUD
+                        </span>
+                        <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white leading-tight">
+                            Pronto para mapear sua rede de fibra óptica com velocidade?
+                        </h2>
+                        <p className="text-sm sm:text-base text-slate-600 dark:text-neutral-400">
+                            Entre com sua conta Google ou crie seu acesso verificado em segundos — sincronizado entre navegador, PWA e aplicativos Android e iOS.
+                        </p>
 
-                                                 {/* Botões oficiais das lojas (prontos para receber os links em STORE_LINKS) */}
-                                                 <div className="pt-2 flex flex-wrap items-center gap-3">
-                                                     <a
-                                                         href={STORE_LINKS.playStore || '#app-banner'}
-                                                         target={STORE_LINKS.playStore ? '_blank' : undefined}
-                                                         rel={STORE_LINKS.playStore ? 'noopener noreferrer' : undefined}
-                                                         onClick={(e) => {
-                                                             if (!STORE_LINKS.playStore) e.preventDefault();
-                                                         }}
-                                                         aria-label="Disponível no Google Play"
-                                                         title={STORE_LINKS.playStore ? 'Baixar no Google Play' : 'Em breve no Google Play'}
-                                                         className="inline-flex items-center gap-3 bg-black hover:bg-neutral-900 text-white border border-slate-800 dark:border-neutral-700 hover:border-[#fcaf17] rounded-lg px-4 py-2.5 min-w-[172px] transition-all shadow-md hover:scale-[1.02] active:scale-[0.98]"
-                                                     >
-                                                         <svg className="w-6 h-6 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
-                                                             <path fill="#4285F4" d="M3.61 1.814L13.793 12 3.61 22.186a1.75 1.75 0 0 1-.61-1.34V3.154c0-.525.23-.998.61-1.34z" />
-                                                             <path fill="#34A853" d="M17.205 8.588L13.793 12l3.412 3.412 3.854-2.192c.78-.444.78-1.996 0-2.44l-3.854-2.192z" />
-                                                             <path fill="#FBBC05" d="M3.61 22.186L13.793 12l3.412 3.412-11.67 6.637c-.765.435-1.51.404-1.925.137z" />
-                                                             <path fill="#EA4335" d="M17.205 8.588L5.535 1.951c-.415-.267-1.16-.298-1.925.137L13.793 12l3.412-3.412z" />
-                                                         </svg>
-                                                         <span className="flex flex-col text-left leading-tight">
-                                                             <span className="text-[9px] font-semibold uppercase tracking-[0.08em] text-neutral-300">
-                                                                 Disponível no
-                                                             </span>
-                                                             <span className="text-[15px] font-bold tracking-tight text-white">
-                                                                 Google Play
-                                                             </span>
-                                                         </span>
-                                                     </a>
+                        {/* Botões oficiais das lojas (prontos para receber os links em STORE_LINKS) */}
+                        <div className="pt-2 flex flex-wrap items-center gap-3">
+                            <a
+                                href={STORE_LINKS.playStore || '#app-banner'}
+                                target={STORE_LINKS.playStore ? '_blank' : undefined}
+                                rel={STORE_LINKS.playStore ? 'noopener noreferrer' : undefined}
+                                onClick={(e) => {
+                                    if (!STORE_LINKS.playStore) e.preventDefault();
+                                }}
+                                aria-label="Disponível no Google Play"
+                                title={STORE_LINKS.playStore ? 'Baixar no Google Play' : 'Em breve no Google Play'}
+                                className="inline-flex items-center gap-3 bg-black hover:bg-neutral-900 text-white border border-slate-800 dark:border-neutral-700 hover:border-[#fcaf17] rounded-lg px-4 py-2.5 min-w-[172px] transition-all shadow-md hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                                <svg className="w-6 h-6 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path fill="#4285F4" d="M3.61 1.814L13.793 12 3.61 22.186a1.75 1.75 0 0 1-.61-1.34V3.154c0-.525.23-.998.61-1.34z" />
+                                    <path fill="#34A853" d="M17.205 8.588L13.793 12l3.412 3.412 3.854-2.192c.78-.444.78-1.996 0-2.44l-3.854-2.192z" />
+                                    <path fill="#FBBC05" d="M3.61 22.186L13.793 12l3.412 3.412-11.67 6.637c-.765.435-1.51.404-1.925.137z" />
+                                    <path fill="#EA4335" d="M17.205 8.588L5.535 1.951c-.415-.267-1.16-.298-1.925.137L13.793 12l3.412-3.412z" />
+                                </svg>
+                                <span className="flex flex-col text-left leading-tight">
+                                    <span className="text-[9px] font-semibold uppercase tracking-[0.08em] text-neutral-300">
+                                        Disponível no
+                                    </span>
+                                    <span className="text-[15px] font-bold tracking-tight text-white">
+                                        Google Play
+                                    </span>
+                                </span>
+                            </a>
 
-                                                     <a
-                                                         href={STORE_LINKS.appStore || '#app-banner'}
-                                                         target={STORE_LINKS.appStore ? '_blank' : undefined}
-                                                         rel={STORE_LINKS.appStore ? 'noopener noreferrer' : undefined}
-                                                         onClick={(e) => {
-                                                             if (!STORE_LINKS.appStore) e.preventDefault();
-                                                         }}
-                                                         aria-label="Baixar na App Store"
-                                                         title={STORE_LINKS.appStore ? 'Baixar na App Store' : 'Em breve na App Store'}
-                                                         className="inline-flex items-center gap-3 bg-black hover:bg-neutral-900 text-white border border-slate-800 dark:border-neutral-700 hover:border-[#fcaf17] rounded-lg px-4 py-2.5 min-w-[172px] transition-all shadow-md hover:scale-[1.02] active:scale-[0.98]"
-                                                     >
-                                                         <svg className="w-6 h-6 shrink-0 fill-current text-white" viewBox="0 0 24 24" aria-hidden="true">
-                                                             <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.33c.64-.78 1.08-1.86.96-2.94-.93.04-2.06.62-2.72 1.4-.58.68-1.1 1.79-.96 2.84 1.04.08 2.08-.52 2.72-1.3z" />
-                                                         </svg>
-                                                         <span className="flex flex-col text-left leading-tight">
-                                                             <span className="text-[9px] font-semibold tracking-[0.04em] text-neutral-300">
-                                                                 Baixar na
-                                                             </span>
-                                                             <span className="text-[15px] font-bold tracking-tight text-white">
-                                                                 App Store
-                                                             </span>
-                                                         </span>
-                                                     </a>
-                                                 </div>
-                                             </div>
+                            <a
+                                href={STORE_LINKS.appStore || '#app-banner'}
+                                target={STORE_LINKS.appStore ? '_blank' : undefined}
+                                rel={STORE_LINKS.appStore ? 'noopener noreferrer' : undefined}
+                                onClick={(e) => {
+                                    if (!STORE_LINKS.appStore) e.preventDefault();
+                                }}
+                                aria-label="Baixar na App Store"
+                                title={STORE_LINKS.appStore ? 'Baixar na App Store' : 'Em breve na App Store'}
+                                className="inline-flex items-center gap-3 bg-black hover:bg-neutral-900 text-white border border-slate-800 dark:border-neutral-700 hover:border-[#fcaf17] rounded-lg px-4 py-2.5 min-w-[172px] transition-all shadow-md hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                                <svg className="w-6 h-6 shrink-0 fill-current text-white" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.33c.64-.78 1.08-1.86.96-2.94-.93.04-2.06.62-2.72 1.4-.58.68-1.1 1.79-.96 2.84 1.04.08 2.08-.52 2.72-1.3z" />
+                                </svg>
+                                <span className="flex flex-col text-left leading-tight">
+                                    <span className="text-[9px] font-semibold tracking-[0.04em] text-neutral-300">
+                                        Baixar na
+                                    </span>
+                                    <span className="text-[15px] font-bold tracking-tight text-white">
+                                        App Store
+                                    </span>
+                                </span>
+                            </a>
+                        </div>
+                    </div>
 
-                                            <div className="flex flex-wrap items-center gap-4 shrink-0">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => openAuthModal('login')}
-                                                    className="bg-[#fcaf17] hover:bg-[#e59b0c] text-black font-black text-xs sm:text-sm uppercase tracking-[0.14em] px-8 py-4 rounded transition-colors shadow-md"
-                                                >
-                                                    Entrar Agora
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => openAuthModal('register')}
-                                                    className="border-2 border-slate-900/70 hover:border-slate-900 text-slate-900 dark:border-white/60 dark:hover:border-white dark:text-white font-extrabold text-xs sm:text-sm uppercase tracking-[0.14em] px-8 py-4 rounded transition-colors"
-                                                >
-                                                    Criar Conta
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </section>
+                    <div className="flex flex-wrap items-center gap-4 shrink-0">
+                        <button
+                            type="button"
+                            onClick={() => openAuthModal('login')}
+                            className="bg-[#fcaf17] hover:bg-[#e59b0c] text-black font-black text-xs sm:text-sm uppercase tracking-[0.14em] px-8 py-4 rounded transition-colors shadow-md"
+                        >
+                            Entrar Agora
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => openAuthModal('register')}
+                            className="border-2 border-slate-900/70 hover:border-slate-900 text-slate-900 dark:border-white/60 dark:hover:border-white dark:text-white font-extrabold text-xs sm:text-sm uppercase tracking-[0.14em] px-8 py-4 rounded transition-colors"
+                        >
+                            Criar Conta
+                        </button>
+                    </div>
+                </div>
+            </section>
 
-                                    {/* ==============================================================
+            {/* ==============================================================
                 6. RODAPÉ MINIMALISTA
             ============================================================== */}
-                                    <footer className="bg-white dark:bg-black border-t border-slate-200 dark:border-neutral-900 mt-8 transition-colors duration-300">
-                                        <div className="max-w-[1380px] mx-auto px-5 lg:px-10 py-12 space-y-10">
-                                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-                                                <div className="flex flex-wrap items-center gap-6 text-sm font-bold text-slate-700 dark:text-neutral-300">
-                                                    <button type="button" onClick={() => openAuthModal('login')} className="hover:text-amber-600 dark:hover:text-[#fcaf17] transition-colors">
-                                                        Acessar Conta
-                                                    </button>
-                                                    <button type="button" onClick={() => openAuthModal('register')} className="hover:text-amber-600 dark:hover:text-[#fcaf17] transition-colors">
-                                                        Criar Conta
-                                                    </button>
-                                                    <button type="button" onClick={() => scrollToSection('novidades')} className="hover:text-amber-600 dark:hover:text-[#fcaf17] transition-colors">
-                                                        Novidades
-                                                    </button>
-                                                    <button type="button" onClick={() => scrollToSection('modulos')} className="hover:text-amber-600 dark:hover:text-[#fcaf17] transition-colors">
-                                                        Módulos
-                                                    </button>
-                                                </div>
+            <footer className="bg-white dark:bg-black border-t border-slate-200 dark:border-neutral-900 mt-8 transition-colors duration-300">
+                <div className="max-w-[1380px] mx-auto px-5 lg:px-10 py-12 space-y-10">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                        <div className="flex flex-wrap items-center gap-6 text-sm font-bold text-slate-700 dark:text-neutral-300">
+                            <button type="button" onClick={() => openAuthModal('login')} className="hover:text-amber-600 dark:hover:text-[#fcaf17] transition-colors">
+                                Acessar Conta
+                            </button>
+                            <button type="button" onClick={() => openAuthModal('register')} className="hover:text-amber-600 dark:hover:text-[#fcaf17] transition-colors">
+                                Criar Conta
+                            </button>
+                            <button type="button" onClick={() => scrollToSection('novidades')} className="hover:text-amber-600 dark:hover:text-[#fcaf17] transition-colors">
+                                Novidades
+                            </button>
+                            <button type="button" onClick={() => scrollToSection('modulos')} className="hover:text-amber-600 dark:hover:text-[#fcaf17] transition-colors">
+                                Módulos
+                            </button>
+                        </div>
 
-                                                <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded border border-slate-200 dark:border-neutral-800 text-xs font-bold text-slate-700 dark:text-neutral-300">
-                                                    <Globe size={14} className="text-amber-600 dark:text-[#fcaf17]" />
-                                                    <span>Português (Brasil)</span>
-                                                </div>
-                                            </div>
+                        <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded border border-slate-200 dark:border-neutral-800 text-xs font-bold text-slate-700 dark:text-neutral-300">
+                            <Globe size={14} className="text-amber-600 dark:text-[#fcaf17]" />
+                            <span>Português (Brasil)</span>
+                        </div>
+                    </div>
 
-                                            <div className="pt-8 border-t border-slate-200 dark:border-neutral-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs font-semibold text-slate-500 dark:text-neutral-500">
-                                                <span><span className="font-brand text-sm tracking-wider uppercase text-slate-700 dark:text-neutral-300">FTTH Manager Cloud</span> — Gestão Avançada de Redes de Fibra Óptica</span>
-                                                <span>&copy; 2026 <span className="font-brand tracking-wider uppercase">FTTH Manager Cloud</span> v{VERSAO} Beta. Todos os direitos reservados.</span>
-                                            </div>
-                                        </div>
-                                    </footer>
+                    <div className="pt-8 border-t border-slate-200 dark:border-neutral-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs font-semibold text-slate-500 dark:text-neutral-500">
+                        <span><span className="font-brand text-sm tracking-wider uppercase text-slate-700 dark:text-neutral-300">FTTH Manager Cloud</span> — Gestão Avançada de Redes de Fibra Óptica</span>
+                        <span>&copy; 2026 <span className="font-brand tracking-wider uppercase">FTTH Manager Cloud</span> v{VERSAO} Beta. Todos os direitos reservados.</span>
+                    </div>
+                </div>
+            </footer>
 
-                                    {/* ==============================================================
+            {/* ==============================================================
                 BOTÃO FLUTUANTE: VOLTAR AO TOPO (aparece ao sair do topo)
             ============================================================== */}
-                                    <button
-                                        type="button"
-                                        onClick={() => scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
-                                        aria-label="Voltar ao topo"
-                                        title="Voltar ao topo"
-                                        className={`fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full bg-[#fcaf17] hover:bg-[#e59b0c] active:scale-95 text-black shadow-2xl shadow-black/40 flex items-center justify-center transition-all duration-300 ${showBackToTop && !isAuthModalOpen
-                                                ? 'opacity-100 translate-y-0 pointer-events-auto'
-                                                : 'opacity-0 translate-y-4 pointer-events-none'
-                                            }`}
-                                    >
-                                        <ChevronUp size={24} strokeWidth={2.75} />
-                                    </button>
+            <button
+                type="button"
+                onClick={() => scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+                aria-label="Voltar ao topo"
+                title="Voltar ao topo"
+                className={`fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full bg-[#fcaf17] hover:bg-[#e59b0c] active:scale-95 text-black shadow-2xl shadow-black/40 flex items-center justify-center transition-all duration-300 ${showBackToTop && !isAuthModalOpen
+                    ? 'opacity-100 translate-y-0 pointer-events-auto'
+                    : 'opacity-0 translate-y-4 pointer-events-none'
+                    }`}
+            >
+                <ChevronUp size={24} strokeWidth={2.75} />
+            </button>
 
-                                    {/* ==============================================================
+            {/* ==============================================================
                 7. MODAL DE AUTENTICAÇÃO (Light + Dark)
             ============================================================== */}
-                                    {isAuthModalOpen && (
-                                        <div
-                                            className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200"
-                                            onClick={(e) => {
-                                                if (e.target === e.currentTarget && !unverifiedUser && !isPasswordChangeMode) {
-                                                    setIsAuthModalOpen(false);
-                                                }
-                                            }}
-                                        >
-                                            <div className="relative w-full max-w-md bg-white dark:bg-[#111111] border border-slate-200 dark:border-neutral-800 rounded-xl shadow-2xl overflow-hidden text-slate-900 dark:text-white my-auto">
-                                                {/* Faixa superior dourada */}
-                                                <div className="h-1 w-full bg-[#fcaf17]" />
+            {isAuthModalOpen && (
+                <div
+                    className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget && !unverifiedUser && !isPasswordChangeMode) {
+                            setIsAuthModalOpen(false);
+                        }
+                    }}
+                >
+                    <div className="relative w-full max-w-md bg-white dark:bg-[#111111] border border-slate-200 dark:border-neutral-800 rounded-xl shadow-2xl overflow-hidden text-slate-900 dark:text-white my-auto">
+                        {/* Faixa superior dourada */}
+                        <div className="h-1 w-full bg-[#fcaf17]" />
 
-                                                {!unverifiedUser && !isPasswordChangeMode && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setIsAuthModalOpen(false)}
-                                                        className="absolute top-4 right-4 w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-neutral-900 dark:hover:bg-neutral-800 text-slate-500 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-white flex items-center justify-center transition-colors"
-                                                        aria-label="Fechar"
-                                                    >
-                                                        <X size={18} />
-                                                    </button>
-                                                )}
+                        {!unverifiedUser && !isPasswordChangeMode && (
+                            <button
+                                type="button"
+                                onClick={() => setIsAuthModalOpen(false)}
+                                className="absolute top-4 right-4 w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-neutral-900 dark:hover:bg-neutral-800 text-slate-500 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-white flex items-center justify-center transition-colors"
+                                aria-label="Fechar"
+                            >
+                                <X size={18} />
+                            </button>
+                        )}
 
-                                                <div className="p-7 sm:p-9">
-                                                    {authCardContent}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                                );
+                        <div className="p-7 sm:p-9">
+                            {authCardContent}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 };
 
 export default AuthScreen;
