@@ -345,13 +345,55 @@ const GoogleIcon = () => (
 );
 
 // ============================================================================
+// DETECÇÃO DE APLICATIVO INSTALADO (ANDROID / iOS CAPACITOR / PWA STANDALONE)
+// ============================================================================
+
+/**
+ * Retorna true quando o usuário está no app nativo (Android/iOS) ou PWA instalado.
+ * Facilidade de teste no navegador:
+ * - `?app=1` (ou `?app=true`): força a tela direta de login/cadastro do app
+ * - `?app=0` (ou `?app=false`): força a Landing Page web
+ */
+const isInstalledAppMode = () => {
+    try {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const forcedMode = params.get('app');
+            if (forcedMode === '1' || forcedMode === 'true') return true;
+            if (forcedMode === '0' || forcedMode === 'false') return false;
+        }
+    } catch {
+        // Ignora erros de URL
+    }
+
+    if (Capacitor.isNativePlatform()) {
+        return true;
+    }
+
+    try {
+        if (typeof window !== 'undefined') {
+            const isStandaloneMedia = window.matchMedia?.('(display-mode: standalone)')?.matches;
+            const isIOSStandalone = window.navigator?.standalone === true;
+            if (isStandaloneMedia || isIOSStandalone) {
+                return true;
+            }
+        }
+    } catch {
+        // Ignora erros de matchMedia
+    }
+
+    return false;
+};
+
+// ============================================================================
 // COMPONENTE PRINCIPAL
 // ============================================================================
 
 const AuthScreen = ({ unverifiedUser = null, onEmailVerified = null }) => {
     // ------------------------------------------------------------------------
-    // 1. ESTADOS DA LANDING PAGE E TEMA
+    // 1. ESTADOS DA LANDING PAGE, PLATAFORMA E TEMA
     // ------------------------------------------------------------------------
+    const [isAppMode] = useState(isInstalledAppMode);
     const scrollContainerRef = useRef(null);
     const [activeSlide, setActiveSlide] = useState(0);
     const [isScrolled, setIsScrolled] = useState(false);
@@ -443,14 +485,14 @@ const AuthScreen = ({ unverifiedUser = null, onEmailVerified = null }) => {
         }
     }, [unverifiedUser]);
 
-    // Autoplay do carrossel Hero (pausa enquanto o modal de login estiver aberto)
+    // Autoplay do carrossel Hero (desativado no modo App ou enquanto o modal estiver aberto)
     useEffect(() => {
-        if (isAuthModalOpen) return;
+        if (isAppMode || isAuthModalOpen) return;
         const interval = setInterval(() => {
             setActiveSlide((prev) => (prev + 1) % HERO_SLIDES.length);
         }, HERO_AUTOPLAY_MS);
         return () => clearInterval(interval);
-    }, [isAuthModalOpen]);
+    }, [isAppMode, isAuthModalOpen]);
 
     // Captura retorno de login via redirect (fallback Web quando o navegador bloqueia popups)
     useEffect(() => {
@@ -785,7 +827,350 @@ const AuthScreen = ({ unverifiedUser = null, onEmailVerified = null }) => {
     };
 
     // ------------------------------------------------------------------------
-    // 7. RENDERIZAÇÃO — LAYOUT CLONE ROCKSTAR GAMES (LIGHT + DARK)
+    // 7. BLOCO COMPARTILHADO DO FORMULÁRIO DE AUTENTICAÇÃO (WEB MODAL + APP)
+    // ------------------------------------------------------------------------
+    const authCardContent = isAwaitingEmailVerification ? (
+        <div className="space-y-5 text-center">
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-[#fcaf17]/15 border border-[#fcaf17]/30 flex items-center justify-center text-amber-600 dark:text-[#fcaf17]">
+                <MailCheck size={32} />
+            </div>
+
+            <div className="space-y-2">
+                <h3 className="text-2xl font-black text-slate-900 dark:text-white">
+                    Confirme seu e-mail
+                </h3>
+                <p className="text-sm text-slate-600 dark:text-neutral-400 leading-relaxed">
+                    Enviamos um link de confirmação para:
+                </p>
+                <p className="text-sm font-bold text-amber-700 dark:text-[#fcaf17] break-all bg-slate-100 dark:bg-black/60 px-3 py-2.5 rounded-lg border border-slate-200 dark:border-neutral-800">
+                    {unverifiedUser.email}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-neutral-400 pt-1">
+                    Abra sua caixa de entrada (ou pasta de spam), clique no link de confirmação e depois clique no botão abaixo.
+                </p>
+            </div>
+
+            {error && (
+                <div className="p-3.5 rounded-lg border flex items-start gap-2 text-sm text-left bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400 font-medium">
+                    <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                    <span className="whitespace-pre-line">{error}</span>
+                </div>
+            )}
+            {successMsg && (
+                <div className="p-3.5 rounded-lg border flex items-center gap-2 text-sm text-left bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-medium">
+                    <CheckCircle2 size={16} className="shrink-0" />
+                    <span>{successMsg}</span>
+                </div>
+            )}
+
+            <div className="space-y-3 pt-2">
+                <button
+                    type="button"
+                    onClick={() => checkEmailVerificationStatus(false)}
+                    disabled={checkingVerification || loading}
+                    className="w-full bg-[#fcaf17] hover:bg-[#e59b0c] active:scale-[0.98] text-black font-black py-3.5 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+                >
+                    {checkingVerification ? (
+                        <Loader2 size={20} className="animate-spin" />
+                    ) : (
+                        <>
+                            <CheckCircle2 size={18} />
+                            <span>Já confirmei meu e-mail</span>
+                        </>
+                    )}
+                </button>
+
+                <button
+                    type="button"
+                    onClick={handleResendVerification}
+                    disabled={loading || resendCooldown > 0}
+                    className="w-full bg-slate-100 hover:bg-slate-200 dark:bg-neutral-900 dark:hover:bg-neutral-800 border border-slate-200 dark:border-neutral-700 text-slate-900 dark:text-white font-semibold py-3 rounded-lg transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+                >
+                    {loading ? (
+                        <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                        <>
+                            <RefreshCw size={16} />
+                            <span>
+                                {resendCooldown > 0
+                                    ? `Reenviar e-mail em ${resendCooldown}s`
+                                    : 'Reenviar e-mail de confirmação'}
+                            </span>
+                        </>
+                    )}
+                </button>
+
+                <button
+                    type="button"
+                    onClick={handleSignOutUnverified}
+                    disabled={loading}
+                    className="w-full text-sm text-slate-500 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-white font-medium py-2 flex items-center justify-center gap-1.5 transition-colors"
+                >
+                    <LogOut size={15} />
+                    <span>Sair / Usar outro e-mail</span>
+                </button>
+            </div>
+        </div>
+    ) : (
+        <>
+            <div className="mb-7">
+                {!isAppMode && (
+                    <span className="font-brand text-xs uppercase tracking-[0.25em] text-amber-600 dark:text-[#fcaf17]">
+                        FTTH MANAGER CLOUD
+                    </span>
+                )}
+                <h3 className={`text-2xl font-black text-slate-900 dark:text-white ${isAppMode ? '' : 'mt-1'}`}>
+                    {formTitle}
+                </h3>
+            </div>
+
+            <form onSubmit={isResetting ? handleResetPassword : handleAuth} className="space-y-4">
+                {!isPasswordChangeMode && (
+                    <div className="space-y-1.5">
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-neutral-400">
+                            E-MAIL
+                        </label>
+                        <div className="relative">
+                            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-neutral-500" size={18} />
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                placeholder="Digite o seu e-mail"
+                                autoFocus={!isPasswordChangeMode && !isAppMode}
+                                className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 dark:border-neutral-800 bg-slate-50 dark:bg-black text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-neutral-500 outline-none focus:border-[#fcaf17] text-[15px] transition-colors"
+                                required
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {!isResetting && (
+                    <>
+                        <div className="space-y-1.5">
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-neutral-400">
+                                {isPasswordChangeMode ? 'NOVA SENHA' : 'SENHA'}
+                            </label>
+                            <div className="relative">
+                                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-neutral-500" size={18} />
+                                <input
+                                    type={showPassword ? 'text' : 'password'}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder={isPasswordChangeMode ? 'Digite a nova senha' : 'Digite a sua senha'}
+                                    autoFocus={isPasswordChangeMode}
+                                    className="w-full pl-10 pr-10 py-3 rounded-lg border border-slate-300 dark:border-neutral-800 bg-slate-50 dark:bg-black text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-neutral-500 outline-none focus:border-[#fcaf17] text-[15px] transition-colors"
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword((prev) => !prev)}
+                                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 dark:text-neutral-500 dark:hover:text-white transition-colors"
+                                    tabIndex="-1"
+                                >
+                                    {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
+                                </button>
+                            </div>
+                        </div>
+
+                        {(isPasswordChangeMode || !isLogin) && (
+                            <div className="space-y-1.5">
+                                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-neutral-400">
+                                    CONFIRMAR SENHA
+                                </label>
+                                <div className="relative">
+                                    <CheckCircle2 className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-neutral-500" size={18} />
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        placeholder="Digite a sua senha novamente"
+                                        className={`w-full pl-10 pr-10 py-3 rounded-lg border bg-slate-50 dark:bg-black text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-neutral-500 outline-none text-[15px] transition-colors ${passwordsMismatch
+                                                ? 'border-red-500 focus:border-red-500'
+                                                : 'border-slate-300 dark:border-neutral-800 focus:border-[#fcaf17]'
+                                            }`}
+                                        required
+                                    />
+                                </div>
+                                {passwordsMismatch && (
+                                    <p className="text-[11px] text-red-500 dark:text-red-400 font-medium">
+                                        As senhas não coincidem
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {isLogin && !isResetting && !isPasswordChangeMode && (
+                    <div className="flex justify-end">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsResetting(true);
+                                clearFeedback();
+                            }}
+                            className="text-xs font-semibold text-amber-600 dark:text-[#fcaf17] hover:underline"
+                        >
+                            Esqueceu a senha?
+                        </button>
+                    </div>
+                )}
+
+                {error && (
+                    <div className="p-3.5 rounded-lg border flex items-start gap-2 text-sm bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400 font-medium">
+                        <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                        <span className="whitespace-pre-line">{error}</span>
+                    </div>
+                )}
+                {successMsg && (
+                    <div className="p-3.5 rounded-lg border flex items-center gap-2 text-sm bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-medium">
+                        <CheckCircle2 size={16} className="shrink-0" />
+                        <span>{successMsg}</span>
+                    </div>
+                )}
+
+                <button
+                    type="submit"
+                    disabled={loading || googleLoading}
+                    className="w-full bg-[#fcaf17] hover:bg-[#e59b0c] active:scale-[0.98] text-black font-black uppercase tracking-wider text-sm py-3.5 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-70 mt-2"
+                >
+                    {loading ? <Loader2 size={20} className="animate-spin" /> : submitLabel}
+                </button>
+            </form>
+
+            {!isResetting && !isPasswordChangeMode && (
+                <div className="mt-5 space-y-4">
+                    <div className="relative flex items-center justify-center">
+                        <div className="w-full border-t border-slate-200 dark:border-neutral-800" />
+                        <span className="px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-neutral-500 shrink-0">
+                            ou
+                        </span>
+                        <div className="w-full border-t border-slate-200 dark:border-neutral-800" />
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={handleGoogleSignIn}
+                        disabled={loading || googleLoading}
+                        className="w-full bg-slate-100 hover:bg-slate-200 dark:bg-neutral-900 dark:hover:bg-neutral-800 active:scale-[0.98] text-slate-900 dark:text-white font-bold py-3.5 px-4 rounded-lg border border-slate-300 dark:border-neutral-700 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
+                    >
+                        {googleLoading ? (
+                            <Loader2 size={20} className="animate-spin" />
+                        ) : (
+                            <>
+                                <GoogleIcon />
+                                <span>Continuar com Google</span>
+                            </>
+                        )}
+                    </button>
+                </div>
+            )}
+
+            {!isPasswordChangeMode && (
+                <div className="mt-7 pt-5 border-t border-slate-200 dark:border-neutral-800 text-center">
+                    {isResetting ? (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsResetting(false);
+                                clearFeedback();
+                            }}
+                            className="text-sm text-slate-500 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-white font-semibold flex items-center justify-center gap-1 mx-auto transition-colors"
+                        >
+                            <ChevronLeft size={16} /> Voltar para o Login
+                        </button>
+                    ) : (
+                        <p className="text-sm text-slate-500 dark:text-neutral-400">
+                            {isLogin ? 'Ainda não tem conta?' : 'Já possui cadastro?'}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsLogin((prev) => !prev);
+                                    clearFeedback();
+                                }}
+                                className="ml-1.5 text-amber-600 dark:text-[#fcaf17] font-bold hover:underline"
+                            >
+                                {isLogin ? 'Criar agora' : 'Fazer Login'}
+                            </button>
+                        </p>
+                    )}
+                </div>
+            )}
+        </>
+    );
+
+    // ------------------------------------------------------------------------
+    // 8. RENDERIZAÇÃO MODO APP (ANDROID / iOS / PWA INSTALADO / ?app=1)
+    //    Pula a Landing Page e abre direto na tela limpa de Login / Cadastro
+    // ------------------------------------------------------------------------
+    if (isAppMode) {
+        return (
+            <div className="h-[100dvh] w-full overflow-y-auto overflow-x-hidden bg-slate-50 text-slate-900 dark:bg-[#0b0b0b] dark:text-white font-sans selection:bg-[#fcaf17] selection:text-black transition-colors duration-300 flex flex-col">
+                {/* Barra superior discreta com toggle de tema Claro/Escuro */}
+                <div className="flex items-center justify-end px-4 sm:px-6 pt-4 pb-1 shrink-0">
+                    <button
+                        type="button"
+                        onClick={toggleTheme}
+                        className="w-10 h-10 rounded-full bg-transparent flex items-center justify-center text-slate-700 hover:text-amber-600 dark:text-amber-400 dark:hover:text-[#fcaf17] transition-colors"
+                        title={isDarkMode ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
+                        aria-label={isDarkMode ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
+                    >
+                        <span className="relative w-5 h-5 flex items-center justify-center">
+                            <Sun
+                                size={19}
+                                className={`absolute transition-all duration-500 ease-in-out ${isDarkMode
+                                        ? 'opacity-100 rotate-0 scale-100'
+                                        : 'opacity-0 rotate-180 scale-0'
+                                    }`}
+                            />
+                            <Moon
+                                size={19}
+                                className={`absolute transition-all duration-500 ease-in-out ${isDarkMode
+                                        ? 'opacity-0 -rotate-180 scale-0'
+                                        : 'opacity-100 rotate-0 scale-100'
+                                    }`}
+                            />
+                        </span>
+                    </button>
+                </div>
+
+                {/* Conteúdo centralizado do Login / Cadastro */}
+                <div className="flex-1 flex flex-col items-center justify-center px-5 pt-2 pb-10">
+                    {/* Identidade da Aplicação */}
+                    <div className="flex flex-col items-center text-center mb-6">
+                        <img
+                            src="/favicon.svg"
+                            alt="FTTH Manager"
+                            className="w-14 h-14 rounded-2xl shadow-lg shadow-black/20 object-contain mb-3"
+                        />
+                        <h1 className="font-brand text-2xl tracking-[0.18em] uppercase text-slate-900 dark:text-white leading-none">
+                            FTTH MANAGER
+                        </h1>
+                        <span className="font-brand text-[11px] tracking-[0.34em] uppercase text-amber-600 dark:text-[#fcaf17] mt-1">
+                            CLOUD
+                        </span>
+                    </div>
+
+                    {/* Card de Autenticação */}
+                    <div className="w-full max-w-md bg-white dark:bg-[#111111] border border-slate-200 dark:border-neutral-800 rounded-2xl shadow-xl dark:shadow-2xl overflow-hidden">
+                        <div className="h-1 w-full bg-[#fcaf17]" />
+                        <div className="p-6 sm:p-8">
+                            {authCardContent}
+                        </div>
+                    </div>
+
+                    {/* Rodapé discreto com versão */}
+                    <p className="mt-6 text-[11px] font-medium text-slate-400 dark:text-neutral-600">
+                        <span className="font-brand tracking-wider uppercase">FTTH Manager Cloud</span> v{VERSAO}
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    // ------------------------------------------------------------------------
+    // 9. RENDERIZAÇÃO MODO WEB — LANDING PAGE + MODAL DE AUTENTICAÇÃO
     // ------------------------------------------------------------------------
     return (
         <div
@@ -1362,274 +1747,7 @@ const AuthScreen = ({ unverifiedUser = null, onEmailVerified = null }) => {
                                                 )}
 
                                                 <div className="p-7 sm:p-9">
-                                                    {isAwaitingEmailVerification ? (
-                                                        <div className="space-y-5 text-center">
-                                                            <div className="w-16 h-16 mx-auto rounded-2xl bg-[#fcaf17]/15 border border-[#fcaf17]/30 flex items-center justify-center text-amber-600 dark:text-[#fcaf17]">
-                                                                <MailCheck size={32} />
-                                                            </div>
-
-                                                            <div className="space-y-2">
-                                                                <h3 className="text-2xl font-black text-slate-900 dark:text-white">
-                                                                    Confirme seu e-mail
-                                                                </h3>
-                                                                <p className="text-sm text-slate-600 dark:text-neutral-400 leading-relaxed">
-                                                                    Enviamos um link de confirmação para:
-                                                                </p>
-                                                                <p className="text-sm font-bold text-amber-700 dark:text-[#fcaf17] break-all bg-slate-100 dark:bg-black/60 px-3 py-2.5 rounded-lg border border-slate-200 dark:border-neutral-800">
-                                                                    {unverifiedUser.email}
-                                                                </p>
-                                                                <p className="text-xs text-slate-500 dark:text-neutral-400 pt-1">
-                                                                    Abra sua caixa de entrada (ou pasta de spam), clique no link de confirmação e depois clique no botão abaixo.
-                                                                </p>
-                                                            </div>
-
-                                                            {error && (
-                                                                <div className="p-3.5 rounded-lg border flex items-start gap-2 text-sm text-left bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400 font-medium">
-                                                                    <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                                                                    <span className="whitespace-pre-line">{error}</span>
-                                                                </div>
-                                                            )}
-                                                            {successMsg && (
-                                                                <div className="p-3.5 rounded-lg border flex items-center gap-2 text-sm text-left bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-medium">
-                                                                    <CheckCircle2 size={16} className="shrink-0" />
-                                                                    <span>{successMsg}</span>
-                                                                </div>
-                                                            )}
-
-                                                            <div className="space-y-3 pt-2">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => checkEmailVerificationStatus(false)}
-                                                                    disabled={checkingVerification || loading}
-                                                                    className="w-full bg-[#fcaf17] hover:bg-[#e59b0c] active:scale-[0.98] text-black font-black py-3.5 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-70"
-                                                                >
-                                                                    {checkingVerification ? (
-                                                                        <Loader2 size={20} className="animate-spin" />
-                                                                    ) : (
-                                                                        <>
-                                                                            <CheckCircle2 size={18} />
-                                                                            <span>Já confirmei meu e-mail</span>
-                                                                        </>
-                                                                    )}
-                                                                </button>
-
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={handleResendVerification}
-                                                                    disabled={loading || resendCooldown > 0}
-                                                                    className="w-full bg-slate-100 hover:bg-slate-200 dark:bg-neutral-900 dark:hover:bg-neutral-800 border border-slate-200 dark:border-neutral-700 text-slate-900 dark:text-white font-semibold py-3 rounded-lg transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50"
-                                                                >
-                                                                    {loading ? (
-                                                                        <Loader2 size={18} className="animate-spin" />
-                                                                    ) : (
-                                                                        <>
-                                                                            <RefreshCw size={16} />
-                                                                            <span>
-                                                                                {resendCooldown > 0
-                                                                                    ? `Reenviar e-mail em ${resendCooldown}s`
-                                                                                    : 'Reenviar e-mail de confirmação'}
-                                                                            </span>
-                                                                        </>
-                                                                    )}
-                                                                </button>
-
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={handleSignOutUnverified}
-                                                                    disabled={loading}
-                                                                    className="w-full text-sm text-slate-500 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-white font-medium py-2 flex items-center justify-center gap-1.5 transition-colors"
-                                                                >
-                                                                    <LogOut size={15} />
-                                                                    <span>Sair / Usar outro e-mail</span>
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <>
-                                                            <div className="mb-7">
-                                                                <span className="font-brand text-xs uppercase tracking-[0.25em] text-amber-600 dark:text-[#fcaf17]">
-                                                                    FTTH MANAGER CLOUD
-                                                                </span>
-                                                                <h3 className="text-2xl font-black text-slate-900 dark:text-white mt-1">
-                                                                    {formTitle}
-                                                                </h3>
-                                                            </div>
-
-                                                            <form onSubmit={isResetting ? handleResetPassword : handleAuth} className="space-y-4">
-                                                                {!isPasswordChangeMode && (
-                                                                    <div className="space-y-1.5">
-                                                                        <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-neutral-400">
-                                                                            E-MAIL
-                                                                        </label>
-                                                                        <div className="relative">
-                                                                            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-neutral-500" size={18} />
-                                                                            <input
-                                                                                type="email"
-                                                                                value={email}
-                                                                                onChange={(e) => setEmail(e.target.value)}
-                                                                                placeholder="Digite o seu e-mail"
-                                                                                autoFocus={!isPasswordChangeMode}
-                                                                                className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 dark:border-neutral-800 bg-slate-50 dark:bg-black text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-neutral-500 outline-none focus:border-[#fcaf17] text-[15px] transition-colors"
-                                                                                required
-                                                                            />
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-
-                                                                {!isResetting && (
-                                                                    <>
-                                                                        <div className="space-y-1.5">
-                                                                            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-neutral-400">
-                                                                                {isPasswordChangeMode ? 'NOVA SENHA' : 'SENHA'}
-                                                                            </label>
-                                                                            <div className="relative">
-                                                                                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-neutral-500" size={18} />
-                                                                                <input
-                                                                                    type={showPassword ? 'text' : 'password'}
-                                                                                    value={password}
-                                                                                    onChange={(e) => setPassword(e.target.value)}
-                                                                                    placeholder={isPasswordChangeMode ? 'Digite a nova senha' : 'Digite a sua senha'}
-                                                                                    autoFocus={isPasswordChangeMode}
-                                                                                    className="w-full pl-10 pr-10 py-3 rounded-lg border border-slate-300 dark:border-neutral-800 bg-slate-50 dark:bg-black text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-neutral-500 outline-none focus:border-[#fcaf17] text-[15px] transition-colors"
-                                                                                    required
-                                                                                />
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={() => setShowPassword((prev) => !prev)}
-                                                                                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 dark:text-neutral-500 dark:hover:text-white transition-colors"
-                                                                                    tabIndex="-1"
-                                                                                >
-                                                                                    {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
-                                                                                </button>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        {(isPasswordChangeMode || !isLogin) && (
-                                                                            <div className="space-y-1.5">
-                                                                                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-neutral-400">
-                                                                                    CONFIRMAR SENHA
-                                                                                </label>
-                                                                                <div className="relative">
-                                                                                    <CheckCircle2 className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-neutral-500" size={18} />
-                                                                                    <input
-                                                                                        type={showPassword ? 'text' : 'password'}
-                                                                                        value={confirmPassword}
-                                                                                        onChange={(e) => setConfirmPassword(e.target.value)}
-                                                                                        placeholder="Digite a sua senha novamente"
-                                                                                        className={`w-full pl-10 pr-10 py-3 rounded-lg border bg-slate-50 dark:bg-black text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-neutral-500 outline-none text-[15px] transition-colors ${passwordsMismatch
-                                                                                                ? 'border-red-500 focus:border-red-500'
-                                                                                                : 'border-slate-300 dark:border-neutral-800 focus:border-[#fcaf17]'
-                                                                                            }`}
-                                                                                        required
-                                                                                    />
-                                                                                </div>
-                                                                                {passwordsMismatch && (
-                                                                                    <p className="text-[11px] text-red-500 dark:text-red-400 font-medium">
-                                                                                        As senhas não coincidem
-                                                                                    </p>
-                                                                                )}
-                                                                            </div>
-                                                                        )}
-                                                                    </>
-                                                                )}
-
-                                                                {isLogin && !isResetting && !isPasswordChangeMode && (
-                                                                    <div className="flex justify-end">
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                setIsResetting(true);
-                                                                                clearFeedback();
-                                                                            }}
-                                                                            className="text-xs font-semibold text-amber-600 dark:text-[#fcaf17] hover:underline"
-                                                                        >
-                                                                            Esqueceu a senha?
-                                                                        </button>
-                                                                    </div>
-                                                                )}
-
-                                                                {error && (
-                                                                    <div className="p-3.5 rounded-lg border flex items-start gap-2 text-sm bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400 font-medium">
-                                                                        <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                                                                        <span className="whitespace-pre-line">{error}</span>
-                                                                    </div>
-                                                                )}
-                                                                {successMsg && (
-                                                                    <div className="p-3.5 rounded-lg border flex items-center gap-2 text-sm bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-medium">
-                                                                        <CheckCircle2 size={16} className="shrink-0" />
-                                                                        <span>{successMsg}</span>
-                                                                    </div>
-                                                                )}
-
-                                                                <button
-                                                                    type="submit"
-                                                                    disabled={loading || googleLoading}
-                                                                    className="w-full bg-[#fcaf17] hover:bg-[#e59b0c] active:scale-[0.98] text-black font-black uppercase tracking-wider text-sm py-3.5 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-70 mt-2"
-                                                                >
-                                                                    {loading ? <Loader2 size={20} className="animate-spin" /> : submitLabel}
-                                                                </button>
-                                                            </form>
-
-                                                            {!isResetting && !isPasswordChangeMode && (
-                                                                <div className="mt-5 space-y-4">
-                                                                    <div className="relative flex items-center justify-center">
-                                                                        <div className="w-full border-t border-slate-200 dark:border-neutral-800" />
-                                                                        <span className="px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-neutral-500 shrink-0">
-                                                                            ou
-                                                                        </span>
-                                                                        <div className="w-full border-t border-slate-200 dark:border-neutral-800" />
-                                                                    </div>
-
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={handleGoogleSignIn}
-                                                                        disabled={loading || googleLoading}
-                                                                        className="w-full bg-slate-100 hover:bg-slate-200 dark:bg-neutral-900 dark:hover:bg-neutral-800 active:scale-[0.98] text-slate-900 dark:text-white font-bold py-3.5 px-4 rounded-lg border border-slate-300 dark:border-neutral-700 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
-                                                                    >
-                                                                        {googleLoading ? (
-                                                                            <Loader2 size={20} className="animate-spin" />
-                                                                        ) : (
-                                                                            <>
-                                                                                <GoogleIcon />
-                                                                                <span>Continuar com Google</span>
-                                                                            </>
-                                                                        )}
-                                                                    </button>
-                                                                </div>
-                                                            )}
-
-                                                            {!isPasswordChangeMode && (
-                                                                <div className="mt-7 pt-5 border-t border-slate-200 dark:border-neutral-800 text-center">
-                                                                    {isResetting ? (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                setIsResetting(false);
-                                                                                clearFeedback();
-                                                                            }}
-                                                                            className="text-sm text-slate-500 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-white font-semibold flex items-center justify-center gap-1 mx-auto transition-colors"
-                                                                        >
-                                                                            <ChevronLeft size={16} /> Voltar para o Login
-                                                                        </button>
-                                                                    ) : (
-                                                                        <p className="text-sm text-slate-500 dark:text-neutral-400">
-                                                                            {isLogin ? 'Ainda não tem conta?' : 'Já possui cadastro?'}
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() => {
-                                                                                    setIsLogin((prev) => !prev);
-                                                                                    clearFeedback();
-                                                                                }}
-                                                                                className="ml-1.5 text-amber-600 dark:text-[#fcaf17] font-bold hover:underline"
-                                                                            >
-                                                                                {isLogin ? 'Criar agora' : 'Fazer Login'}
-                                                                            </button>
-                                                                        </p>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </>
-                                                    )}
+                                                    {authCardContent}
                                                 </div>
                                             </div>
                                         </div>
@@ -1638,4 +1756,4 @@ const AuthScreen = ({ unverifiedUser = null, onEmailVerified = null }) => {
                                 );
 };
 
-                                export default AuthScreen;
+export default AuthScreen;
