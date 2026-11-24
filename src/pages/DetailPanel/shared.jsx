@@ -4,11 +4,11 @@
  * Estilizado integralmente com o Design System centralizado (Light + Dark).
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     Trash2, Activity, ArrowRightLeft, Edit3, X, FileDown,
     ChevronDown, ChevronRight, Layers, Camera, FileText,
-    GripVertical, Route
+    GripVertical, Route, MoreVertical, Info
 } from 'lucide-react';
 
 import { ABNT_COLORS, ITEM_TYPES } from '../../config/constants';
@@ -319,7 +319,9 @@ export const RenameModal = ({ modal, onClose }) => {
 };
 
 // ============================================================================
-// CABEÇALHO UNIFICADO DOS PAINÉIS DE DETALHE (COM DESIGN SYSTEM)
+// CABEÇALHO UNIFICADO DOS PAINÉIS DE DETALHE (RESPONSIVO + DESIGN SYSTEM)
+// - Em telas estreitas, drawer ou quando o nome é longo: agrupa ações em dropdown
+// - Em telas amplas: exibe ícones que expandem o rótulo suavemente no hover
 // ============================================================================
 
 export const DetailHeader = ({
@@ -343,164 +345,398 @@ export const DetailHeader = ({
     const hasNotes = Boolean(item.notes && item.notes.trim().length > 0);
     const hasPhotos = Boolean(item.photos && item.photos.length > 0);
 
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+    const [shouldCollapseToMenu, setShouldCollapseToMenu] = useState(compactActions);
+
+    const headerRowRef = useRef(null);
+    const titleMeasureRef = useRef(null);
+    const menuRef = useRef(null);
+
+    // Detecta automaticamente se há espaço suficiente para os botões sem invadir o nome do item
+    useEffect(() => {
+        if (compactActions) {
+            setShouldCollapseToMenu(true);
+            return;
+        }
+
+        const evaluateLayout = () => {
+            const rowWidth = headerRowRef.current?.clientWidth || 0;
+            const titleNaturalWidth = titleMeasureRef.current?.scrollWidth || 0;
+            const actionCount = showReport ? 6 : 5;
+            // Largura estimada: ícone esquerdo + título real + margem + botões (ícone) + margem para expansão no hover + botão fechar
+            const requiredWidth = 56 + titleNaturalWidth + 32 + actionCount * 44 + 115 + 48;
+            setShouldCollapseToMenu(rowWidth < 640 || rowWidth < requiredWidth);
+        };
+
+        evaluateLayout();
+
+        let observer;
+        if (typeof ResizeObserver !== 'undefined' && headerRowRef.current) {
+            observer = new ResizeObserver(evaluateLayout);
+            observer.observe(headerRowRef.current);
+        }
+        window.addEventListener('resize', evaluateLayout);
+
+        return () => {
+            if (observer) observer.disconnect();
+            window.removeEventListener('resize', evaluateLayout);
+        };
+    }, [compactActions, item?.name, showReport]);
+
+    // Fecha o menu dropdown ao clicar fora ou pressionar ESC
+    useEffect(() => {
+        if (!isMenuOpen) return;
+        const handleClickOutside = (e) => {
+            if (menuRef.current && !menuRef.current.contains(e.target)) {
+                setIsMenuOpen(false);
+            }
+        };
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') setIsMenuOpen(false);
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isMenuOpen]);
+
+    // Fecha menu/modal de informações ao trocar de item
+    useEffect(() => {
+        setIsMenuOpen(false);
+        setIsInfoModalOpen(false);
+    }, [item?.id]);
+
+    const useMenu = compactActions || shouldCollapseToMenu;
+
+    const handleActionFromMenu = (fn) => {
+        setIsMenuOpen(false);
+        fn();
+    };
+
     return (
-        <div
-            className={cn(
-                'shrink-0 bg-[var(--ds-surface-card)] border-b border-[var(--ds-border-default)] transition-all duration-300',
-                isFullscreen ? 'max-h-0 opacity-0 overflow-hidden pointer-events-none border-b-0' : 'max-h-[320px] opacity-100'
-            )}
-        >
-            {/* Faixa superior dourada da identidade visual */}
-            <div className={DS.card.accentBar} />
+        <>
+            <div
+                className={cn(
+                    'shrink-0 bg-[var(--ds-surface-card)] border-b border-[var(--ds-border-default)] transition-all duration-300 relative z-20',
+                    isFullscreen ? 'max-h-0 opacity-0 overflow-hidden pointer-events-none border-b-0' : 'max-h-[320px] opacity-100'
+                )}
+            >
+                {/* Faixa superior dourada da identidade visual */}
+                <div className={DS.card.accentBar} />
 
-            <div className="px-4 sm:px-6 pt-3.5 pb-3 space-y-3">
-                {/* Linha principal: Ícone + Título + Ações */}
-                <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0 group">
-                        <div className="w-9 h-9 rounded-lg bg-[var(--ds-brand-soft-bg)] border border-[var(--ds-brand-soft-border)] flex items-center justify-center text-[var(--ds-text-accent)] shrink-0">
-                            {TypeIcon && <TypeIcon size={ICON_SIZES.md} />}
-                        </div>
+                <div className="px-4 sm:px-6 pt-3.5 pb-3 space-y-3">
+                    {/* Linha principal: Ícone + Título + Ações */}
+                    <div ref={headerRowRef} className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <div className="w-9 h-9 rounded-lg bg-[var(--ds-brand-soft-bg)] border border-[var(--ds-brand-soft-border)] flex items-center justify-center text-[var(--ds-text-accent)] shrink-0">
+                                {TypeIcon && <TypeIcon size={ICON_SIZES.md} />}
+                            </div>
 
-                        <div className="min-w-0">
-                            {typeBadge && (
-                                <span className="block font-brand text-[10px] uppercase tracking-[0.22em] text-[var(--ds-text-accent)] leading-none mb-0.5">
-                                    {typeBadge}
-                                </span>
-                            )}
-                            <div className="flex items-center gap-1.5 min-w-0">
-                                <h2 className="text-base sm:text-lg font-black tracking-tight text-[var(--ds-text-primary)] truncate">
+                            <div className="min-w-0 flex-1 relative">
+                                {typeBadge && (
+                                    <span className="block font-brand text-[10px] uppercase tracking-[0.22em] text-[var(--ds-text-accent)] leading-none mb-0.5 truncate">
+                                        {typeBadge}
+                                    </span>
+                                )}
+                                <h2
+                                    className="text-base sm:text-lg font-black tracking-tight text-[var(--ds-text-primary)] truncate"
+                                    title={item.name}
+                                >
                                     {item.name}
                                 </h2>
-                                <AuditInfo
-                                    createdBy={item.createdBy}
-                                    createdAt={item.createdAt}
-                                    modifiedBy={item.modifiedBy}
-                                    modifiedAt={item.modifiedAt}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => onEditRequest(item.id, item.name)}
-                                    className="p-1.5 rounded-md text-[var(--ds-text-muted)] hover:text-[var(--ds-text-accent)] hover:bg-[var(--ds-surface-subtle)] transition-colors shrink-0"
-                                    title="Renomear"
+                                {/* Medidor invisível para saber a largura real do nome sem truncamento */}
+                                <span
+                                    ref={titleMeasureRef}
+                                    aria-hidden="true"
+                                    className="invisible pointer-events-none fixed whitespace-nowrap text-base sm:text-lg font-black tracking-tight"
                                 >
-                                    <Edit3 size={ICON_SIZES.xs} />
-                                </button>
+                                    {item.name}
+                                </span>
                             </div>
+                        </div>
+
+                        {/* Controles à direita */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                            {useMenu ? (
+                                /* Modo compacto (Celular, Drawer ou título longo): Dropdown com todas as ações */
+                                <div ref={menuRef} className={DS.dropdown.wrapper}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsMenuOpen((prev) => !prev)}
+                                        className={cn(
+                                            DS.button.iconSurface,
+                                            isMenuOpen && 'border border-[var(--ds-brand-primary)] text-[var(--ds-text-accent)]'
+                                        )}
+                                        title="Mais ações"
+                                        aria-label="Mais ações"
+                                        aria-expanded={isMenuOpen}
+                                        aria-haspopup="menu"
+                                    >
+                                        <MoreVertical size={ICON_SIZES.md} />
+                                    </button>
+
+                                    {isMenuOpen && (
+                                        <div className={DS.dropdown.panel} role="menu">
+                                            <button
+                                                type="button"
+                                                role="menuitem"
+                                                onClick={() => handleActionFromMenu(() => setIsInfoModalOpen(true))}
+                                                className={DS.dropdown.item}
+                                            >
+                                                <Info size={ICON_SIZES.sm} className="text-[var(--ds-text-accent)] shrink-0" />
+                                                <span>Informações</span>
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                role="menuitem"
+                                                onClick={() => handleActionFromMenu(() => onEditRequest(item.id, item.name))}
+                                                className={DS.dropdown.item}
+                                            >
+                                                <Edit3 size={ICON_SIZES.sm} className="text-[var(--ds-text-muted)] shrink-0" />
+                                                <span>Renomear</span>
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                role="menuitem"
+                                                onClick={() => handleActionFromMenu(() => onOpenNotes(item))}
+                                                className={cn(DS.dropdown.item, hasNotes && DS.dropdown.itemActive)}
+                                            >
+                                                <FileText size={ICON_SIZES.sm} className="shrink-0" />
+                                                <span>Notas</span>
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                role="menuitem"
+                                                onClick={() => handleActionFromMenu(() => onOpenPhotos(item))}
+                                                className={cn(DS.dropdown.item, hasPhotos && DS.dropdown.itemActive)}
+                                            >
+                                                <Camera size={ICON_SIZES.sm} className="shrink-0" />
+                                                <span>
+                                                    Fotos {item.photos?.length > 0 && `(${item.photos.length})`}
+                                                </span>
+                                            </button>
+
+                                            {showReport && (
+                                                <button
+                                                    type="button"
+                                                    role="menuitem"
+                                                    disabled={isGeneratingPdf}
+                                                    onClick={() => handleActionFromMenu(onDownloadReport)}
+                                                    className={DS.dropdown.item}
+                                                >
+                                                    {isGeneratingPdf ? (
+                                                        <div className="w-4 h-4 border-2 border-[var(--ds-text-primary)] border-t-transparent rounded-full animate-spin shrink-0" />
+                                                    ) : (
+                                                        <FileDown size={ICON_SIZES.sm} className="text-[var(--ds-text-muted)] shrink-0" />
+                                                    )}
+                                                    <span>Relatório</span>
+                                                </button>
+                                            )}
+
+                                            <div className={DS.dropdown.divider} />
+
+                                            <button
+                                                type="button"
+                                                role="menuitem"
+                                                onClick={() =>
+                                                    handleActionFromMenu(() => {
+                                                        onDelete(item.id);
+                                                        onClose();
+                                                    })
+                                                }
+                                                className={DS.dropdown.itemDanger}
+                                            >
+                                                <Trash2 size={ICON_SIZES.sm} className="shrink-0" />
+                                                <span>Excluir</span>
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                /* Modo amplo (Desktop / Tela cheia): Ícones que expandem o rótulo no hover */
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsInfoModalOpen(true)}
+                                        className={cn(DS.button.hoverExpandBase, DS.button.hoverExpandIdle)}
+                                        title="Informações"
+                                        aria-label="Informações"
+                                    >
+                                        <Info size={ICON_SIZES.sm} className="shrink-0" />
+                                        <span className={DS.button.hoverExpandLabel}>Informações</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => onEditRequest(item.id, item.name)}
+                                        className={cn(DS.button.hoverExpandBase, DS.button.hoverExpandIdle)}
+                                        title="Renomear"
+                                        aria-label="Renomear"
+                                    >
+                                        <Edit3 size={ICON_SIZES.sm} className="shrink-0" />
+                                        <span className={DS.button.hoverExpandLabel}>Renomear</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => onOpenNotes(item)}
+                                        className={cn(
+                                            DS.button.hoverExpandBase,
+                                            hasNotes ? DS.button.hoverExpandActive : DS.button.hoverExpandIdle
+                                        )}
+                                        title="Notas"
+                                        aria-label="Notas"
+                                    >
+                                        <FileText size={ICON_SIZES.sm} className="shrink-0" />
+                                        <span className={DS.button.hoverExpandLabel}>Notas</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => onOpenPhotos(item)}
+                                        className={cn(
+                                            DS.button.hoverExpandBase,
+                                            hasPhotos ? DS.button.hoverExpandActive : DS.button.hoverExpandIdle
+                                        )}
+                                        title="Fotos"
+                                        aria-label="Fotos"
+                                    >
+                                        <Camera size={ICON_SIZES.sm} className="shrink-0" />
+                                        <span className={DS.button.hoverExpandLabel}>
+                                            Fotos {item.photos?.length > 0 && `(${item.photos.length})`}
+                                        </span>
+                                    </button>
+
+                                    {showReport && (
+                                        <button
+                                            type="button"
+                                            onClick={onDownloadReport}
+                                            disabled={isGeneratingPdf}
+                                            className={cn(DS.button.hoverExpandBase, DS.button.hoverExpandIdle)}
+                                            title="Relatório PDF"
+                                            aria-label="Relatório"
+                                        >
+                                            {isGeneratingPdf ? (
+                                                <div className="w-4 h-4 border-2 border-[var(--ds-text-primary)] border-t-transparent rounded-full animate-spin shrink-0" />
+                                            ) : (
+                                                <FileDown size={ICON_SIZES.sm} className="shrink-0" />
+                                            )}
+                                            <span className={DS.button.hoverExpandLabel}>Relatório</span>
+                                        </button>
+                                    )}
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            onDelete(item.id);
+                                            onClose();
+                                        }}
+                                        className={cn(DS.button.hoverExpandBase, DS.button.hoverExpandDanger)}
+                                        title="Excluir Item"
+                                        aria-label="Excluir"
+                                    >
+                                        <Trash2 size={ICON_SIZES.sm} className="shrink-0" />
+                                        <span className={DS.button.hoverExpandLabel}>Excluir</span>
+                                    </button>
+                                </>
+                            )}
+
+                            {/* Botão Fechar sempre visível na extrema direita */}
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className={DS.button.iconSurface}
+                                title="Fechar"
+                                aria-label="Fechar"
+                            >
+                                <X size={ICON_SIZES.lg} />
+                            </button>
                         </div>
                     </div>
 
-                    {/* Botões de ação à direita */}
-                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                        <button
-                            type="button"
-                            onClick={() => onOpenNotes(item)}
-                            className={cn(
-                                DS.button.selectableBase,
-                                compactActions ? 'p-2' : 'px-2.5 sm:px-3 py-1.5',
-                                hasNotes ? DS.button.selectableActive : DS.button.selectableIdle
-                            )}
-                            title="Anotações / Observações"
-                        >
-                            <FileText size={ICON_SIZES.xs} />
-                            {!compactActions && <span className="hidden sm:inline">Notas</span>}
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => onOpenPhotos(item)}
-                            className={cn(
-                                DS.button.selectableBase,
-                                compactActions ? 'px-2 py-2' : 'px-2.5 sm:px-3 py-1.5',
-                                hasPhotos ? DS.button.selectableActive : DS.button.selectableIdle
-                            )}
-                            title="Galeria de Fotos"
-                        >
-                            <Camera size={ICON_SIZES.xs} />
-                            {compactActions ? (
-                                item.photos?.length > 0 && <span className="text-[11px]">{item.photos.length}</span>
-                            ) : (
-                                <span className="hidden sm:inline">
-                                    Fotos {item.photos?.length > 0 && `(${item.photos.length})`}
-                                </span>
-                            )}
-                        </button>
-
-                        {showReport && (
+                    {/* Abas de Navegação (Equipamentos / Conexões) */}
+                    {showTabs && setViewMode && (
+                        <div className="grid grid-cols-2 gap-2 pt-1">
                             <button
                                 type="button"
-                                onClick={onDownloadReport}
-                                disabled={isGeneratingPdf}
+                                onClick={() => setViewMode('REPORT')}
                                 className={cn(
                                     DS.button.selectableBase,
-                                    DS.button.selectableIdle,
-                                    'px-2.5 sm:px-3 py-1.5 disabled:opacity-50'
+                                    'py-2',
+                                    viewMode === 'REPORT' ? DS.button.selectableActive : DS.button.selectableIdle
                                 )}
-                                title="Gerar Relatório PDF"
                             >
-                                {isGeneratingPdf ? (
-                                    <div className="w-3.5 h-3.5 border-2 border-[var(--ds-text-primary)] border-t-transparent rounded-full animate-spin" />
-                                ) : (
-                                    <FileDown size={ICON_SIZES.xs} />
-                                )}
-                                <span className="hidden sm:inline">Relatório</span>
+                                <Layers size={ICON_SIZES.sm} />
+                                <span>Equipamentos</span>
                             </button>
-                        )}
+                            <button
+                                type="button"
+                                onClick={() => setViewMode('CONNECTION')}
+                                className={cn(
+                                    DS.button.selectableBase,
+                                    'py-2',
+                                    viewMode === 'CONNECTION' ? DS.button.selectableActive : DS.button.selectableIdle
+                                )}
+                            >
+                                <ArrowRightLeft size={ICON_SIZES.sm} />
+                                <span>Conexões</span>
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
 
-                        <button
-                            type="button"
-                            onClick={() => {
-                                onDelete(item.id);
-                                onClose();
-                            }}
-                            className="w-9 h-9 rounded-lg flex items-center justify-center text-[var(--ds-error-text)] hover:bg-[var(--ds-error-bg)] transition-colors"
-                            title="Excluir Item"
-                        >
-                            <Trash2 size={ICON_SIZES.md} />
-                        </button>
+            {/* Modal de Informações (Auditoria do Item) */}
+            {isInfoModalOpen && (
+                <div
+                    className="fixed inset-0 z-[130] bg-[var(--ds-surface-overlay)] backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) setIsInfoModalOpen(false);
+                    }}
+                >
+                    <div className={cn(DS.modal.container, 'max-w-sm')}>
+                        <div className={DS.card.accentBar} />
+                        <div className="p-5">
+                            <div className="flex items-center justify-between gap-3 mb-4">
+                                <h3 className={cn(DS.text.cardTitle, 'text-base flex items-center gap-2')}>
+                                    <Info size={ICON_SIZES.md} className="text-[var(--ds-text-accent)]" />
+                                    <span>Informações</span>
+                                </h3>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsInfoModalOpen(false)}
+                                    className={DS.button.iconSurface}
+                                    aria-label="Fechar informações"
+                                >
+                                    <X size={ICON_SIZES.sm} />
+                                </button>
+                            </div>
 
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className={DS.button.iconSurface}
-                            title="Fechar"
-                            aria-label="Fechar"
-                        >
-                            <X size={ICON_SIZES.lg} />
-                        </button>
+                            <div className="mb-3 pb-3 border-b border-[var(--ds-border-default)]">
+                                <span className={DS.text.label}>Item</span>
+                                <p className="text-sm font-bold text-[var(--ds-text-primary)] mt-0.5 break-words">
+                                    {item.name}
+                                </p>
+                            </div>
+
+                            <AuditInfo
+                                createdBy={item.createdBy}
+                                createdAt={item.createdAt}
+                                modifiedBy={item.modifiedBy}
+                                modifiedAt={item.modifiedAt}
+                                mode="inline"
+                            />
+                        </div>
                     </div>
                 </div>
-
-                {/* Abas de Navegação (Equipamentos / Conexões) */}
-                {showTabs && setViewMode && (
-                    <div className="grid grid-cols-2 gap-2 pt-1">
-                        <button
-                            type="button"
-                            onClick={() => setViewMode('REPORT')}
-                            className={cn(
-                                DS.button.selectableBase,
-                                'py-2',
-                                viewMode === 'REPORT' ? DS.button.selectableActive : DS.button.selectableIdle
-                            )}
-                        >
-                            <Layers size={ICON_SIZES.sm} />
-                            <span>Equipamentos</span>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setViewMode('CONNECTION')}
-                            className={cn(
-                                DS.button.selectableBase,
-                                'py-2',
-                                viewMode === 'CONNECTION' ? DS.button.selectableActive : DS.button.selectableIdle
-                            )}
-                        >
-                            <ArrowRightLeft size={ICON_SIZES.sm} />
-                            <span>Conexões</span>
-                        </button>
-                    </div>
-                )}
-            </div>
-        </div>
+            )}
+        </>
     );
 };
 

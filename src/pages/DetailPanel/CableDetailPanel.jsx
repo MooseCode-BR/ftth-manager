@@ -43,7 +43,25 @@ const CableDetailPanel = (props) => {
         setExpandedSide(null);
     }, [item?.id]);
 
-    const toggleExpandedSide = (side) => {
+    const isHoverPointer = () =>
+        typeof window !== 'undefined' &&
+        window.matchMedia?.('(hover: hover) and (pointer: fine)')?.matches;
+
+    const handleSideHoverEnter = (side) => {
+        if (isHoverPointer()) {
+            setExpandedSide(side);
+        }
+    };
+
+    const handleSideHoverLeave = () => {
+        if (isHoverPointer()) {
+            setExpandedSide(null);
+        }
+    };
+
+    const handleSideClick = (side) => {
+        // No desktop com mouse, a expansão acontece apenas via hover; no smartphone/touch, via clique
+        if (isHoverPointer()) return;
         setExpandedSide((prev) => (prev === side ? null : side));
     };
 
@@ -79,15 +97,19 @@ const CableDetailPanel = (props) => {
             {/* Área rolável única: Banner da Rota + Lista em Coluna Única das Fibras */}
             <div className="flex-1 overflow-y-auto px-3.5 py-3.5">
                 <div className="w-full space-y-3.5">
-                    {/* Banner da Rota do Cabo (Lado A ↔ Lado B) com expansão direcional animada */}
-                    <div className="p-3 rounded-xl bg-[var(--ds-surface-card)] border border-[var(--ds-border-default)] shadow-sm">
+                    {/* Banner da Rota do Cabo (Lado A ↔ Lado B) com expansão direcional animada (hover no desktop / clique no mobile) */}
+                    <div
+                        onMouseLeave={handleSideHoverLeave}
+                        className="p-3 rounded-xl bg-[var(--ds-surface-card)] border border-[var(--ds-border-default)] shadow-sm"
+                    >
                         <div className="flex items-stretch overflow-hidden">
-                            {/* Lado A — expande da esquerda para a direita ao clicar */}
+                            {/* Lado A — expande da esquerda para a direita */}
                             <button
                                 type="button"
-                                onClick={() => toggleExpandedSide('A')}
+                                onMouseEnter={() => handleSideHoverEnter('A')}
+                                onClick={() => handleSideClick('A')}
                                 aria-expanded={expandedSide === 'A'}
-                                title={expandedSide === 'A' ? 'Clique para recolher' : `Expandir Lado A: ${nameA}`}
+                                title={nameA}
                                 className={cn(
                                     'text-left rounded-lg bg-[var(--ds-surface-subtle)] border border-[var(--ds-border-default)] hover:border-[var(--ds-brand-primary)] transition-all duration-300 ease-in-out overflow-hidden',
                                     expandedSide === 'B'
@@ -124,12 +146,13 @@ const CableDetailPanel = (props) => {
                                 </div>
                             </div>
 
-                            {/* Lado B — expande da direita para a esquerda ao clicar */}
+                            {/* Lado B — expande da direita para a esquerda */}
                             <button
                                 type="button"
-                                onClick={() => toggleExpandedSide('B')}
+                                onMouseEnter={() => handleSideHoverEnter('B')}
+                                onClick={() => handleSideClick('B')}
                                 aria-expanded={expandedSide === 'B'}
-                                title={expandedSide === 'B' ? 'Clique para recolher' : `Expandir Lado B: ${nameB}`}
+                                title={nameB}
                                 className={cn(
                                     'text-right rounded-lg bg-[var(--ds-surface-subtle)] border border-[var(--ds-border-default)] hover:border-[var(--ds-brand-primary)] transition-all duration-300 ease-in-out overflow-hidden',
                                     expandedSide === 'A'

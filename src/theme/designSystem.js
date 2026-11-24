@@ -319,6 +319,41 @@ export const DS = {
         // Botão Flutuante (FAB — Voltar ao topo / Ação flutuante)
         fab:
             'fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full bg-[var(--ds-brand-primary)] hover:bg-[var(--ds-brand-primary-hover)] active:scale-95 text-[var(--ds-brand-on-primary)] shadow-2xl shadow-black/40 flex items-center justify-center transition-all duration-300',
+
+        // Botão de ícone que expande suavemente revelando o rótulo no hover (cabeçalhos e toolbars)
+        hoverExpandBase:
+            'group/btn h-9 px-2.5 rounded-lg border inline-flex items-center justify-center transition-all duration-300 ease-in-out active:scale-95 overflow-hidden shrink-0 disabled:opacity-50 disabled:pointer-events-none',
+        hoverExpandIdle:
+            'bg-[var(--ds-surface-subtle)] border-[var(--ds-border-default)] text-[var(--ds-text-secondary)] hover:border-[var(--ds-brand-primary)] hover:text-[var(--ds-text-accent)]',
+        hoverExpandActive:
+            'bg-[var(--ds-brand-soft-bg)] border-[var(--ds-brand-primary)] text-[var(--ds-text-accent)] shadow-sm',
+        hoverExpandDanger:
+            'bg-[var(--ds-surface-subtle)] border-[var(--ds-border-default)] text-[var(--ds-error-text)] hover:bg-[var(--ds-error-bg)] hover:border-[var(--ds-error-border)]',
+        hoverExpandLabel:
+            'max-w-0 opacity-0 ml-0 overflow-hidden whitespace-nowrap text-xs font-bold transition-all duration-300 ease-in-out group-hover/btn:max-w-[120px] group-hover/btn:opacity-100 group-hover/btn:ml-1.5',
+    },
+
+    // ------------------------------------------------------------------------
+    // D2. MENUS DROPDOWN E DRAWERS LATERAIS
+    // ------------------------------------------------------------------------
+    dropdown: {
+        wrapper: 'relative shrink-0',
+        panel:
+            'absolute right-0 top-full mt-2 w-52 rounded-xl bg-[var(--ds-surface-card)] border border-[var(--ds-border-default)] shadow-2xl overflow-hidden z-[120] py-1 animate-in fade-in slide-in-from-top-2 duration-150',
+        item:
+            'w-full px-3.5 py-2.5 text-left text-xs font-bold text-[var(--ds-text-primary)] hover:bg-[var(--ds-surface-subtle)] flex items-center gap-2.5 transition-colors disabled:opacity-50',
+        itemActive:
+            'text-[var(--ds-text-accent)] bg-[var(--ds-brand-soft-bg)]',
+        itemDanger:
+            'w-full px-3.5 py-2.5 text-left text-xs font-bold text-[var(--ds-error-text)] hover:bg-[var(--ds-error-bg)] flex items-center gap-2.5 transition-colors',
+        divider: 'border-t border-[var(--ds-border-default)] my-1',
+    },
+
+    drawer: {
+        right:
+            'fixed inset-y-0 right-0 z-[100] h-full w-full md:w-[24rem] bg-[var(--ds-surface-page)] md:border-l border-[var(--ds-border-default)] flex flex-col overflow-hidden transition-all duration-300 ease-in-out transform',
+        rightOpen: 'translate-x-0 pointer-events-auto shadow-2xl',
+        rightClosed: 'translate-x-full pointer-events-none shadow-none',
     },
 
     // ------------------------------------------------------------------------
