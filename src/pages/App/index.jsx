@@ -279,6 +279,7 @@ const App = () => {
     // --- ESTADOS DE INTERFACE ---
     const [pendingConn, setPendingConn] = useState(null); //Conexao pendente
     const [detailId, setDetailId] = useState(null);
+    const [cableDrawerId, setCableDrawerId] = useState(null); // Mantém o cabo montado durante a animação de saída pela direita
 
     const [modalConfig, setModalConfig] = useState(null); //Define se o creationModal está trabalhando com nós, cabos ou itens
     const [editModalConfig, setEditModalConfig] = useState(null); //Define se o modal de edição está trabalhando com nós, cabos ou itens
@@ -1424,7 +1425,11 @@ const App = () => {
     // 1. Clique no Fundo do Mapa (Adicionar Nó)
     const handleMapBgClick = (latlng) => {
         if (!latlng) {
-            setDetailId(null);
+            // Mantém o drawer de cabo persistente ao clicar no mapa (fecha apenas pelo botão de fechar)
+            const currentDetailed = detailId ? items.find((i) => i.id === detailId) : null;
+            if (currentDetailed?.type !== 'CABLE') {
+                setDetailId(null);
+            }
             return;
         }
         if (interactionMode === 'ADD_NODE' && nodeTypeToAdd) {
@@ -4431,6 +4436,22 @@ const App = () => {
         return () => clearTimeout(timer);
     }, [user, isLoading]);
 
+    // Sincroniza o ID do drawer lateral de cabo para manter a animação suave de abertura e fechamento (direita <-> esquerda)
+    const detailedItem = detailId ? items.find((i) => i.id === detailId) : null;
+    const isCableDrawerOpen = Boolean(detailedItem && !detailedItem._readOnly && detailedItem.type === 'CABLE');
+
+    useEffect(() => {
+        if (isCableDrawerOpen && detailedItem?.id) {
+            setCableDrawerId(detailedItem.id);
+            return;
+        }
+        if (!cableDrawerId) return;
+        const timer = setTimeout(() => {
+            setCableDrawerId(null);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [isCableDrawerOpen, detailedItem?.id, cableDrawerId]);
+
     // --- 1. TELA DE BOOT INICIAL (ESTILO INSTAGRAM — MODO ESCURO FIXO) ---
     if (authLoading || !splashMinTimeElapsed) {
         return <InitialSplashScreen />;
@@ -4637,15 +4658,18 @@ const App = () => {
                                 setInteractionMode('SELECT');
                             }}
                             isLeftPanelOpen={isProjectManagerOpen}
+                            isRightPanelOpen={isCableDrawerOpen}
 
                         />
                     </div>
                 </div>
 
-                {/* CAMADA DE CONTROLES FLUTUANTES (Empurrada para a direita quando o modal de projetos está aberto no desktop) */}
+                {/* CAMADA DE CONTROLES FLUTUANTES (Empurrada pela esquerda com Projetos e pela direita com Cabo no desktop) */}
                 <div
-                    className={`absolute inset-y-0 right-0 z-[40] pointer-events-none transition-[left] duration-300 ease-in-out ${
+                    className={`absolute inset-y-0 z-[40] pointer-events-none transition-[left,right] duration-300 ease-in-out ${
                         isProjectManagerOpen ? 'left-0 md:left-[23rem]' : 'left-0'
+                    } ${
+                        isCableDrawerOpen ? 'right-0 md:right-[24rem]' : 'right-0'
                     }`}
                 >
 
@@ -4866,13 +4890,58 @@ const App = () => {
                     onManageProjects={() => { setIsProjectManagerOpen(true); }}
                 />
 
-                {/* Painel de Detalhes (Lógica existente) */}
+                {/* Painel Lateral Direito dedicado a CABOS (espelho do ProjectManagerModal: abre da direita para a esquerda) */}
+                <div
+                    className={`fixed inset-y-0 right-0 z-[100] h-full w-full md:w-[24rem] bg-[var(--ds-surface-page)] md:border-l border-[var(--ds-border-default)] flex flex-col overflow-hidden transition-all duration-300 ease-in-out transform ${
+                        isCableDrawerOpen
+                            ? 'translate-x-0 pointer-events-auto shadow-2xl'
+                            : 'translate-x-full pointer-events-none shadow-none'
+                    }`}
+                >
+                    {cableDrawerId && (
+                        <DetailPanel
+                            itemId={cableDrawerId}
+                            items={items}
+                            connections={connections}
+                            portLabels={portLabels}
+                            signalNames={signalNames}
+                            setConnections={setConnections}
+                            setItems={setItems}
+                            close={() => setDetailId(null)}
+                            openAddModal={setModalConfig}
+                            onEditRequest={renameItem}
+                            onGenericEditRequest={openEditModal}
+                            onConfirmRequest={openConfirm}
+                            onAlertRequest={openAlert}
+                            saveConnection={saveConnection}
+                            deleteConnectionDB={deleteConnectionDB}
+                            updateLabelDB={updateLabelDB}
+                            updateSignalDB={updateSignalDB}
+                            saveItem={saveItem}
+                            deleteItemDB={deleteItemDB}
+                            pendingConn={pendingConn}
+                            setPendingConn={setPendingConn}
+                            onInfoRequest={openInfoModal}
+                            onDelete={(id) => deleteItem(id)}
+                            onOpenPhotos={(item) => setPhotoModalData(item)}
+                            onAddSlotRequest={(item, type) => { const nextIndex = type === 'OLT' ? (item.interfaces?.length || 0) : (item.cards?.length || 0); setSlotModalConfig({ item, type, nextIndex }); }}
+                            onSplitCable={splitCable}
+                            onTraceRequest={handleTraceSignal}
+                            onOpenNotes={(item) => setNotesModalConfig({ itemId: item.id, title: `Nota: ${item.name}`, initialNotes: item.notes, onSave: (newText) => { saveItem({ ...item, notes: newText }); setNotesModalConfig(null); }, onClose: () => setNotesModalConfig(null) })}
+                        />
+                    )}
+                </div>
+
+                {/* Painel de Detalhes (Nós: Box, POP, Tower e GenericModal) */}
                 {detailId && (() => {
-                    const detailedItem = items.find(i => i.id === detailId);
                     if (!detailedItem) return null;
                     // GUARD: Bloqueia detail panel para itens de projetos restritos
                     if (detailedItem._readOnly) {
                         setDetailId(null);
+                        return null;
+                    }
+                    // Cabos são renderizados no drawer lateral direito acima
+                    if (detailedItem.type === 'CABLE') {
                         return null;
                     }
                     if (detailedItem.type === 'POST' || detailedItem.type === 'OBJECT' || detailedItem.type === 'AREA') {

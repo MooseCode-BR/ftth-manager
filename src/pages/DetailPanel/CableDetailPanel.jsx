@@ -5,7 +5,7 @@
  * rastreio e status de conexão em cada extremidade.
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeftRight, Activity, Edit3, X } from 'lucide-react';
 
 import { ABNT_COLORS } from '../../config/constants';
@@ -36,6 +36,16 @@ const CableDetailPanel = (props) => {
     } = props;
 
     const state = useDetailPanelState(props);
+    const [expandedSide, setExpandedSide] = useState(null); // null | 'A' | 'B'
+
+    // Reseta a expansão ao trocar de cabo ou reabrir o painel
+    useEffect(() => {
+        setExpandedSide(null);
+    }, [item?.id]);
+
+    const toggleExpandedSide = (side) => {
+        setExpandedSide((prev) => (prev === side ? null : side));
+    };
 
     const nodeA = items.find((i) => i.id === item.fromNode);
     const nodeB = items.find((i) => i.id === item.toNode);
@@ -54,51 +64,93 @@ const CableDetailPanel = (props) => {
                 typeBadge={`Cabo Óptico · ${item.ports} Fibras`}
                 showTabs={false}
                 showReport={false}
+                compactActions={true}
                 onEditRequest={onEditRequest}
                 onOpenNotes={onOpenNotes}
                 onOpenPhotos={onOpenPhotos}
                 onDelete={onDelete}
                 onClose={() => {
+                    setExpandedSide(null);
                     close();
                     setPendingConn(null);
                 }}
             />
 
             {/* Área rolável única: Banner da Rota + Lista em Coluna Única das Fibras */}
-            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5">
-                <div className="max-w-3xl mx-auto space-y-4">
-                    {/* Banner da Rota do Cabo (Lado A ↔ Lado B) */}
-                    <div className="p-3.5 rounded-xl bg-[var(--ds-surface-card)] border border-[var(--ds-border-default)] shadow-sm">
-                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                            <div className="flex-1 min-w-0 px-3.5 py-2.5 rounded-lg bg-[var(--ds-surface-subtle)] border border-[var(--ds-border-default)]">
-                                <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-[var(--ds-text-accent)]">
-                                    Lado A (Origem)
+            <div className="flex-1 overflow-y-auto px-3.5 py-3.5">
+                <div className="w-full space-y-3.5">
+                    {/* Banner da Rota do Cabo (Lado A ↔ Lado B) com expansão direcional animada */}
+                    <div className="p-3 rounded-xl bg-[var(--ds-surface-card)] border border-[var(--ds-border-default)] shadow-sm">
+                        <div className="flex items-stretch overflow-hidden">
+                            {/* Lado A — expande da esquerda para a direita ao clicar */}
+                            <button
+                                type="button"
+                                onClick={() => toggleExpandedSide('A')}
+                                aria-expanded={expandedSide === 'A'}
+                                title={expandedSide === 'A' ? 'Clique para recolher' : `Expandir Lado A: ${nameA}`}
+                                className={cn(
+                                    'text-left rounded-lg bg-[var(--ds-surface-subtle)] border border-[var(--ds-border-default)] hover:border-[var(--ds-brand-primary)] transition-all duration-300 ease-in-out overflow-hidden',
+                                    expandedSide === 'B'
+                                        ? 'flex-[0_0_0%] w-0 min-w-0 px-0 py-0 opacity-0 border-0 pointer-events-none'
+                                        : expandedSide === 'A'
+                                            ? 'flex-1 min-w-0 px-3 py-2 opacity-100 border-[var(--ds-brand-primary)]'
+                                            : 'flex-1 min-w-0 px-2.5 py-2 opacity-100'
+                                )}
+                            >
+                                <span className="block text-[9px] font-black uppercase tracking-[0.18em] text-[var(--ds-text-accent)] whitespace-nowrap">
+                                    Lado A
                                 </span>
                                 <span
-                                    className="block text-sm font-bold text-[var(--ds-text-primary)] truncate mt-0.5"
-                                    title={nameA}
+                                    className={cn(
+                                        'block text-xs sm:text-sm font-bold text-[var(--ds-text-primary)] mt-0.5',
+                                        expandedSide === 'A' ? 'whitespace-normal break-words' : 'truncate'
+                                    )}
                                 >
                                     {nameA}
                                 </span>
-                            </div>
+                            </button>
 
-                            <div className="flex items-center justify-center shrink-0 text-[var(--ds-text-accent)]">
-                                <div className="w-8 h-8 rounded-full bg-[var(--ds-brand-soft-bg)] border border-[var(--ds-brand-soft-border)] flex items-center justify-center">
-                                    <ArrowLeftRight size={ICON_SIZES.xs} />
+                            {/* Ícone central — recolhe suavemente quando um dos lados expande */}
+                            <div
+                                className={cn(
+                                    'flex items-center justify-center shrink-0 text-[var(--ds-text-accent)] transition-all duration-300 ease-in-out overflow-hidden',
+                                    expandedSide !== null
+                                        ? 'w-0 mx-0 opacity-0 scale-0 pointer-events-none'
+                                        : 'w-7 mx-2 opacity-100 scale-100'
+                                )}
+                            >
+                                <div className="w-7 h-7 rounded-full bg-[var(--ds-brand-soft-bg)] border border-[var(--ds-brand-soft-border)] flex items-center justify-center">
+                                    <ArrowLeftRight size={12} />
                                 </div>
                             </div>
 
-                            <div className="flex-1 min-w-0 px-3.5 py-2.5 rounded-lg bg-[var(--ds-surface-subtle)] border border-[var(--ds-border-default)] sm:text-right">
-                                <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-[var(--ds-text-accent)]">
-                                    Lado B (Destino)
+                            {/* Lado B — expande da direita para a esquerda ao clicar */}
+                            <button
+                                type="button"
+                                onClick={() => toggleExpandedSide('B')}
+                                aria-expanded={expandedSide === 'B'}
+                                title={expandedSide === 'B' ? 'Clique para recolher' : `Expandir Lado B: ${nameB}`}
+                                className={cn(
+                                    'text-right rounded-lg bg-[var(--ds-surface-subtle)] border border-[var(--ds-border-default)] hover:border-[var(--ds-brand-primary)] transition-all duration-300 ease-in-out overflow-hidden',
+                                    expandedSide === 'A'
+                                        ? 'flex-[0_0_0%] w-0 min-w-0 px-0 py-0 opacity-0 border-0 pointer-events-none'
+                                        : expandedSide === 'B'
+                                            ? 'flex-1 min-w-0 px-3 py-2 opacity-100 border-[var(--ds-brand-primary)]'
+                                            : 'flex-1 min-w-0 px-2.5 py-2 opacity-100'
+                                )}
+                            >
+                                <span className="block text-[9px] font-black uppercase tracking-[0.18em] text-[var(--ds-text-accent)] whitespace-nowrap">
+                                    Lado B
                                 </span>
                                 <span
-                                    className="block text-sm font-bold text-[var(--ds-text-primary)] truncate mt-0.5"
-                                    title={nameB}
+                                    className={cn(
+                                        'block text-xs sm:text-sm font-bold text-[var(--ds-text-primary)] mt-0.5',
+                                        expandedSide === 'B' ? 'whitespace-normal break-words' : 'truncate'
+                                    )}
                                 >
                                     {nameB}
                                 </span>
-                            </div>
+                            </button>
                         </div>
                     </div>
 

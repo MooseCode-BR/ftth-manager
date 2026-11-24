@@ -2084,7 +2084,7 @@ const EditableArea = memo(({ area, onEdit, onDelete, onOpen, isSelected, onSelec
 const FiberMap = ({
     items, saveItem, isDarkMode, interactionMode, onMapClick, onNodeClick, isPickingMode, flyToCoords,
     allItems, onEdit, onDelete, onOpen, onSplit, onClearSearch, cableStartNodeId, onLocationFound, onAlertRequest, onAreaDrawComplete,
-    previewAreaConfig, activeProjectId, isLeftPanelOpen = false
+    previewAreaConfig, activeProjectId, isLeftPanelOpen = false, isRightPanelOpen = false
 }) => {
 
     // Estado para enviar a posição do clique do menu de desambiguação para dentro do cabo
@@ -2206,7 +2206,7 @@ const FiberMap = ({
     };
 
     return ( // const FiberMap
-        <div className="w-full h-full relative z-0">
+        <div className={`w-full h-full relative z-0 ${isRightPanelOpen ? 'right-panel-open' : ''}`}>
 
             {/* --- MIRA CENTRAL (adição de nodes/clientes por centro) --- */}
             {(interactionMode === 'ADD_NODE' || interactionMode === 'ADD_CLIENT' || interactionMode === 'ADD_OBJECT') && (
@@ -2221,7 +2221,13 @@ const FiberMap = ({
             {/* --- CAIXA FLUTUANTE DA RÉGUA --- */}
             {interactionMode === 'MEASURE' && (
                 <div className={`absolute top-20 -translate-x-1/2 z-[1000] bg-yellow-500 text-white px-4 py-2 rounded-full shadow-lg font-bold text-lg flex items-center gap-2 animate-in slide-in-from-top-4 fade-in transition-[left] duration-300 ease-in-out ${
-                    isLeftPanelOpen ? 'left-1/2 md:left-[calc(50%+11.5rem)]' : 'left-1/2'
+                    isLeftPanelOpen && isRightPanelOpen
+                        ? 'left-1/2 md:left-[calc(50%-0.5rem)]'
+                        : isLeftPanelOpen
+                            ? 'left-1/2 md:left-[calc(50%+11.5rem)]'
+                            : isRightPanelOpen
+                                ? 'left-1/2 md:left-[calc(50%-12rem)]'
+                                : 'left-1/2'
                 }`}>
                     <Ruler size={20} />
                     <span>{formatDist(measureDistance)}</span>

@@ -330,6 +330,7 @@ export const DetailHeader = ({
     setViewMode = null,
     showTabs = true,
     showReport = true,
+    compactActions = false,
     isGeneratingPdf = false,
     onEditRequest,
     onOpenNotes,
@@ -395,13 +396,13 @@ export const DetailHeader = ({
                             onClick={() => onOpenNotes(item)}
                             className={cn(
                                 DS.button.selectableBase,
-                                'px-2.5 sm:px-3 py-1.5',
+                                compactActions ? 'p-2' : 'px-2.5 sm:px-3 py-1.5',
                                 hasNotes ? DS.button.selectableActive : DS.button.selectableIdle
                             )}
                             title="Anotações / Observações"
                         >
                             <FileText size={ICON_SIZES.xs} />
-                            <span className="hidden sm:inline">Notas</span>
+                            {!compactActions && <span className="hidden sm:inline">Notas</span>}
                         </button>
 
                         <button
@@ -409,15 +410,19 @@ export const DetailHeader = ({
                             onClick={() => onOpenPhotos(item)}
                             className={cn(
                                 DS.button.selectableBase,
-                                'px-2.5 sm:px-3 py-1.5',
+                                compactActions ? 'px-2 py-2' : 'px-2.5 sm:px-3 py-1.5',
                                 hasPhotos ? DS.button.selectableActive : DS.button.selectableIdle
                             )}
                             title="Galeria de Fotos"
                         >
                             <Camera size={ICON_SIZES.xs} />
-                            <span className="hidden sm:inline">
-                                Fotos {item.photos?.length > 0 && `(${item.photos.length})`}
-                            </span>
+                            {compactActions ? (
+                                item.photos?.length > 0 && <span className="text-[11px]">{item.photos.length}</span>
+                            ) : (
+                                <span className="hidden sm:inline">
+                                    Fotos {item.photos?.length > 0 && `(${item.photos.length})`}
+                                </span>
+                            )}
                         </button>
 
                         {showReport && (

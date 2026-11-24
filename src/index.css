@@ -257,3 +257,13 @@ button.leaflet-control-custom.locating-active {
 .leaflet-container {
     background: #262626 !important;
 }
+
+/* Empurra os controles nativos do Leaflet à direita quando o painel lateral direito (Cabo) abre no desktop */
+@media (min-width: 768px) {
+  .leaflet-right {
+    transition: right 300ms ease-in-out;
+  }
+  .right-panel-open .leaflet-right {
+    right: 24rem !important;
+  }
+}
