@@ -4893,7 +4893,7 @@ const App = () => {
                         );
                     }
                     return (
-                        <div className="fixed inset-0 bg-white dark:bg-gray-800 z-50 flex flex-col transition-transform overflow-hidden">
+                        <div className="fixed inset-0 bg-[var(--ds-surface-page)] z-50 flex flex-col transition-transform overflow-hidden">
                             <DetailPanel
                                 // onOTDR={handleOTDR}
                                 itemId={detailId}
